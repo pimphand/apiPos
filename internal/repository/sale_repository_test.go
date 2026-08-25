@@ -14,20 +14,19 @@ import (
 	db "apiPos/internal/database/sqlc"
 )
 
-// Helper to create prerequisite data for sales tests
 func createTestStore(t *testing.T, queries *db.Queries) db.Store {
 	t.Helper()
 	ctx := context.Background()
 	store, err := queries.CreateStore(ctx, db.CreateStoreParams{
-		Name: fmt.Sprintf("TestStore_%d", time.Now().UnixNano()),
+		Name:    fmt.Sprintf("TestStore_%d", time.Now().UnixNano()),
 		Address: pgtype.Text{String: "123 Test Street", Valid: true},
-		Phone: pgtype.Text{String: "1234567890", Valid: true},
+		Phone:   pgtype.Text{String: "1234567890", Valid: true},
 	})
 	require.NoError(t, err)
 	return store
 }
 
-func createTestUserForSale(t *testing.T, queries *db.Queries, storeID int64) db.User {
+func createTestUserForSale(t *testing.T, queries *db.Queries, storeID pgtype.UUID) db.User {
 	t.Helper()
 	ctx := context.Background()
 	role, err := queries.CreateRole(ctx, db.CreateRoleParams{
@@ -41,7 +40,7 @@ func createTestUserForSale(t *testing.T, queries *db.Queries, storeID int64) db.
 		PasswordHash: "$2a$10$hashedpassword",
 		FullName:     "Sale User",
 		RoleID:       role.ID,
-		StoreID:      pgtype.Int8{Int64: storeID, Valid: true},
+		StoreID:      storeID,
 	})
 	require.NoError(t, err)
 	return user
@@ -80,10 +79,8 @@ func TestSaleRepository_CreateSale(t *testing.T) {
 			GrandTotal:    pgtype.Numeric{Int: big.NewInt(104500), Valid: true},
 			Status:        "PENDING",
 		})
-
 		require.NoError(t, err)
-		assert.NotZero(t, sale.ID)
-		assert.NotEmpty(t, sale.InvoiceNumber)
+		assert.True(t, sale.ID.Valid)
 		assert.Equal(t, store.ID, sale.StoreID)
 		assert.Equal(t, cashier.ID, sale.CashierID)
 		assert.Equal(t, "PENDING", sale.Status)
@@ -145,7 +142,7 @@ func TestSaleRepository_GetSaleByID(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		_, err := repo.GetSaleByID(ctx, 99999)
+		_, err := repo.GetSaleByID(ctx, zeroUUID())
 		assert.Error(t, err)
 	})
 }
@@ -297,15 +294,15 @@ func TestSaleRepository_CreateSaleItem(t *testing.T) {
 	cashier := createTestUserForSale(t, queries, store.ID)
 	product := createTestProductForSale(t, queries)
 	sale, err := repo.CreateSale(ctx, db.CreateSaleParams{
-			InvoiceNumber: fmt.Sprintf("ITEM-INV-%d", time.Now().UnixNano()),
-			StoreID:       store.ID,
-			CashierID:     cashier.ID,
-			Subtotal:      pgtype.Numeric{Int: big.NewInt(100000), Valid: true},
-			Discount:      pgtype.Numeric{Int: big.NewInt(0), Valid: true},
-			Tax:           pgtype.Numeric{Int: big.NewInt(0), Valid: true},
-			GrandTotal:    pgtype.Numeric{Int: big.NewInt(100000), Valid: true},
-			Status:        "PENDING",
-		})
+		InvoiceNumber: fmt.Sprintf("ITEM-INV-%d", time.Now().UnixNano()),
+		StoreID:       store.ID,
+		CashierID:     cashier.ID,
+		Subtotal:      pgtype.Numeric{Int: big.NewInt(100000), Valid: true},
+		Discount:      pgtype.Numeric{Int: big.NewInt(0), Valid: true},
+		Tax:           pgtype.Numeric{Int: big.NewInt(0), Valid: true},
+		GrandTotal:    pgtype.Numeric{Int: big.NewInt(100000), Valid: true},
+		Status:        "PENDING",
+	})
 	require.NoError(t, err)
 
 	t.Run("success", func(t *testing.T) {
@@ -318,7 +315,7 @@ func TestSaleRepository_CreateSaleItem(t *testing.T) {
 			Subtotal:  pgtype.Numeric{Int: big.NewInt(20000), Valid: true},
 		})
 		require.NoError(t, err)
-		assert.NotZero(t, item.ID)
+		assert.True(t, item.ID.Valid)
 		assert.Equal(t, sale.ID, item.SaleID)
 		assert.Equal(t, product.ID, item.ProductID)
 		assert.Equal(t, int32(2), item.Quantity)
@@ -352,7 +349,6 @@ func TestSaleRepository_DeleteSaleItemsBySaleID(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Create sale item
 	_, err = repo.CreateSaleItem(ctx, db.CreateSaleItemParams{
 		SaleID:    sale.ID,
 		ProductID: product.ID,
@@ -363,11 +359,9 @@ func TestSaleRepository_DeleteSaleItemsBySaleID(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Delete sale items
 	err = repo.DeleteSaleItemsBySaleID(ctx, sale.ID)
 	require.NoError(t, err)
 
-	// Verify items are deleted
 	items, err := repo.GetSaleItemsBySaleID(ctx, sale.ID)
 	require.NoError(t, err)
 	assert.Empty(t, items)
@@ -381,7 +375,6 @@ func TestSaleRepository_ListSales(t *testing.T) {
 	store := createTestStore(t, queries)
 	cashier := createTestUserForSale(t, queries, store.ID)
 
-	// Create multiple sales
 	for i := 0; i < 5; i++ {
 		_, err := repo.CreateSale(ctx, db.CreateSaleParams{
 			InvoiceNumber: fmt.Sprintf("LIST-INV-%d-%d", time.Now().UnixNano(), i),
@@ -398,8 +391,8 @@ func TestSaleRepository_ListSales(t *testing.T) {
 
 	t.Run("list all", func(t *testing.T) {
 		sales, err := repo.ListSales(ctx, db.ListSalesParams{
-			Column1: 0,
-			Column2: 0,
+			Column1: zeroUUID(),
+			Column2: zeroUUID(),
 			Column3: "",
 			Column4: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC),
 			Column5: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC),
@@ -412,8 +405,8 @@ func TestSaleRepository_ListSales(t *testing.T) {
 
 	t.Run("filter by status", func(t *testing.T) {
 		sales, err := repo.ListSales(ctx, db.ListSalesParams{
-			Column1: 0,
-			Column2: 0,
+			Column1: zeroUUID(),
+			Column2: zeroUUID(),
 			Column3: "PAID",
 			Column4: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC),
 			Column5: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC),
@@ -429,8 +422,8 @@ func TestSaleRepository_ListSales(t *testing.T) {
 
 	t.Run("with pagination", func(t *testing.T) {
 		sales, err := repo.ListSales(ctx, db.ListSalesParams{
-			Column1: 0,
-			Column2: 0,
+			Column1: zeroUUID(),
+			Column2: zeroUUID(),
 			Column3: "",
 			Column4: time.Time{},
 			Column5: time.Time{},

@@ -1,0 +1,19 @@
+FROM golang:1.24-alpine AS build
+
+ENV GOTOOLCHAIN=auto
+
+WORKDIR /app
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+RUN go build -o docs-server ./cmd/docs
+
+FROM alpine:3.20.1 AS prod
+WORKDIR /app
+COPY --from=build /app/docs-server /app/docs-server
+COPY --from=build /app/gen /app/gen
+EXPOSE 8080
+CMD ["./docs-server"]

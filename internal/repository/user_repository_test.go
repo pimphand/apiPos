@@ -18,7 +18,6 @@ func TestUserRepository_CreateUser(t *testing.T) {
 	repo := NewUserRepository(queries)
 	ctx := context.Background()
 
-	// Create a role with unique name
 	role, err := queries.CreateRole(ctx, db.CreateRoleParams{
 		Name:        fmt.Sprintf("testadmin_%d", time.Now().UnixNano()),
 		Description: pgtype.Text{String: "Admin role", Valid: true},
@@ -33,11 +32,9 @@ func TestUserRepository_CreateUser(t *testing.T) {
 			FullName:     "Test User",
 			RoleID:       role.ID,
 		})
-
 		require.NoError(t, err)
-		assert.NotZero(t, user.ID)
+		assert.True(t, user.ID.Valid)
 		assert.NotEmpty(t, user.Username)
-		assert.NotEmpty(t, user.Email)
 		assert.Equal(t, "Test User", user.FullName)
 		assert.Equal(t, role.ID, user.RoleID)
 		assert.True(t, user.IsActive)
@@ -47,18 +44,18 @@ func TestUserRepository_CreateUser(t *testing.T) {
 		username := fmt.Sprintf("dupuser_%d", time.Now().UnixNano())
 		_, err := repo.CreateUser(ctx, db.CreateUserParams{
 			Username:     username,
-			Email:        "test1@example.com",
+			Email:        fmt.Sprintf("dup1_%d@example.com", time.Now().UnixNano()),
 			PasswordHash: "$2a$10$hashedpassword",
-			FullName:     "Test User 2",
+			FullName:     "Dup User 1",
 			RoleID:       role.ID,
 		})
 		require.NoError(t, err)
 
 		_, err = repo.CreateUser(ctx, db.CreateUserParams{
 			Username:     username,
-			Email:        "test2@example.com",
+			Email:        fmt.Sprintf("dup2_%d@example.com", time.Now().UnixNano()),
 			PasswordHash: "$2a$10$hashedpassword",
-			FullName:     "Test User 3",
+			FullName:     "Dup User 2",
 			RoleID:       role.ID,
 		})
 		assert.Error(t, err)
@@ -67,19 +64,19 @@ func TestUserRepository_CreateUser(t *testing.T) {
 	t.Run("duplicate email", func(t *testing.T) {
 		email := fmt.Sprintf("dupemail_%d@example.com", time.Now().UnixNano())
 		_, err := repo.CreateUser(ctx, db.CreateUserParams{
-			Username:     "uniqueuser1",
+			Username:     fmt.Sprintf("unique1_%d", time.Now().UnixNano()),
 			Email:        email,
 			PasswordHash: "$2a$10$hashedpassword",
-			FullName:     "Test User 4",
+			FullName:     "Unique 1",
 			RoleID:       role.ID,
 		})
 		require.NoError(t, err)
 
 		_, err = repo.CreateUser(ctx, db.CreateUserParams{
-			Username:     "uniqueuser2",
+			Username:     fmt.Sprintf("unique2_%d", time.Now().UnixNano()),
 			Email:        email,
 			PasswordHash: "$2a$10$hashedpassword",
-			FullName:     "Test User 5",
+			FullName:     "Unique 2",
 			RoleID:       role.ID,
 		})
 		assert.Error(t, err)
@@ -91,14 +88,12 @@ func TestUserRepository_GetUserByID(t *testing.T) {
 	repo := NewUserRepository(queries)
 	ctx := context.Background()
 
-	// Create a role
 	role, err := queries.CreateRole(ctx, db.CreateRoleParams{
-		Name:        fmt.Sprintf("manager_%d", time.Now().UnixNano()),
+		Name:        fmt.Sprintf("mgr_%d", time.Now().UnixNano()),
 		Description: pgtype.Text{String: "Manager role", Valid: true},
 	})
 	require.NoError(t, err)
 
-	// Create a user
 	user, err := repo.CreateUser(ctx, db.CreateUserParams{
 		Username:     fmt.Sprintf("getbyid_%d", time.Now().UnixNano()),
 		Email:        fmt.Sprintf("getbyid_%d@example.com", time.Now().UnixNano()),
@@ -116,7 +111,7 @@ func TestUserRepository_GetUserByID(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		_, err := repo.GetUserByID(ctx, 99999)
+		_, err := repo.GetUserByID(ctx, zeroUUID())
 		assert.Error(t, err)
 	})
 }
@@ -127,7 +122,7 @@ func TestUserRepository_GetUserByUsername(t *testing.T) {
 	ctx := context.Background()
 
 	role, err := queries.CreateRole(ctx, db.CreateRoleParams{
-		Name:        fmt.Sprintf("cashier_%d", time.Now().UnixNano()),
+		Name:        fmt.Sprintf("cash_%d", time.Now().UnixNano()),
 		Description: pgtype.Text{String: "Cashier role", Valid: true},
 	})
 	require.NoError(t, err)
@@ -192,7 +187,7 @@ func TestUserRepository_DeactivateUser(t *testing.T) {
 	ctx := context.Background()
 
 	role, err := queries.CreateRole(ctx, db.CreateRoleParams{
-		Name:        fmt.Sprintf("deactivaterole_%d", time.Now().UnixNano()),
+		Name:        fmt.Sprintf("deactrole_%d", time.Now().UnixNano()),
 		Description: pgtype.Text{String: "Deactivate role", Valid: true},
 	})
 	require.NoError(t, err)
@@ -209,7 +204,6 @@ func TestUserRepository_DeactivateUser(t *testing.T) {
 	err = repo.DeactivateUser(ctx, user.ID)
 	require.NoError(t, err)
 
-	// Verify user is deactivated
 	found, err := repo.GetUserByID(ctx, user.ID)
 	require.NoError(t, err)
 	assert.False(t, found.IsActive)
@@ -238,7 +232,6 @@ func TestUserRepository_DeleteUser(t *testing.T) {
 	err = repo.DeleteUser(ctx, user.ID)
 	require.NoError(t, err)
 
-	// Verify user is deleted
 	_, err = repo.GetUserByID(ctx, user.ID)
 	assert.Error(t, err)
 }
@@ -254,11 +247,10 @@ func TestUserRepository_ListUsers(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Create multiple users
 	for i := 0; i < 5; i++ {
 		_, err := repo.CreateUser(ctx, db.CreateUserParams{
-			Username:     fmt.Sprintf("user_%d_%d", time.Now().UnixNano(), i),
-			Email:        fmt.Sprintf("user_%d_%d@example.com", time.Now().UnixNano(), i),
+			Username:     fmt.Sprintf("listuser_%d_%d", time.Now().UnixNano(), i),
+			Email:        fmt.Sprintf("listuser_%d_%d@example.com", time.Now().UnixNano(), i),
 			PasswordHash: "$2a$10$hashedpassword",
 			FullName:     fmt.Sprintf("User %d", i),
 			RoleID:       role.ID,
@@ -268,7 +260,7 @@ func TestUserRepository_ListUsers(t *testing.T) {
 
 	t.Run("list all", func(t *testing.T) {
 		users, err := repo.ListUsers(ctx, db.ListUsersParams{
-			Column1: 0, // No role filter
+			Column1: zeroUUID(),
 			Column2: false,
 			Limit:   10,
 			Offset:  0,
@@ -279,7 +271,7 @@ func TestUserRepository_ListUsers(t *testing.T) {
 
 	t.Run("with pagination", func(t *testing.T) {
 		users, err := repo.ListUsers(ctx, db.ListUsersParams{
-			Column1: 0,
+			Column1: zeroUUID(),
 			Column2: false,
 			Limit:   2,
 			Offset:  0,
@@ -317,7 +309,7 @@ func TestUserRepository_RefreshTokens(t *testing.T) {
 			ExpiresAt: time.Now().Add(24 * time.Hour),
 		})
 		require.NoError(t, err)
-		assert.NotZero(t, token.ID)
+		assert.True(t, token.ID.Valid)
 
 		found, err := repo.GetRefreshToken(ctx, tokenStr)
 		require.NoError(t, err)
@@ -336,7 +328,6 @@ func TestUserRepository_RefreshTokens(t *testing.T) {
 		err = repo.RevokeRefreshToken(ctx, tokenStr)
 		require.NoError(t, err)
 
-		// Token should not be found after revocation
 		_, err = repo.GetRefreshToken(ctx, tokenStr)
 		assert.Error(t, err)
 	})

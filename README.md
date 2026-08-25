@@ -228,6 +228,37 @@ Environment variables:
 | JWT_ACCESS_TTL | 15m | JWT access token TTL |
 | JWT_REFRESH_TTL | 720h | JWT refresh token TTL |
 
+## API Documentation
+
+### Swagger UI
+
+Run the documentation server:
+
+```bash
+make docs
+```
+
+Then open http://localhost:8080 in your browser.
+
+### gRPC Examples
+
+Visit http://localhost:8080/examples for grpcurl examples.
+
+### REST API (via gRPC-Gateway)
+
+REST endpoints are available through gRPC-Gateway:
+
+```bash
+# Login
+curl -X POST http://localhost:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "admin123"}'
+
+# List users
+curl http://localhost:8080/api/v1/users \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
 ## License
 
 MIT

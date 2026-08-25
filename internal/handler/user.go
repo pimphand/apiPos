@@ -5,6 +5,8 @@ import (
 
 	userv1 "apiPos/gen/user/v1"
 	db "apiPos/internal/database/sqlc"
+	"apiPos/internal/apperror"
+	"apiPos/internal/response"
 	"apiPos/internal/user"
 )
 
@@ -23,7 +25,7 @@ func NewUserHandler(service *user.Service) *UserHandler {
 func (h *UserHandler) CreateUser(ctx context.Context, req *userv1.CreateUserRequest) (*userv1.UserResponse, error) {
 	u, err := h.service.CreateUser(ctx, req.Username, req.Email, req.Password, req.FullName, req.RoleId, req.StoreId)
 	if err != nil {
-		return nil, err
+		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
 
 	return &userv1.UserResponse{
@@ -35,7 +37,7 @@ func (h *UserHandler) CreateUser(ctx context.Context, req *userv1.CreateUserRequ
 func (h *UserHandler) GetUser(ctx context.Context, req *userv1.GetUserRequest) (*userv1.UserResponse, error) {
 	u, err := h.service.GetUser(ctx, req.Id)
 	if err != nil {
-		return nil, err
+		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
 
 	return &userv1.UserResponse{
@@ -47,7 +49,7 @@ func (h *UserHandler) GetUser(ctx context.Context, req *userv1.GetUserRequest) (
 func (h *UserHandler) ListUsers(ctx context.Context, req *userv1.ListUsersRequest) (*userv1.ListUsersResponse, error) {
 	users, total, err := h.service.ListUsers(ctx, req.RoleId, req.IsActive, req.Page, req.PerPage)
 	if err != nil {
-		return nil, err
+		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
 
 	protoUsers := make([]*userv1.User, len(users))
@@ -65,7 +67,7 @@ func (h *UserHandler) ListUsers(ctx context.Context, req *userv1.ListUsersReques
 func (h *UserHandler) UpdateUser(ctx context.Context, req *userv1.UpdateUserRequest) (*userv1.UserResponse, error) {
 	u, err := h.service.UpdateUser(ctx, req.Id, req.Email, req.FullName, req.RoleId, req.StoreId, req.IsActive)
 	if err != nil {
-		return nil, err
+		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
 
 	return &userv1.UserResponse{
@@ -77,12 +79,12 @@ func (h *UserHandler) UpdateUser(ctx context.Context, req *userv1.UpdateUserRequ
 func (h *UserHandler) DeleteUser(ctx context.Context, req *userv1.DeleteUserRequest) (*userv1.DeleteUserResponse, error) {
 	err := h.service.DeleteUser(ctx, req.Id)
 	if err != nil {
-		return nil, err
+		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
 
 	return &userv1.DeleteUserResponse{
 		Success: true,
-		Message: "User deleted successfully",
+		Message: response.MsgUserDeleted,
 	}, nil
 }
 
@@ -90,7 +92,7 @@ func (h *UserHandler) DeleteUser(ctx context.Context, req *userv1.DeleteUserRequ
 func (h *UserHandler) UpdateUserRole(ctx context.Context, req *userv1.UpdateUserRoleRequest) (*userv1.UserResponse, error) {
 	u, err := h.service.UpdateUserRole(ctx, req.Id, req.RoleId)
 	if err != nil {
-		return nil, err
+		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
 
 	return &userv1.UserResponse{
@@ -101,13 +103,13 @@ func (h *UserHandler) UpdateUserRole(ctx context.Context, req *userv1.UpdateUser
 // toProtoUser converts a db.User to proto User
 func toProtoUser(u *db.User, roleName string) *userv1.User {
 	return &userv1.User{
-		Id:       u.ID,
+		Id:       uuidToString(u.ID),
 		Username: u.Username,
 		Email:    u.Email,
 		FullName: u.FullName,
-		RoleId:   u.RoleID,
+		RoleId:   uuidToString(u.RoleID),
 		RoleName: roleName,
-		StoreId:  u.StoreID.Int64,
+		StoreId:  uuidToString(u.StoreID),
 		IsActive: u.IsActive,
 	}
 }

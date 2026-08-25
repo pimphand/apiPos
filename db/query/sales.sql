@@ -11,8 +11,8 @@ SELECT * FROM sales WHERE invoice_number = $1;
 
 -- name: ListSales :many
 SELECT * FROM sales
-WHERE ($1::BIGINT = 0 OR store_id = $1)
-  AND ($2::BIGINT = 0 OR cashier_id = $2)
+WHERE ($1::UUID = '00000000-0000-0000-0000-000000000000'::UUID OR store_id = $1)
+  AND ($2::UUID = '00000000-0000-0000-0000-000000000000'::UUID OR cashier_id = $2)
   AND ($3::VARCHAR = '' OR status = $3)
   AND ($4::TIMESTAMPTZ = '1970-01-01' OR created_at >= $4)
   AND ($5::TIMESTAMPTZ = '1970-01-01' OR created_at <= $5)

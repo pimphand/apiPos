@@ -60,7 +60,7 @@ func TestCustomerRepository_GetCustomerByID(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		_, err := repo.GetCustomerByID(ctx, 99999)
+		_, err := repo.GetCustomerByID(ctx, zeroUUID())
 		assert.Error(t, err)
 	})
 }

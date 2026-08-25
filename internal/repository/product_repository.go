@@ -22,7 +22,7 @@ func (r *ProductRepositoryImpl) CreateProduct(ctx context.Context, arg db.Create
 	return r.queries.CreateProduct(ctx, arg)
 }
 
-func (r *ProductRepositoryImpl) GetProductByID(ctx context.Context, id int64) (db.Product, error) {
+func (r *ProductRepositoryImpl) GetProductByID(ctx context.Context, id pgtype.UUID) (db.Product, error) {
 	return r.queries.GetProductByID(ctx, id)
 }
 
@@ -58,15 +58,15 @@ func (r *ProductRepositoryImpl) IncreaseProductStock(ctx context.Context, arg db
 	return r.queries.IncreaseProductStock(ctx, arg)
 }
 
-func (r *ProductRepositoryImpl) ActivateProduct(ctx context.Context, id int64) error {
+func (r *ProductRepositoryImpl) ActivateProduct(ctx context.Context, id pgtype.UUID) error {
 	return r.queries.ActivateProduct(ctx, id)
 }
 
-func (r *ProductRepositoryImpl) DeactivateProduct(ctx context.Context, id int64) error {
+func (r *ProductRepositoryImpl) DeactivateProduct(ctx context.Context, id pgtype.UUID) error {
 	return r.queries.DeactivateProduct(ctx, id)
 }
 
-func (r *ProductRepositoryImpl) DeleteProduct(ctx context.Context, id int64) error {
+func (r *ProductRepositoryImpl) DeleteProduct(ctx context.Context, id pgtype.UUID) error {
 	return r.queries.DeleteProduct(ctx, id)
 }
 
@@ -78,6 +78,6 @@ func (r *ProductRepositoryImpl) GetLowStockProducts(ctx context.Context) ([]db.P
 	return r.queries.GetLowStockProducts(ctx)
 }
 
-func (r *ProductRepositoryImpl) GetProductStockForUpdate(ctx context.Context, id int64) (db.GetProductStockForUpdateRow, error) {
+func (r *ProductRepositoryImpl) GetProductStockForUpdate(ctx context.Context, id pgtype.UUID) (db.GetProductStockForUpdateRow, error) {
 	return r.queries.GetProductStockForUpdate(ctx, id)
 }

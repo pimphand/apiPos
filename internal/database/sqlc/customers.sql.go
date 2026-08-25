@@ -67,7 +67,7 @@ SET is_active = false,
 WHERE id = $1
 `
 
-func (q *Queries) DeactivateCustomer(ctx context.Context, id int64) error {
+func (q *Queries) DeactivateCustomer(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, deactivateCustomer, id)
 	return err
 }
@@ -76,7 +76,7 @@ const deleteCustomer = `-- name: DeleteCustomer :exec
 DELETE FROM customers WHERE id = $1
 `
 
-func (q *Queries) DeleteCustomer(ctx context.Context, id int64) error {
+func (q *Queries) DeleteCustomer(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, deleteCustomer, id)
 	return err
 }
@@ -106,7 +106,7 @@ const getCustomerByID = `-- name: GetCustomerByID :one
 SELECT id, code, name, email, phone, address, is_active, created_at, updated_at FROM customers WHERE id = $1
 `
 
-func (q *Queries) GetCustomerByID(ctx context.Context, id int64) (Customer, error) {
+func (q *Queries) GetCustomerByID(ctx context.Context, id pgtype.UUID) (Customer, error) {
 	row := q.db.QueryRow(ctx, getCustomerByID, id)
 	var i Customer
 	err := row.Scan(
@@ -140,13 +140,13 @@ LIMIT $2 OFFSET $3
 `
 
 type GetCustomerPurchaseHistoryParams struct {
-	CustomerID pgtype.Int8 `db:"customer_id" json:"customer_id"`
+	CustomerID pgtype.UUID `db:"customer_id" json:"customer_id"`
 	Limit      int32       `db:"limit" json:"limit"`
 	Offset     int32       `db:"offset" json:"offset"`
 }
 
 type GetCustomerPurchaseHistoryRow struct {
-	ID            int64          `db:"id" json:"id"`
+	ID            pgtype.UUID    `db:"id" json:"id"`
 	InvoiceNumber string         `db:"invoice_number" json:"invoice_number"`
 	Subtotal      pgtype.Numeric `db:"subtotal" json:"subtotal"`
 	Discount      pgtype.Numeric `db:"discount" json:"discount"`
@@ -293,7 +293,7 @@ RETURNING id, code, name, email, phone, address, is_active, created_at, updated_
 `
 
 type UpdateCustomerParams struct {
-	ID       int64       `db:"id" json:"id"`
+	ID       pgtype.UUID `db:"id" json:"id"`
 	Name     string      `db:"name" json:"name"`
 	Email    pgtype.Text `db:"email" json:"email"`
 	Phone    pgtype.Text `db:"phone" json:"phone"`

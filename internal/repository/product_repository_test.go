@@ -30,8 +30,7 @@ func TestProductRepository_CreateProduct(t *testing.T) {
 			Sku:          "SKU001",
 			Barcode:      pgtype.Text{String: "123456789", Valid: true},
 			Name:         "Test Product",
-			Description:  pgtype.Text{String: "Test product description", Valid: true},
-			CategoryID:   pgtype.Int8{Int64: category.ID, Valid: true},
+			Description:  pgtype.Text{String: "Test product description", Valid: true},				CategoryID:   category.ID,
 			CostPrice:    pgtype.Numeric{Int: big.NewInt(5000), Valid: true},
 			SellingPrice: pgtype.Numeric{Int: big.NewInt(10000), Valid: true},
 			Stock:        100,
@@ -81,7 +80,7 @@ func TestProductRepository_GetProductByID(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		_, err := repo.GetProductByID(ctx, 99999)
+		_, err := repo.GetProductByID(ctx, zeroUUID())
 		assert.Error(t, err)
 	})
 }
@@ -338,7 +337,7 @@ func TestProductRepository_ListProducts(t *testing.T) {
 	t.Run("list all", func(t *testing.T) {
 		products, err := repo.ListProducts(ctx, db.ListProductsParams{
 			Column1: false,
-			Column2: 0,
+			Column2: zeroUUID(),
 			Limit:   10,
 			Offset:  0,
 		})
@@ -349,7 +348,7 @@ func TestProductRepository_ListProducts(t *testing.T) {
 	t.Run("with pagination", func(t *testing.T) {
 		products, err := repo.ListProducts(ctx, db.ListProductsParams{
 			Column1: false,
-			Column2: 0,
+			Column2: zeroUUID(),
 			Limit:   2,
 			Offset:  0,
 		})

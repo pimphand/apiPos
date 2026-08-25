@@ -4,8 +4,12 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"apiPos/internal/config"
@@ -14,15 +18,12 @@ import (
 
 // Service represents a service that interacts with a database.
 type Service interface {
-	// Health returns a map of health status information.
+	// Health returns a map of health status.
 	Health() map[string]string
-
 	// Close terminates the database connection.
 	Close() error
-
 	// Pool returns the underlying connection pool.
 	Pool() *pgxpool.Pool
-
 	// Queries returns the sqlc queries instance.
 	Queries() *db.Queries
 }
@@ -54,12 +55,44 @@ func New(cfg *config.Config) Service {
 
 	log.Printf("Connected to database: %s", cfg.DB.Name)
 
+	// Run migrations
+	if err := runMigrations(cfg); err != nil {
+		log.Fatalf("Failed to run migrations: %v", err)
+	}
+
 	queries := db.New(pool)
 
 	return &service{
 		pool:    pool,
 		queries: queries,
 	}
+}
+
+// runMigrations runs database migrations
+func runMigrations(cfg *config.Config) error {
+	// Check if migration directory exists
+	migrationPath := "db/migration"
+	if _, err := os.Stat(migrationPath); os.IsNotExist(err) {
+		log.Println("No migration directory found, skipping migrations")
+		return nil
+	}
+
+	sourceURL := fmt.Sprintf("file://%s", migrationPath)
+	databaseURL := cfg.DB.DSN()
+
+	m, err := migrate.New(sourceURL, databaseURL)
+	if err != nil {
+		return fmt.Errorf("failed to create migrate instance: %w", err)
+	}
+	defer m.Close()
+
+	// Run migrations
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return fmt.Errorf("failed to run migrations: %w", err)
+	}
+
+	log.Println("Database migrations completed successfully")
+	return nil
 }
 
 // Health checks the health of the database connection.

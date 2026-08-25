@@ -41,9 +41,9 @@ RETURNING id, user_id, token, expires_at, is_revoked, created_at
 `
 
 type CreateRefreshTokenParams struct {
-	UserID    int64     `db:"user_id" json:"user_id"`
-	Token     string    `db:"token" json:"token"`
-	ExpiresAt time.Time `db:"expires_at" json:"expires_at"`
+	UserID    pgtype.UUID `db:"user_id" json:"user_id"`
+	Token     string      `db:"token" json:"token"`
+	ExpiresAt time.Time   `db:"expires_at" json:"expires_at"`
 }
 
 func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (RefreshToken, error) {
@@ -95,8 +95,8 @@ type CreateUserParams struct {
 	Email        string      `db:"email" json:"email"`
 	PasswordHash string      `db:"password_hash" json:"password_hash"`
 	FullName     string      `db:"full_name" json:"full_name"`
-	RoleID       int64       `db:"role_id" json:"role_id"`
-	StoreID      pgtype.Int8 `db:"store_id" json:"store_id"`
+	RoleID       pgtype.UUID `db:"role_id" json:"role_id"`
+	StoreID      pgtype.UUID `db:"store_id" json:"store_id"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
@@ -132,7 +132,7 @@ SET is_active = false,
 WHERE id = $1
 `
 
-func (q *Queries) DeactivateUser(ctx context.Context, id int64) error {
+func (q *Queries) DeactivateUser(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, deactivateUser, id)
 	return err
 }
@@ -151,7 +151,7 @@ const deleteUser = `-- name: DeleteUser :exec
 DELETE FROM users WHERE id = $1
 `
 
-func (q *Queries) DeleteUser(ctx context.Context, id int64) error {
+func (q *Queries) DeleteUser(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, deleteUser, id)
 	return err
 }
@@ -178,7 +178,7 @@ const getRoleByID = `-- name: GetRoleByID :one
 SELECT id, name, description, created_at, updated_at FROM roles WHERE id = $1
 `
 
-func (q *Queries) GetRoleByID(ctx context.Context, id int64) (Role, error) {
+func (q *Queries) GetRoleByID(ctx context.Context, id pgtype.UUID) (Role, error) {
 	row := q.db.QueryRow(ctx, getRoleByID, id)
 	var i Role
 	err := row.Scan(
@@ -218,7 +218,7 @@ const getUserByID = `-- name: GetUserByID :one
 SELECT id, username, email, password_hash, full_name, role_id, store_id, is_active, last_login, created_at, updated_at FROM users WHERE id = $1
 `
 
-func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
+func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error) {
 	row := q.db.QueryRow(ctx, getUserByID, id)
 	var i User
 	err := row.Scan(
@@ -261,7 +261,7 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 }
 
 const listRoles = `-- name: ListRoles :many
-SELECT id, name, description, created_at, updated_at FROM roles ORDER BY id
+SELECT id, name, description, created_at, updated_at FROM roles ORDER BY name
 `
 
 func (q *Queries) ListRoles(ctx context.Context) ([]Role, error) {
@@ -292,17 +292,17 @@ func (q *Queries) ListRoles(ctx context.Context) ([]Role, error) {
 
 const listUsers = `-- name: ListUsers :many
 SELECT id, username, email, password_hash, full_name, role_id, store_id, is_active, last_login, created_at, updated_at FROM users
-WHERE ($1::BIGINT = 0 OR role_id = $1)
+WHERE ($1::UUID = '00000000-0000-0000-0000-000000000000'::UUID OR role_id = $1)
   AND ($2::BOOLEAN = false OR is_active = $2)
 ORDER BY created_at DESC
 LIMIT $3 OFFSET $4
 `
 
 type ListUsersParams struct {
-	Column1 int64 `db:"column_1" json:"column_1"`
-	Column2 bool  `db:"column_2" json:"column_2"`
-	Limit   int32 `db:"limit" json:"limit"`
-	Offset  int32 `db:"offset" json:"offset"`
+	Column1 pgtype.UUID `db:"column_1" json:"column_1"`
+	Column2 bool        `db:"column_2" json:"column_2"`
+	Limit   int32       `db:"limit" json:"limit"`
+	Offset  int32       `db:"offset" json:"offset"`
 }
 
 func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error) {
@@ -348,7 +348,7 @@ SET is_revoked = true
 WHERE user_id = $1
 `
 
-func (q *Queries) RevokeAllUserRefreshTokens(ctx context.Context, userID int64) error {
+func (q *Queries) RevokeAllUserRefreshTokens(ctx context.Context, userID pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, revokeAllUserRefreshTokens, userID)
 	return err
 }
@@ -377,11 +377,11 @@ RETURNING id, username, email, password_hash, full_name, role_id, store_id, is_a
 `
 
 type UpdateUserParams struct {
-	ID       int64       `db:"id" json:"id"`
+	ID       pgtype.UUID `db:"id" json:"id"`
 	FullName string      `db:"full_name" json:"full_name"`
 	Email    string      `db:"email" json:"email"`
-	RoleID   int64       `db:"role_id" json:"role_id"`
-	StoreID  pgtype.Int8 `db:"store_id" json:"store_id"`
+	RoleID   pgtype.UUID `db:"role_id" json:"role_id"`
+	StoreID  pgtype.UUID `db:"store_id" json:"store_id"`
 	IsActive bool        `db:"is_active" json:"is_active"`
 }
 
@@ -417,7 +417,7 @@ SET last_login = NOW()
 WHERE id = $1
 `
 
-func (q *Queries) UpdateUserLastLogin(ctx context.Context, id int64) error {
+func (q *Queries) UpdateUserLastLogin(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, updateUserLastLogin, id)
 	return err
 }
@@ -430,8 +430,8 @@ WHERE id = $1
 `
 
 type UpdateUserPasswordParams struct {
-	ID           int64  `db:"id" json:"id"`
-	PasswordHash string `db:"password_hash" json:"password_hash"`
+	ID           pgtype.UUID `db:"id" json:"id"`
+	PasswordHash string      `db:"password_hash" json:"password_hash"`
 }
 
 func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error {

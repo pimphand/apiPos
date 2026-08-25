@@ -31,9 +31,9 @@ RETURNING id, invoice_number, store_id, cashier_id, customer_id, subtotal, disco
 
 type CreateSaleParams struct {
 	InvoiceNumber string         `db:"invoice_number" json:"invoice_number"`
-	StoreID       int64          `db:"store_id" json:"store_id"`
-	CashierID     int64          `db:"cashier_id" json:"cashier_id"`
-	CustomerID    pgtype.Int8    `db:"customer_id" json:"customer_id"`
+	StoreID       pgtype.UUID    `db:"store_id" json:"store_id"`
+	CashierID     pgtype.UUID    `db:"cashier_id" json:"cashier_id"`
+	CustomerID    pgtype.UUID    `db:"customer_id" json:"customer_id"`
 	Subtotal      pgtype.Numeric `db:"subtotal" json:"subtotal"`
 	Discount      pgtype.Numeric `db:"discount" json:"discount"`
 	Tax           pgtype.Numeric `db:"tax" json:"tax"`
@@ -78,8 +78,8 @@ RETURNING id, sale_id, product_id, quantity, unit_price, discount, subtotal, cre
 `
 
 type CreateSaleItemParams struct {
-	SaleID    int64          `db:"sale_id" json:"sale_id"`
-	ProductID int64          `db:"product_id" json:"product_id"`
+	SaleID    pgtype.UUID    `db:"sale_id" json:"sale_id"`
+	ProductID pgtype.UUID    `db:"product_id" json:"product_id"`
 	Quantity  int32          `db:"quantity" json:"quantity"`
 	UnitPrice pgtype.Numeric `db:"unit_price" json:"unit_price"`
 	Discount  pgtype.Numeric `db:"discount" json:"discount"`
@@ -113,7 +113,7 @@ const deleteSale = `-- name: DeleteSale :exec
 DELETE FROM sales WHERE id = $1
 `
 
-func (q *Queries) DeleteSale(ctx context.Context, id int64) error {
+func (q *Queries) DeleteSale(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, deleteSale, id)
 	return err
 }
@@ -122,7 +122,7 @@ const deleteSaleItemsBySaleID = `-- name: DeleteSaleItemsBySaleID :exec
 DELETE FROM sale_items WHERE sale_id = $1
 `
 
-func (q *Queries) DeleteSaleItemsBySaleID(ctx context.Context, saleID int64) error {
+func (q *Queries) DeleteSaleItemsBySaleID(ctx context.Context, saleID pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, deleteSaleItemsBySaleID, saleID)
 	return err
 }
@@ -227,7 +227,7 @@ const getSaleByID = `-- name: GetSaleByID :one
 SELECT id, invoice_number, store_id, cashier_id, customer_id, subtotal, discount, tax, grand_total, status, created_at, updated_at FROM sales WHERE id = $1
 `
 
-func (q *Queries) GetSaleByID(ctx context.Context, id int64) (Sale, error) {
+func (q *Queries) GetSaleByID(ctx context.Context, id pgtype.UUID) (Sale, error) {
 	row := q.db.QueryRow(ctx, getSaleByID, id)
 	var i Sale
 	err := row.Scan(
@@ -275,7 +275,7 @@ const getSaleItemsBySaleID = `-- name: GetSaleItemsBySaleID :many
 SELECT id, sale_id, product_id, quantity, unit_price, discount, subtotal, created_at FROM sale_items WHERE sale_id = $1
 `
 
-func (q *Queries) GetSaleItemsBySaleID(ctx context.Context, saleID int64) ([]SaleItem, error) {
+func (q *Queries) GetSaleItemsBySaleID(ctx context.Context, saleID pgtype.UUID) ([]SaleItem, error) {
 	rows, err := q.db.Query(ctx, getSaleItemsBySaleID, saleID)
 	if err != nil {
 		return nil, err
@@ -325,10 +325,10 @@ type GetSalesByCashierParams struct {
 }
 
 type GetSalesByCashierRow struct {
-	CashierID         int64  `db:"cashier_id" json:"cashier_id"`
-	CashierName       string `db:"cashier_name" json:"cashier_name"`
-	TotalTransactions int64  `db:"total_transactions" json:"total_transactions"`
-	TotalAmount       int64  `db:"total_amount" json:"total_amount"`
+	CashierID         pgtype.UUID `db:"cashier_id" json:"cashier_id"`
+	CashierName       string      `db:"cashier_name" json:"cashier_name"`
+	TotalTransactions int64       `db:"total_transactions" json:"total_transactions"`
+	TotalAmount       int64       `db:"total_amount" json:"total_amount"`
 }
 
 func (q *Queries) GetSalesByCashier(ctx context.Context, arg GetSalesByCashierParams) ([]GetSalesByCashierRow, error) {
@@ -379,10 +379,10 @@ type GetSalesByCategoryParams struct {
 }
 
 type GetSalesByCategoryRow struct {
-	CategoryID    int64  `db:"category_id" json:"category_id"`
-	CategoryName  string `db:"category_name" json:"category_name"`
-	TotalQuantity int64  `db:"total_quantity" json:"total_quantity"`
-	TotalAmount   int64  `db:"total_amount" json:"total_amount"`
+	CategoryID    pgtype.UUID `db:"category_id" json:"category_id"`
+	CategoryName  string      `db:"category_name" json:"category_name"`
+	TotalQuantity int64       `db:"total_quantity" json:"total_quantity"`
+	TotalAmount   int64       `db:"total_amount" json:"total_amount"`
 }
 
 func (q *Queries) GetSalesByCategory(ctx context.Context, arg GetSalesByCategoryParams) ([]GetSalesByCategoryRow, error) {
@@ -433,11 +433,11 @@ type GetSalesByProductParams struct {
 }
 
 type GetSalesByProductRow struct {
-	ProductID     int64  `db:"product_id" json:"product_id"`
-	Sku           string `db:"sku" json:"sku"`
-	ProductName   string `db:"product_name" json:"product_name"`
-	TotalQuantity int64  `db:"total_quantity" json:"total_quantity"`
-	TotalAmount   int64  `db:"total_amount" json:"total_amount"`
+	ProductID     pgtype.UUID `db:"product_id" json:"product_id"`
+	Sku           string      `db:"sku" json:"sku"`
+	ProductName   string      `db:"product_name" json:"product_name"`
+	TotalQuantity int64       `db:"total_quantity" json:"total_quantity"`
+	TotalAmount   int64       `db:"total_amount" json:"total_amount"`
 }
 
 func (q *Queries) GetSalesByProduct(ctx context.Context, arg GetSalesByProductParams) ([]GetSalesByProductRow, error) {
@@ -468,8 +468,8 @@ func (q *Queries) GetSalesByProduct(ctx context.Context, arg GetSalesByProductPa
 
 const listSales = `-- name: ListSales :many
 SELECT id, invoice_number, store_id, cashier_id, customer_id, subtotal, discount, tax, grand_total, status, created_at, updated_at FROM sales
-WHERE ($1::BIGINT = 0 OR store_id = $1)
-  AND ($2::BIGINT = 0 OR cashier_id = $2)
+WHERE ($1::UUID = '00000000-0000-0000-0000-000000000000'::UUID OR store_id = $1)
+  AND ($2::UUID = '00000000-0000-0000-0000-000000000000'::UUID OR cashier_id = $2)
   AND ($3::VARCHAR = '' OR status = $3)
   AND ($4::TIMESTAMPTZ = '1970-01-01' OR created_at >= $4)
   AND ($5::TIMESTAMPTZ = '1970-01-01' OR created_at <= $5)
@@ -478,13 +478,13 @@ LIMIT $6 OFFSET $7
 `
 
 type ListSalesParams struct {
-	Column1 int64     `db:"column_1" json:"column_1"`
-	Column2 int64     `db:"column_2" json:"column_2"`
-	Column3 string    `db:"column_3" json:"column_3"`
-	Column4 time.Time `db:"column_4" json:"column_4"`
-	Column5 time.Time `db:"column_5" json:"column_5"`
-	Limit   int32     `db:"limit" json:"limit"`
-	Offset  int32     `db:"offset" json:"offset"`
+	Column1 pgtype.UUID `db:"column_1" json:"column_1"`
+	Column2 pgtype.UUID `db:"column_2" json:"column_2"`
+	Column3 string      `db:"column_3" json:"column_3"`
+	Column4 time.Time   `db:"column_4" json:"column_4"`
+	Column5 time.Time   `db:"column_5" json:"column_5"`
+	Limit   int32       `db:"limit" json:"limit"`
+	Offset  int32       `db:"offset" json:"offset"`
 }
 
 func (q *Queries) ListSales(ctx context.Context, arg ListSalesParams) ([]Sale, error) {
@@ -541,8 +541,8 @@ RETURNING id, invoice_number, store_id, cashier_id, customer_id, subtotal, disco
 `
 
 type UpdateSaleParams struct {
-	ID         int64          `db:"id" json:"id"`
-	CustomerID pgtype.Int8    `db:"customer_id" json:"customer_id"`
+	ID         pgtype.UUID    `db:"id" json:"id"`
+	CustomerID pgtype.UUID    `db:"customer_id" json:"customer_id"`
 	Subtotal   pgtype.Numeric `db:"subtotal" json:"subtotal"`
 	Discount   pgtype.Numeric `db:"discount" json:"discount"`
 	Tax        pgtype.Numeric `db:"tax" json:"tax"`
@@ -584,8 +584,8 @@ WHERE id = $1
 `
 
 type UpdateSaleStatusParams struct {
-	ID     int64  `db:"id" json:"id"`
-	Status string `db:"status" json:"status"`
+	ID     pgtype.UUID `db:"id" json:"id"`
+	Status string      `db:"status" json:"status"`
 }
 
 func (q *Queries) UpdateSaleStatus(ctx context.Context, arg UpdateSaleStatusParams) error {

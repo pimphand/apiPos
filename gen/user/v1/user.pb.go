@@ -7,6 +7,7 @@
 package userv1
 
 import (
+	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -27,8 +28,8 @@ type CreateUserRequest struct {
 	Email         string                 `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
 	Password      string                 `protobuf:"bytes,3,opt,name=password,proto3" json:"password,omitempty"`
 	FullName      string                 `protobuf:"bytes,4,opt,name=full_name,json=fullName,proto3" json:"full_name,omitempty"`
-	RoleId        int64                  `protobuf:"varint,5,opt,name=role_id,json=roleId,proto3" json:"role_id,omitempty"`
-	StoreId       int64                  `protobuf:"varint,6,opt,name=store_id,json=storeId,proto3" json:"store_id,omitempty"`
+	RoleId        string                 `protobuf:"bytes,5,opt,name=role_id,json=roleId,proto3" json:"role_id,omitempty"`
+	StoreId       string                 `protobuf:"bytes,6,opt,name=store_id,json=storeId,proto3" json:"store_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -91,23 +92,23 @@ func (x *CreateUserRequest) GetFullName() string {
 	return ""
 }
 
-func (x *CreateUserRequest) GetRoleId() int64 {
+func (x *CreateUserRequest) GetRoleId() string {
 	if x != nil {
 		return x.RoleId
 	}
-	return 0
+	return ""
 }
 
-func (x *CreateUserRequest) GetStoreId() int64 {
+func (x *CreateUserRequest) GetStoreId() string {
 	if x != nil {
 		return x.StoreId
 	}
-	return 0
+	return ""
 }
 
 type GetUserRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -142,16 +143,16 @@ func (*GetUserRequest) Descriptor() ([]byte, []int) {
 	return file_user_v1_user_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *GetUserRequest) GetId() int64 {
+func (x *GetUserRequest) GetId() string {
 	if x != nil {
 		return x.Id
 	}
-	return 0
+	return ""
 }
 
 type ListUsersRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoleId        int64                  `protobuf:"varint,1,opt,name=role_id,json=roleId,proto3" json:"role_id,omitempty"`
+	RoleId        string                 `protobuf:"bytes,1,opt,name=role_id,json=roleId,proto3" json:"role_id,omitempty"`
 	IsActive      bool                   `protobuf:"varint,2,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
 	Page          int32                  `protobuf:"varint,3,opt,name=page,proto3" json:"page,omitempty"`
 	PerPage       int32                  `protobuf:"varint,4,opt,name=per_page,json=perPage,proto3" json:"per_page,omitempty"`
@@ -189,11 +190,11 @@ func (*ListUsersRequest) Descriptor() ([]byte, []int) {
 	return file_user_v1_user_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *ListUsersRequest) GetRoleId() int64 {
+func (x *ListUsersRequest) GetRoleId() string {
 	if x != nil {
 		return x.RoleId
 	}
-	return 0
+	return ""
 }
 
 func (x *ListUsersRequest) GetIsActive() bool {
@@ -271,11 +272,11 @@ func (x *ListUsersResponse) GetTotalCount() int64 {
 
 type UpdateUserRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Email         string                 `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
 	FullName      string                 `protobuf:"bytes,3,opt,name=full_name,json=fullName,proto3" json:"full_name,omitempty"`
-	RoleId        int64                  `protobuf:"varint,4,opt,name=role_id,json=roleId,proto3" json:"role_id,omitempty"`
-	StoreId       int64                  `protobuf:"varint,5,opt,name=store_id,json=storeId,proto3" json:"store_id,omitempty"`
+	RoleId        string                 `protobuf:"bytes,4,opt,name=role_id,json=roleId,proto3" json:"role_id,omitempty"`
+	StoreId       string                 `protobuf:"bytes,5,opt,name=store_id,json=storeId,proto3" json:"store_id,omitempty"`
 	IsActive      bool                   `protobuf:"varint,6,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -311,11 +312,11 @@ func (*UpdateUserRequest) Descriptor() ([]byte, []int) {
 	return file_user_v1_user_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *UpdateUserRequest) GetId() int64 {
+func (x *UpdateUserRequest) GetId() string {
 	if x != nil {
 		return x.Id
 	}
-	return 0
+	return ""
 }
 
 func (x *UpdateUserRequest) GetEmail() string {
@@ -332,18 +333,18 @@ func (x *UpdateUserRequest) GetFullName() string {
 	return ""
 }
 
-func (x *UpdateUserRequest) GetRoleId() int64 {
+func (x *UpdateUserRequest) GetRoleId() string {
 	if x != nil {
 		return x.RoleId
 	}
-	return 0
+	return ""
 }
 
-func (x *UpdateUserRequest) GetStoreId() int64 {
+func (x *UpdateUserRequest) GetStoreId() string {
 	if x != nil {
 		return x.StoreId
 	}
-	return 0
+	return ""
 }
 
 func (x *UpdateUserRequest) GetIsActive() bool {
@@ -355,7 +356,7 @@ func (x *UpdateUserRequest) GetIsActive() bool {
 
 type DeleteUserRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -390,11 +391,11 @@ func (*DeleteUserRequest) Descriptor() ([]byte, []int) {
 	return file_user_v1_user_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *DeleteUserRequest) GetId() int64 {
+func (x *DeleteUserRequest) GetId() string {
 	if x != nil {
 		return x.Id
 	}
-	return 0
+	return ""
 }
 
 type DeleteUserResponse struct {
@@ -451,8 +452,8 @@ func (x *DeleteUserResponse) GetMessage() string {
 
 type UpdateUserRoleRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	RoleId        int64                  `protobuf:"varint,2,opt,name=role_id,json=roleId,proto3" json:"role_id,omitempty"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	RoleId        string                 `protobuf:"bytes,2,opt,name=role_id,json=roleId,proto3" json:"role_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -487,18 +488,18 @@ func (*UpdateUserRoleRequest) Descriptor() ([]byte, []int) {
 	return file_user_v1_user_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *UpdateUserRoleRequest) GetId() int64 {
+func (x *UpdateUserRoleRequest) GetId() string {
 	if x != nil {
 		return x.Id
 	}
-	return 0
+	return ""
 }
 
-func (x *UpdateUserRoleRequest) GetRoleId() int64 {
+func (x *UpdateUserRoleRequest) GetRoleId() string {
 	if x != nil {
 		return x.RoleId
 	}
-	return 0
+	return ""
 }
 
 type UserResponse struct {
@@ -547,13 +548,13 @@ func (x *UserResponse) GetUser() *User {
 
 type User struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Username      string                 `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
 	Email         string                 `protobuf:"bytes,3,opt,name=email,proto3" json:"email,omitempty"`
 	FullName      string                 `protobuf:"bytes,4,opt,name=full_name,json=fullName,proto3" json:"full_name,omitempty"`
-	RoleId        int64                  `protobuf:"varint,5,opt,name=role_id,json=roleId,proto3" json:"role_id,omitempty"`
+	RoleId        string                 `protobuf:"bytes,5,opt,name=role_id,json=roleId,proto3" json:"role_id,omitempty"`
 	RoleName      string                 `protobuf:"bytes,6,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
-	StoreId       int64                  `protobuf:"varint,7,opt,name=store_id,json=storeId,proto3" json:"store_id,omitempty"`
+	StoreId       string                 `protobuf:"bytes,7,opt,name=store_id,json=storeId,proto3" json:"store_id,omitempty"`
 	IsActive      bool                   `protobuf:"varint,8,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
 	CreatedAt     string                 `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt     string                 `protobuf:"bytes,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
@@ -591,11 +592,11 @@ func (*User) Descriptor() ([]byte, []int) {
 	return file_user_v1_user_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *User) GetId() int64 {
+func (x *User) GetId() string {
 	if x != nil {
 		return x.Id
 	}
-	return 0
+	return ""
 }
 
 func (x *User) GetUsername() string {
@@ -619,11 +620,11 @@ func (x *User) GetFullName() string {
 	return ""
 }
 
-func (x *User) GetRoleId() int64 {
+func (x *User) GetRoleId() string {
 	if x != nil {
 		return x.RoleId
 	}
-	return 0
+	return ""
 }
 
 func (x *User) GetRoleName() string {
@@ -633,11 +634,11 @@ func (x *User) GetRoleName() string {
 	return ""
 }
 
-func (x *User) GetStoreId() int64 {
+func (x *User) GetStoreId() string {
 	if x != nil {
 		return x.StoreId
 	}
-	return 0
+	return ""
 }
 
 func (x *User) GetIsActive() bool {
@@ -663,7 +664,7 @@ func (x *User) GetUpdatedAt() string {
 
 type Role struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -700,11 +701,11 @@ func (*Role) Descriptor() ([]byte, []int) {
 	return file_user_v1_user_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *Role) GetId() int64 {
+func (x *Role) GetId() string {
 	if x != nil {
 		return x.Id
 	}
-	return 0
+	return ""
 }
 
 func (x *Role) GetName() string {
@@ -725,18 +726,18 @@ var File_user_v1_user_proto protoreflect.FileDescriptor
 
 const file_user_v1_user_proto_rawDesc = "" +
 	"\n" +
-	"\x12user/v1/user.proto\x12\auser.v1\"\xb2\x01\n" +
+	"\x12user/v1/user.proto\x12\auser.v1\x1a\x1cgoogle/api/annotations.proto\"\xb2\x01\n" +
 	"\x11CreateUserRequest\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\x12\x14\n" +
 	"\x05email\x18\x02 \x01(\tR\x05email\x12\x1a\n" +
 	"\bpassword\x18\x03 \x01(\tR\bpassword\x12\x1b\n" +
 	"\tfull_name\x18\x04 \x01(\tR\bfullName\x12\x17\n" +
-	"\arole_id\x18\x05 \x01(\x03R\x06roleId\x12\x19\n" +
-	"\bstore_id\x18\x06 \x01(\x03R\astoreId\" \n" +
+	"\arole_id\x18\x05 \x01(\tR\x06roleId\x12\x19\n" +
+	"\bstore_id\x18\x06 \x01(\tR\astoreId\" \n" +
 	"\x0eGetUserRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\"w\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"w\n" +
 	"\x10ListUsersRequest\x12\x17\n" +
-	"\arole_id\x18\x01 \x01(\x03R\x06roleId\x12\x1b\n" +
+	"\arole_id\x18\x01 \x01(\tR\x06roleId\x12\x1b\n" +
 	"\tis_active\x18\x02 \x01(\bR\bisActive\x12\x12\n" +
 	"\x04page\x18\x03 \x01(\x05R\x04page\x12\x19\n" +
 	"\bper_page\x18\x04 \x01(\x05R\aperPage\"Y\n" +
@@ -745,30 +746,30 @@ const file_user_v1_user_proto_rawDesc = "" +
 	"\vtotal_count\x18\x02 \x01(\x03R\n" +
 	"totalCount\"\xa7\x01\n" +
 	"\x11UpdateUserRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x14\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05email\x18\x02 \x01(\tR\x05email\x12\x1b\n" +
 	"\tfull_name\x18\x03 \x01(\tR\bfullName\x12\x17\n" +
-	"\arole_id\x18\x04 \x01(\x03R\x06roleId\x12\x19\n" +
-	"\bstore_id\x18\x05 \x01(\x03R\astoreId\x12\x1b\n" +
+	"\arole_id\x18\x04 \x01(\tR\x06roleId\x12\x19\n" +
+	"\bstore_id\x18\x05 \x01(\tR\astoreId\x12\x1b\n" +
 	"\tis_active\x18\x06 \x01(\bR\bisActive\"#\n" +
 	"\x11DeleteUserRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\"H\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"H\n" +
 	"\x12DeleteUserResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\"@\n" +
 	"\x15UpdateUserRoleRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x17\n" +
-	"\arole_id\x18\x02 \x01(\x03R\x06roleId\"1\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
+	"\arole_id\x18\x02 \x01(\tR\x06roleId\"1\n" +
 	"\fUserResponse\x12!\n" +
 	"\x04user\x18\x01 \x01(\v2\r.user.v1.UserR\x04user\"\x91\x02\n" +
 	"\x04User\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1a\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12\x14\n" +
 	"\x05email\x18\x03 \x01(\tR\x05email\x12\x1b\n" +
 	"\tfull_name\x18\x04 \x01(\tR\bfullName\x12\x17\n" +
-	"\arole_id\x18\x05 \x01(\x03R\x06roleId\x12\x1b\n" +
+	"\arole_id\x18\x05 \x01(\tR\x06roleId\x12\x1b\n" +
 	"\trole_name\x18\x06 \x01(\tR\broleName\x12\x19\n" +
-	"\bstore_id\x18\a \x01(\x03R\astoreId\x12\x1b\n" +
+	"\bstore_id\x18\a \x01(\tR\astoreId\x12\x1b\n" +
 	"\tis_active\x18\b \x01(\bR\bisActive\x12\x1d\n" +
 	"\n" +
 	"created_at\x18\t \x01(\tR\tcreatedAt\x12\x1d\n" +
@@ -776,19 +777,19 @@ const file_user_v1_user_proto_rawDesc = "" +
 	"updated_at\x18\n" +
 	" \x01(\tR\tupdatedAt\"L\n" +
 	"\x04Role\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
-	"\vdescription\x18\x03 \x01(\tR\vdescription2\x9e\x03\n" +
-	"\vUserService\x12?\n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription2\xca\x04\n" +
+	"\vUserService\x12Y\n" +
 	"\n" +
-	"CreateUser\x12\x1a.user.v1.CreateUserRequest\x1a\x15.user.v1.UserResponse\x129\n" +
-	"\aGetUser\x12\x17.user.v1.GetUserRequest\x1a\x15.user.v1.UserResponse\x12B\n" +
-	"\tListUsers\x12\x19.user.v1.ListUsersRequest\x1a\x1a.user.v1.ListUsersResponse\x12?\n" +
+	"CreateUser\x12\x1a.user.v1.CreateUserRequest\x1a\x15.user.v1.UserResponse\"\x18\x82\xd3\xe4\x93\x02\x12:\x01*\"\r/api/v1/users\x12U\n" +
+	"\aGetUser\x12\x17.user.v1.GetUserRequest\x1a\x15.user.v1.UserResponse\"\x1a\x82\xd3\xe4\x93\x02\x14\x12\x12/api/v1/users/{id}\x12Y\n" +
+	"\tListUsers\x12\x19.user.v1.ListUsersRequest\x1a\x1a.user.v1.ListUsersResponse\"\x15\x82\xd3\xe4\x93\x02\x0f\x12\r/api/v1/users\x12^\n" +
 	"\n" +
-	"UpdateUser\x12\x1a.user.v1.UpdateUserRequest\x1a\x15.user.v1.UserResponse\x12E\n" +
+	"UpdateUser\x12\x1a.user.v1.UpdateUserRequest\x1a\x15.user.v1.UserResponse\"\x1d\x82\xd3\xe4\x93\x02\x17:\x01*\x1a\x12/api/v1/users/{id}\x12a\n" +
 	"\n" +
-	"DeleteUser\x12\x1a.user.v1.DeleteUserRequest\x1a\x1b.user.v1.DeleteUserResponse\x12G\n" +
-	"\x0eUpdateUserRole\x12\x1e.user.v1.UpdateUserRoleRequest\x1a\x15.user.v1.UserResponseB\x1bZ\x19apiPos/gen/user/v1;userv1b\x06proto3"
+	"DeleteUser\x12\x1a.user.v1.DeleteUserRequest\x1a\x1b.user.v1.DeleteUserResponse\"\x1a\x82\xd3\xe4\x93\x02\x14*\x12/api/v1/users/{id}\x12k\n" +
+	"\x0eUpdateUserRole\x12\x1e.user.v1.UpdateUserRoleRequest\x1a\x15.user.v1.UserResponse\"\"\x82\xd3\xe4\x93\x02\x1c:\x01*2\x17/api/v1/users/{id}/roleB\x1bZ\x19apiPos/gen/user/v1;userv1b\x06proto3"
 
 var (
 	file_user_v1_user_proto_rawDescOnce sync.Once

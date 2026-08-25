@@ -19,15 +19,15 @@ RETURNING id, product_id, store_id, type, quantity, reference_type, reference_id
 `
 
 type CreateInventoryTransactionParams struct {
-	ProductID     int64       `db:"product_id" json:"product_id"`
-	StoreID       int64       `db:"store_id" json:"store_id"`
+	ProductID     pgtype.UUID `db:"product_id" json:"product_id"`
+	StoreID       pgtype.UUID `db:"store_id" json:"store_id"`
 	Type          string      `db:"type" json:"type"`
 	Quantity      int32       `db:"quantity" json:"quantity"`
 	ReferenceType pgtype.Text `db:"reference_type" json:"reference_type"`
-	ReferenceID   pgtype.Int8 `db:"reference_id" json:"reference_id"`
+	ReferenceID   pgtype.UUID `db:"reference_id" json:"reference_id"`
 	BeforeStock   int32       `db:"before_stock" json:"before_stock"`
 	AfterStock    int32       `db:"after_stock" json:"after_stock"`
-	CreatedBy     int64       `db:"created_by" json:"created_by"`
+	CreatedBy     pgtype.UUID `db:"created_by" json:"created_by"`
 }
 
 func (q *Queries) CreateInventoryTransaction(ctx context.Context, arg CreateInventoryTransactionParams) (InventoryTransaction, error) {
@@ -69,22 +69,22 @@ SELECT
     COUNT(it.id) as total_transactions
 FROM products p
 LEFT JOIN inventory_transactions it ON p.id = it.product_id
-WHERE ($1::BIGINT = 0 OR p.category_id = $1)
+WHERE ($1::UUID = '00000000-0000-0000-0000-000000000000'::UUID OR p.category_id = $1)
   AND p.is_active = true
 GROUP BY p.id, p.sku, p.name, p.stock, p.minimum_stock
 ORDER BY p.name
 `
 
 type GetInventorySummaryRow struct {
-	ProductID         int64  `db:"product_id" json:"product_id"`
-	Sku               string `db:"sku" json:"sku"`
-	ProductName       string `db:"product_name" json:"product_name"`
-	CurrentStock      int32  `db:"current_stock" json:"current_stock"`
-	MinimumStock      int32  `db:"minimum_stock" json:"minimum_stock"`
-	TotalTransactions int64  `db:"total_transactions" json:"total_transactions"`
+	ProductID         pgtype.UUID `db:"product_id" json:"product_id"`
+	Sku               string      `db:"sku" json:"sku"`
+	ProductName       string      `db:"product_name" json:"product_name"`
+	CurrentStock      int32       `db:"current_stock" json:"current_stock"`
+	MinimumStock      int32       `db:"minimum_stock" json:"minimum_stock"`
+	TotalTransactions int64       `db:"total_transactions" json:"total_transactions"`
 }
 
-func (q *Queries) GetInventorySummary(ctx context.Context, dollar_1 int64) ([]GetInventorySummaryRow, error) {
+func (q *Queries) GetInventorySummary(ctx context.Context, dollar_1 pgtype.UUID) ([]GetInventorySummaryRow, error) {
 	rows, err := q.db.Query(ctx, getInventorySummary, dollar_1)
 	if err != nil {
 		return nil, err
@@ -115,7 +115,7 @@ const getInventoryTransactionByID = `-- name: GetInventoryTransactionByID :one
 SELECT id, product_id, store_id, type, quantity, reference_type, reference_id, before_stock, after_stock, created_by, created_at FROM inventory_transactions WHERE id = $1
 `
 
-func (q *Queries) GetInventoryTransactionByID(ctx context.Context, id int64) (InventoryTransaction, error) {
+func (q *Queries) GetInventoryTransactionByID(ctx context.Context, id pgtype.UUID) (InventoryTransaction, error) {
 	row := q.db.QueryRow(ctx, getInventoryTransactionByID, id)
 	var i InventoryTransaction
 	err := row.Scan(
@@ -142,9 +142,9 @@ LIMIT $2 OFFSET $3
 `
 
 type GetInventoryTransactionsByProductParams struct {
-	ProductID int64 `db:"product_id" json:"product_id"`
-	Limit     int32 `db:"limit" json:"limit"`
-	Offset    int32 `db:"offset" json:"offset"`
+	ProductID pgtype.UUID `db:"product_id" json:"product_id"`
+	Limit     int32       `db:"limit" json:"limit"`
+	Offset    int32       `db:"offset" json:"offset"`
 }
 
 func (q *Queries) GetInventoryTransactionsByProduct(ctx context.Context, arg GetInventoryTransactionsByProductParams) ([]InventoryTransaction, error) {
@@ -181,8 +181,8 @@ func (q *Queries) GetInventoryTransactionsByProduct(ctx context.Context, arg Get
 
 const listInventoryTransactions = `-- name: ListInventoryTransactions :many
 SELECT id, product_id, store_id, type, quantity, reference_type, reference_id, before_stock, after_stock, created_by, created_at FROM inventory_transactions
-WHERE ($1::BIGINT = 0 OR product_id = $1)
-  AND ($2::BIGINT = 0 OR store_id = $2)
+WHERE ($1::UUID = '00000000-0000-0000-0000-000000000000'::UUID OR product_id = $1)
+  AND ($2::UUID = '00000000-0000-0000-0000-000000000000'::UUID OR store_id = $2)
   AND ($3::VARCHAR = '' OR type = $3)
   AND ($4::TIMESTAMPTZ = '1970-01-01' OR created_at >= $4)
   AND ($5::TIMESTAMPTZ = '1970-01-01' OR created_at <= $5)
@@ -191,13 +191,13 @@ LIMIT $6 OFFSET $7
 `
 
 type ListInventoryTransactionsParams struct {
-	Column1 int64     `db:"column_1" json:"column_1"`
-	Column2 int64     `db:"column_2" json:"column_2"`
-	Column3 string    `db:"column_3" json:"column_3"`
-	Column4 time.Time `db:"column_4" json:"column_4"`
-	Column5 time.Time `db:"column_5" json:"column_5"`
-	Limit   int32     `db:"limit" json:"limit"`
-	Offset  int32     `db:"offset" json:"offset"`
+	Column1 pgtype.UUID `db:"column_1" json:"column_1"`
+	Column2 pgtype.UUID `db:"column_2" json:"column_2"`
+	Column3 string      `db:"column_3" json:"column_3"`
+	Column4 time.Time   `db:"column_4" json:"column_4"`
+	Column5 time.Time   `db:"column_5" json:"column_5"`
+	Limit   int32       `db:"limit" json:"limit"`
+	Offset  int32       `db:"offset" json:"offset"`
 }
 
 func (q *Queries) ListInventoryTransactions(ctx context.Context, arg ListInventoryTransactionsParams) ([]InventoryTransaction, error) {

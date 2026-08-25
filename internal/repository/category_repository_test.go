@@ -57,7 +57,7 @@ func TestCategoryRepository_GetCategoryByID(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		_, err := repo.GetCategoryByID(ctx, 99999)
+		_, err := repo.GetCategoryByID(ctx, zeroUUID())
 		assert.Error(t, err)
 	})
 }

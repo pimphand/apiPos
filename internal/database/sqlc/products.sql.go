@@ -18,7 +18,7 @@ SET is_active = true,
 WHERE id = $1
 `
 
-func (q *Queries) ActivateProduct(ctx context.Context, id int64) error {
+func (q *Queries) ActivateProduct(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, activateProduct, id)
 	return err
 }
@@ -45,7 +45,7 @@ type CreateProductParams struct {
 	Barcode      pgtype.Text    `db:"barcode" json:"barcode"`
 	Name         string         `db:"name" json:"name"`
 	Description  pgtype.Text    `db:"description" json:"description"`
-	CategoryID   pgtype.Int8    `db:"category_id" json:"category_id"`
+	CategoryID   pgtype.UUID    `db:"category_id" json:"category_id"`
 	CostPrice    pgtype.Numeric `db:"cost_price" json:"cost_price"`
 	SellingPrice pgtype.Numeric `db:"selling_price" json:"selling_price"`
 	Stock        int32          `db:"stock" json:"stock"`
@@ -90,7 +90,7 @@ SET is_active = false,
 WHERE id = $1
 `
 
-func (q *Queries) DeactivateProduct(ctx context.Context, id int64) error {
+func (q *Queries) DeactivateProduct(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, deactivateProduct, id)
 	return err
 }
@@ -103,8 +103,8 @@ WHERE id = $1 AND stock >= $2
 `
 
 type DecreaseProductStockParams struct {
-	ID    int64 `db:"id" json:"id"`
-	Stock int32 `db:"stock" json:"stock"`
+	ID    pgtype.UUID `db:"id" json:"id"`
+	Stock int32       `db:"stock" json:"stock"`
 }
 
 func (q *Queries) DecreaseProductStock(ctx context.Context, arg DecreaseProductStockParams) error {
@@ -116,7 +116,7 @@ const deleteProduct = `-- name: DeleteProduct :exec
 DELETE FROM products WHERE id = $1
 `
 
-func (q *Queries) DeleteProduct(ctx context.Context, id int64) error {
+func (q *Queries) DeleteProduct(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, deleteProduct, id)
 	return err
 }
@@ -190,7 +190,7 @@ const getProductByID = `-- name: GetProductByID :one
 SELECT id, sku, barcode, name, description, category_id, cost_price, selling_price, stock, minimum_stock, is_active, created_at, updated_at FROM products WHERE id = $1
 `
 
-func (q *Queries) GetProductByID(ctx context.Context, id int64) (Product, error) {
+func (q *Queries) GetProductByID(ctx context.Context, id pgtype.UUID) (Product, error) {
 	row := q.db.QueryRow(ctx, getProductByID, id)
 	var i Product
 	err := row.Scan(
@@ -241,11 +241,11 @@ SELECT id, stock FROM products WHERE id = $1 FOR UPDATE
 `
 
 type GetProductStockForUpdateRow struct {
-	ID    int64 `db:"id" json:"id"`
-	Stock int32 `db:"stock" json:"stock"`
+	ID    pgtype.UUID `db:"id" json:"id"`
+	Stock int32       `db:"stock" json:"stock"`
 }
 
-func (q *Queries) GetProductStockForUpdate(ctx context.Context, id int64) (GetProductStockForUpdateRow, error) {
+func (q *Queries) GetProductStockForUpdate(ctx context.Context, id pgtype.UUID) (GetProductStockForUpdateRow, error) {
 	row := q.db.QueryRow(ctx, getProductStockForUpdate, id)
 	var i GetProductStockForUpdateRow
 	err := row.Scan(&i.ID, &i.Stock)
@@ -260,8 +260,8 @@ WHERE id = $1
 `
 
 type IncreaseProductStockParams struct {
-	ID    int64 `db:"id" json:"id"`
-	Stock int32 `db:"stock" json:"stock"`
+	ID    pgtype.UUID `db:"id" json:"id"`
+	Stock int32       `db:"stock" json:"stock"`
 }
 
 func (q *Queries) IncreaseProductStock(ctx context.Context, arg IncreaseProductStockParams) error {
@@ -272,16 +272,16 @@ func (q *Queries) IncreaseProductStock(ctx context.Context, arg IncreaseProductS
 const listProducts = `-- name: ListProducts :many
 SELECT id, sku, barcode, name, description, category_id, cost_price, selling_price, stock, minimum_stock, is_active, created_at, updated_at FROM products
 WHERE ($1::BOOLEAN = false OR is_active = $1)
-  AND ($2::BIGINT = 0 OR category_id = $2)
+  AND ($2::UUID = '00000000-0000-0000-0000-000000000000'::UUID OR category_id = $2)
 ORDER BY created_at DESC
 LIMIT $3 OFFSET $4
 `
 
 type ListProductsParams struct {
-	Column1 bool  `db:"column_1" json:"column_1"`
-	Column2 int64 `db:"column_2" json:"column_2"`
-	Limit   int32 `db:"limit" json:"limit"`
-	Offset  int32 `db:"offset" json:"offset"`
+	Column1 bool        `db:"column_1" json:"column_1"`
+	Column2 pgtype.UUID `db:"column_2" json:"column_2"`
+	Limit   int32       `db:"limit" json:"limit"`
+	Offset  int32       `db:"offset" json:"offset"`
 }
 
 func (q *Queries) ListProducts(ctx context.Context, arg ListProductsParams) ([]Product, error) {
@@ -394,12 +394,12 @@ RETURNING id, sku, barcode, name, description, category_id, cost_price, selling_
 `
 
 type UpdateProductParams struct {
-	ID           int64          `db:"id" json:"id"`
+	ID           pgtype.UUID    `db:"id" json:"id"`
 	Sku          string         `db:"sku" json:"sku"`
 	Barcode      pgtype.Text    `db:"barcode" json:"barcode"`
 	Name         string         `db:"name" json:"name"`
 	Description  pgtype.Text    `db:"description" json:"description"`
-	CategoryID   pgtype.Int8    `db:"category_id" json:"category_id"`
+	CategoryID   pgtype.UUID    `db:"category_id" json:"category_id"`
 	CostPrice    pgtype.Numeric `db:"cost_price" json:"cost_price"`
 	SellingPrice pgtype.Numeric `db:"selling_price" json:"selling_price"`
 	MinimumStock int32          `db:"minimum_stock" json:"minimum_stock"`
@@ -446,8 +446,8 @@ WHERE id = $1
 `
 
 type UpdateProductStockParams struct {
-	ID    int64 `db:"id" json:"id"`
-	Stock int32 `db:"stock" json:"stock"`
+	ID    pgtype.UUID `db:"id" json:"id"`
+	Stock int32       `db:"stock" json:"stock"`
 }
 
 func (q *Queries) UpdateProductStock(ctx context.Context, arg UpdateProductStockParams) error {

@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	db "apiPos/internal/database/sqlc"
 )
 
@@ -20,7 +22,7 @@ func (r *InventoryRepositoryImpl) CreateInventoryTransaction(ctx context.Context
 	return r.queries.CreateInventoryTransaction(ctx, arg)
 }
 
-func (r *InventoryRepositoryImpl) GetInventoryTransactionByID(ctx context.Context, id int64) (db.InventoryTransaction, error) {
+func (r *InventoryRepositoryImpl) GetInventoryTransactionByID(ctx context.Context, id pgtype.UUID) (db.InventoryTransaction, error) {
 	return r.queries.GetInventoryTransactionByID(ctx, id)
 }
 

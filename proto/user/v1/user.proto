@@ -4,13 +4,53 @@ package user.v1;
 
 option go_package = "apiPos/gen/user/v1;userv1";
 
+import "google/api/annotations.proto";
+
 service UserService {
-  rpc CreateUser(CreateUserRequest) returns (UserResponse);
-  rpc GetUser(GetUserRequest) returns (UserResponse);
-  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
-  rpc UpdateUser(UpdateUserRequest) returns (UserResponse);
-  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
-  rpc UpdateUserRole(UpdateUserRoleRequest) returns (UserResponse);
+  // CreateUser creates a new user
+  rpc CreateUser(CreateUserRequest) returns (UserResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/users"
+      body: "*"
+    };
+  }
+
+  // GetUser gets a user by ID
+  rpc GetUser(GetUserRequest) returns (UserResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/users/{id}"
+    };
+  }
+
+  // ListUsers lists users with filters
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/users"
+    };
+  }
+
+  // UpdateUser updates a user
+  rpc UpdateUser(UpdateUserRequest) returns (UserResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/users/{id}"
+      body: "*"
+    };
+  }
+
+  // DeleteUser deletes a user
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse) {
+    option (google.api.http) = {
+      delete: "/api/v1/users/{id}"
+    };
+  }
+
+  // UpdateUserRole updates a user's role
+  rpc UpdateUserRole(UpdateUserRoleRequest) returns (UserResponse) {
+    option (google.api.http) = {
+      patch: "/api/v1/users/{id}/role"
+      body: "*"
+    };
+  }
 }
 
 message CreateUserRequest {
@@ -18,16 +58,16 @@ message CreateUserRequest {
   string email = 2;
   string password = 3;
   string full_name = 4;
-  int64 role_id = 5;
-  int64 store_id = 6;
+  string role_id = 5;
+  string store_id = 6;
 }
 
 message GetUserRequest {
-  int64 id = 1;
+  string id = 1;
 }
 
 message ListUsersRequest {
-  int64 role_id = 1;
+  string role_id = 1;
   bool is_active = 2;
   int32 page = 3;
   int32 per_page = 4;
@@ -39,16 +79,16 @@ message ListUsersResponse {
 }
 
 message UpdateUserRequest {
-  int64 id = 1;
+  string id = 1;
   string email = 2;
   string full_name = 3;
-  int64 role_id = 4;
-  int64 store_id = 5;
+  string role_id = 4;
+  string store_id = 5;
   bool is_active = 6;
 }
 
 message DeleteUserRequest {
-  int64 id = 1;
+  string id = 1;
 }
 
 message DeleteUserResponse {
@@ -57,8 +97,8 @@ message DeleteUserResponse {
 }
 
 message UpdateUserRoleRequest {
-  int64 id = 1;
-  int64 role_id = 2;
+  string id = 1;
+  string role_id = 2;
 }
 
 message UserResponse {
@@ -66,20 +106,20 @@ message UserResponse {
 }
 
 message User {
-  int64 id = 1;
+  string id = 1;
   string username = 2;
   string email = 3;
   string full_name = 4;
-  int64 role_id = 5;
+  string role_id = 5;
   string role_name = 6;
-  int64 store_id = 7;
+  string store_id = 7;
   bool is_active = 8;
   string created_at = 9;
   string updated_at = 10;
 }
 
 message Role {
-  int64 id = 1;
+  string id = 1;
   string name = 2;
   string description = 3;
 }

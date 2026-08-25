@@ -2,38 +2,31 @@ package auth
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 
+	"apiPos/internal/apperror"
 	"apiPos/internal/config"
-)
-
-var (
-	ErrInvalidCredentials = errors.New("invalid credentials")
-	ErrInvalidToken       = errors.New("invalid token")
-	ErrTokenExpired       = errors.New("token expired")
-	ErrUnauthorized       = errors.New("unauthorized")
 )
 
 // Claims represents JWT claims
 type Claims struct {
-	UserID   int64  `json:"user_id"`
+	UserID   string `json:"user_id"`
 	Username string `json:"username"`
 	Email    string `json:"email"`
-	RoleID   int64  `json:"role_id"`
+	RoleID   string `json:"role_id"`
 	RoleName string `json:"role_name"`
-	StoreID  int64  `json:"store_id"`
+	StoreID  string `json:"store_id"`
 	jwt.RegisteredClaims
 }
 
 // TokenPair contains access and refresh tokens
 type TokenPair struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
+	AccessToken  string    `json:"access_token"`
+	RefreshToken string    `json:"refresh_token"`
 	ExpiresAt    time.Time `json:"expires_at"`
 }
 
@@ -63,7 +56,7 @@ func (s *AuthService) CheckPassword(hashedPassword, password string) bool {
 }
 
 // GenerateTokenPair generates access and refresh tokens
-func (s *AuthService) GenerateTokenPair(userID int64, username, email string, roleID int64, roleName string, storeID int64) (*TokenPair, error) {
+func (s *AuthService) GenerateTokenPair(userID, username, email, roleID, roleName, storeID string) (*TokenPair, error) {
 	accessToken, expiresAt, err := s.generateAccessToken(userID, username, email, roleID, roleName, storeID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate access token: %w", err)
@@ -81,7 +74,7 @@ func (s *AuthService) GenerateTokenPair(userID int64, username, email string, ro
 	}, nil
 }
 
-func (s *AuthService) generateAccessToken(userID int64, username, email string, roleID int64, roleName string, storeID int64) (string, time.Time, error) {
+func (s *AuthService) generateAccessToken(userID, username, email, roleID, roleName, storeID string) (string, time.Time, error) {
 	expiresAt := time.Now().Add(s.config.JWT.AccessTTL)
 
 	claims := &Claims{
@@ -107,12 +100,12 @@ func (s *AuthService) generateAccessToken(userID int64, username, email string, 
 	return tokenString, expiresAt, nil
 }
 
-func (s *AuthService) generateRefreshToken(userID int64) (string, error) {
+func (s *AuthService) generateRefreshToken(userID string) (string, error) {
 	claims := jwt.RegisteredClaims{
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(s.config.JWT.RefreshTTL)),
 		IssuedAt:  jwt.NewNumericDate(time.Now()),
 		Issuer:    "pos-app",
-		Subject:   fmt.Sprintf("%d", userID),
+		Subject:   userID,
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -134,21 +127,21 @@ func (s *AuthService) ValidateToken(tokenString string) (*Claims, error) {
 	})
 
 	if err != nil {
-		if errors.Is(err, jwt.ErrTokenExpired) {
-			return nil, ErrTokenExpired
+		if err.Error() == "token is expired" {
+			return nil, apperror.ErrTokenExpired
 		}
-		return nil, ErrInvalidToken
+		return nil, apperror.ErrInvalidToken
 	}
 
 	if claims, ok := token.Claims.(*Claims); ok && token.Valid {
 		return claims, nil
 	}
 
-	return nil, ErrInvalidToken
+	return nil, apperror.ErrInvalidToken
 }
 
 // ValidateRefreshToken validates a refresh token
-func (s *AuthService) ValidateRefreshToken(tokenString string) (int64, error) {
+func (s *AuthService) ValidateRefreshToken(tokenString string) (string, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &jwt.RegisteredClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -157,16 +150,14 @@ func (s *AuthService) ValidateRefreshToken(tokenString string) (int64, error) {
 	})
 
 	if err != nil {
-		return 0, ErrInvalidToken
+		return "", apperror.ErrInvalidToken
 	}
 
 	if claims, ok := token.Claims.(*jwt.RegisteredClaims); ok && token.Valid {
-		var userID int64
-		fmt.Sscanf(claims.Subject, "%d", &userID)
-		return userID, nil
+		return claims.Subject, nil
 	}
 
-	return 0, ErrInvalidToken
+	return "", apperror.ErrInvalidToken
 }
 
 // Context key for claims

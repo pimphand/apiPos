@@ -2,10 +2,24 @@ package handler
 
 import (
 	"context"
+	"fmt"
+
+	"github.com/jackc/pgx/v5/pgtype"
 
 	authv1 "apiPos/gen/auth/v1"
+	"apiPos/internal/apperror"
+	"apiPos/internal/response"
 	"apiPos/internal/user"
 )
+
+// uuidToString converts pgtype.UUID to formatted string
+func uuidToString(u pgtype.UUID) string {
+	if !u.Valid {
+		return ""
+	}
+	b := u.Bytes
+	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
+}
 
 // AuthHandler implements the AuthService gRPC server
 type AuthHandler struct {
@@ -18,11 +32,34 @@ func NewAuthHandler(userService *user.Service) *AuthHandler {
 	return &AuthHandler{userService: userService}
 }
 
+// Register creates a new user account
+func (h *AuthHandler) Register(ctx context.Context, req *authv1.RegisterRequest) (*authv1.RegisterResponse, error) {
+	tokenPair, u, err := h.userService.Register(ctx, req.Username, req.Email, req.Password, req.FullName)
+	if err != nil {
+		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
+	return &authv1.RegisterResponse{
+		AccessToken:  tokenPair.AccessToken,
+		RefreshToken: tokenPair.RefreshToken,
+		ExpiresAt:    tokenPair.ExpiresAt.Unix(),
+		User: &authv1.User{
+			Id:       uuidToString(u.ID),
+			Username: u.Username,
+			Email:    u.Email,
+			FullName: u.FullName,
+			RoleId:   uuidToString(u.RoleID),
+			StoreId:  uuidToString(u.StoreID),
+			IsActive: u.IsActive,
+		},
+	}, nil
+}
+
 // Login authenticates a user and returns tokens
 func (h *AuthHandler) Login(ctx context.Context, req *authv1.LoginRequest) (*authv1.LoginResponse, error) {
 	tokenPair, u, err := h.userService.Login(ctx, req.Username, req.Password)
 	if err != nil {
-		return nil, err
+		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
 
 	return &authv1.LoginResponse{
@@ -30,12 +67,12 @@ func (h *AuthHandler) Login(ctx context.Context, req *authv1.LoginRequest) (*aut
 		RefreshToken: tokenPair.RefreshToken,
 		ExpiresAt:    tokenPair.ExpiresAt.Unix(),
 		User: &authv1.User{
-			Id:       u.ID,
+			Id:       uuidToString(u.ID),
 			Username: u.Username,
 			Email:    u.Email,
 			FullName: u.FullName,
-			RoleId:   u.RoleID,
-			StoreId:  u.StoreID.Int64,
+			RoleId:   uuidToString(u.RoleID),
+			StoreId:  uuidToString(u.StoreID),
 			IsActive: u.IsActive,
 		},
 	}, nil
@@ -45,7 +82,7 @@ func (h *AuthHandler) Login(ctx context.Context, req *authv1.LoginRequest) (*aut
 func (h *AuthHandler) RefreshToken(ctx context.Context, req *authv1.RefreshTokenRequest) (*authv1.RefreshTokenResponse, error) {
 	tokenPair, err := h.userService.RefreshToken(ctx, req.RefreshToken)
 	if err != nil {
-		return nil, err
+		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
 
 	return &authv1.RefreshTokenResponse{
@@ -57,9 +94,8 @@ func (h *AuthHandler) RefreshToken(ctx context.Context, req *authv1.RefreshToken
 
 // Logout logs out a user
 func (h *AuthHandler) Logout(ctx context.Context, req *authv1.LogoutRequest) (*authv1.LogoutResponse, error) {
-	// In a real implementation, you would revoke the refresh token
 	return &authv1.LogoutResponse{
 		Success: true,
-		Message: "Logged out successfully",
+		Message: response.MsgLogoutSuccess,
 	}, nil
 }

@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
+	"apiPos/internal/apperror"
 	"apiPos/internal/auth"
 )
 
@@ -28,32 +29,32 @@ func UnaryServerAuthInterceptor(authService *auth.AuthService) grpc.UnaryServerI
 		// Extract token from metadata
 		md, ok := metadata.FromIncomingContext(ctx)
 		if !ok {
-			return nil, status.Errorf(codes.Unauthenticated, "missing metadata")
+			return nil, status.Error(codes.Unauthenticated, "Missing metadata")
 		}
 
 		// Get authorization header
 		authorization := md.Get("authorization")
 		if len(authorization) == 0 {
-			return nil, status.Errorf(codes.Unauthenticated, "missing authorization header")
+			return nil, status.Error(codes.Unauthenticated, "Missing authorization header")
 		}
 
 		// Extract token
 		token := strings.TrimPrefix(authorization[0], "Bearer ")
 		if token == authorization[0] {
-			return nil, status.Errorf(codes.Unauthenticated, "invalid authorization header format")
+			return nil, status.Error(codes.Unauthenticated, "Invalid authorization header format")
 		}
 
 		// Validate token
 		claims, err := authService.ValidateToken(token)
 		if err != nil {
-			switch err {
-			case auth.ErrTokenExpired:
-				return nil, status.Errorf(codes.Unauthenticated, "token expired")
-			case auth.ErrInvalidToken:
-				return nil, status.Errorf(codes.Unauthenticated, "invalid token")
-			default:
-				return nil, status.Errorf(codes.Unauthenticated, "unauthorized")
-			}
+		switch err {
+		case apperror.ErrTokenExpired:
+			return nil, status.Error(codes.Unauthenticated, "Token expired")
+		case apperror.ErrInvalidToken:
+			return nil, status.Error(codes.Unauthenticated, "Invalid token")
+		default:
+			return nil, status.Error(codes.Unauthenticated, "Unauthorized")
+		}
 		}
 
 		// Add claims to context
@@ -74,12 +75,12 @@ func UnaryServerRoleInterceptor(allowedRoles ...string) grpc.UnaryServerIntercep
 		// Get claims from context
 		claims, ok := auth.ClaimsFromContext(ctx)
 		if !ok {
-			return nil, status.Errorf(codes.Unauthenticated, "missing claims")
+			return nil, status.Error(codes.Unauthenticated, "Missing claims")
 		}
 
 		// Check if user has required role
 		if !hasRole(claims.RoleName, allowedRoles) {
-			return nil, status.Errorf(codes.PermissionDenied, "insufficient permissions")
+			return nil, status.Error(codes.PermissionDenied, "Insufficient permissions")
 		}
 
 		return handler(ctx, req)
@@ -89,6 +90,7 @@ func UnaryServerRoleInterceptor(allowedRoles ...string) grpc.UnaryServerIntercep
 // isPublicEndpoint checks if the endpoint is public (no auth required)
 func isPublicEndpoint(method string) bool {
 	publicEndpoints := []string{
+		"/auth.v1.AuthService/Register",
 		"/auth.v1.AuthService/Login",
 		"/auth.v1.AuthService/RefreshToken",
 		"/grpc.health.v1.Health/Check",

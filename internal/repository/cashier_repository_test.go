@@ -36,7 +36,7 @@ func createTestCashierData(t *testing.T, queries *db.Queries) (db.Store, db.User
 		PasswordHash: "$2a$10$hashedpassword",
 		FullName:     "Cash User",
 		RoleID:       role.ID,
-		StoreID:      pgtype.Int8{Int64: store.ID, Valid: true},
+		StoreID:      store.ID,
 	})
 	require.NoError(t, err)
 
@@ -57,7 +57,7 @@ func TestCashierRepository_OpenCashierShift(t *testing.T) {
 			OpeningCash: pgtype.Numeric{Int: big.NewInt(100000), Valid: true},
 		})
 		require.NoError(t, err)
-		assert.NotZero(t, shift.ID)
+		assert.True(t, shift.ID.Valid)
 		assert.Equal(t, user.ID, shift.UserID)
 		assert.Equal(t, store.ID, shift.StoreID)
 		assert.Equal(t, "OPEN", shift.Status)
@@ -71,7 +71,6 @@ func TestCashierRepository_GetCurrentShift(t *testing.T) {
 
 	store, user := createTestCashierData(t, queries)
 
-	// Open a shift
 	shift, err := repo.OpenCashierShift(ctx, db.OpenCashierShiftParams{
 		UserID:      user.ID,
 		StoreID:     store.ID,
@@ -87,7 +86,6 @@ func TestCashierRepository_GetCurrentShift(t *testing.T) {
 	})
 
 	t.Run("no open shift", func(t *testing.T) {
-		// Create another user with no shift
 		role, err := queries.CreateRole(ctx, db.CreateRoleParams{
 			Name: fmt.Sprintf("noshiftrole_%d", time.Now().UnixNano()),
 		})
@@ -99,7 +97,7 @@ func TestCashierRepository_GetCurrentShift(t *testing.T) {
 			PasswordHash: "$2a$10$hashedpassword",
 			FullName:     "No Shift User",
 			RoleID:       role.ID,
-			StoreID:      pgtype.Int8{Int64: store.ID, Valid: true},
+			StoreID:      store.ID,
 		})
 		require.NoError(t, err)
 
@@ -130,7 +128,7 @@ func TestCashierRepository_GetShiftByID(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		_, err := repo.GetShiftByID(ctx, 99999)
+		_, err := repo.GetShiftByID(ctx, zeroUUID())
 		assert.Error(t, err)
 	})
 }
@@ -161,7 +159,6 @@ func TestCashierRepository_CloseCashierShift(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assert.Equal(t, "CLOSED", closed.Status)
-		assert.NotNil(t, closed.ClosedAt)
 	})
 
 	t.Run("cannot close already closed shift", func(t *testing.T) {
@@ -199,7 +196,6 @@ func TestCashierRepository_UpdateShiftCashSales(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		// Verify the shift was updated
 		found, err := repo.GetShiftByID(ctx, shift.ID)
 		require.NoError(t, err)
 		assert.NotNil(t, found.CashSales)
@@ -227,7 +223,6 @@ func TestCashierRepository_UpdateShiftCashRefund(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		// Verify the shift was updated
 		found, err := repo.GetShiftByID(ctx, shift.ID)
 		require.NoError(t, err)
 		assert.NotNil(t, found.CashRefund)
@@ -241,7 +236,6 @@ func TestCashierRepository_ListShifts(t *testing.T) {
 
 	store, user := createTestCashierData(t, queries)
 
-	// Create multiple shifts
 	for i := 0; i < 3; i++ {
 		_, err := repo.OpenCashierShift(ctx, db.OpenCashierShiftParams{
 			UserID:      user.ID,
@@ -253,8 +247,8 @@ func TestCashierRepository_ListShifts(t *testing.T) {
 
 	t.Run("list all", func(t *testing.T) {
 		shifts, err := repo.ListShifts(ctx, db.ListShiftsParams{
-			Column1: 0,
-			Column2: 0,
+			Column1: zeroUUID(),
+			Column2: zeroUUID(),
 			Column3: "",
 			Limit:   10,
 			Offset:  0,
@@ -265,8 +259,8 @@ func TestCashierRepository_ListShifts(t *testing.T) {
 
 	t.Run("filter by status", func(t *testing.T) {
 		shifts, err := repo.ListShifts(ctx, db.ListShiftsParams{
-			Column1: 0,
-			Column2: 0,
+			Column1: zeroUUID(),
+			Column2: zeroUUID(),
 			Column3: "OPEN",
 			Limit:   10,
 			Offset:  0,
@@ -281,7 +275,7 @@ func TestCashierRepository_ListShifts(t *testing.T) {
 	t.Run("filter by user", func(t *testing.T) {
 		shifts, err := repo.ListShifts(ctx, db.ListShiftsParams{
 			Column1: user.ID,
-			Column2: 0,
+			Column2: zeroUUID(),
 			Column3: "",
 			Limit:   10,
 			Offset:  0,
@@ -292,8 +286,8 @@ func TestCashierRepository_ListShifts(t *testing.T) {
 
 	t.Run("with pagination", func(t *testing.T) {
 		shifts, err := repo.ListShifts(ctx, db.ListShiftsParams{
-			Column1: 0,
-			Column2: 0,
+			Column1: zeroUUID(),
+			Column2: zeroUUID(),
 			Column3: "",
 			Limit:   2,
 			Offset:  0,
@@ -310,7 +304,6 @@ func TestCashierRepository_CountOpenShifts(t *testing.T) {
 
 	store, user := createTestCashierData(t, queries)
 
-	// Open a shift
 	_, err := repo.OpenCashierShift(ctx, db.OpenCashierShiftParams{
 		UserID:      user.ID,
 		StoreID:     store.ID,

@@ -1,8 +1,18 @@
 version: v2
 plugins:
+  # Go protobuf plugin
   - remote: buf.build/protocolbuffers/go
     out: gen
     opt: paths=source_relative
+  # Go gRPC plugin
   - remote: buf.build/grpc/go
     out: gen
     opt: paths=source_relative
+  # gRPC-Gateway plugin (REST endpoints)
+  - remote: buf.build/grpc-ecosystem/gateway
+    out: gen
+    opt: paths=source_relative
+  # OpenAPI/Swagger plugin
+  - remote: buf.build/grpc-ecosystem/openapiv2
+    out: gen
+    opt: allow_merge=true,merge_file_name=api

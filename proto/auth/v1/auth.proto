@@ -4,10 +4,54 @@ package auth.v1;
 
 option go_package = "apiPos/gen/auth/v1;authv1";
 
+import "google/api/annotations.proto";
+
 service AuthService {
-  rpc Login(LoginRequest) returns (LoginResponse);
-  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse);
-  rpc Logout(LogoutRequest) returns (LogoutResponse);
+  // Register creates a new user account
+  rpc Register(RegisterRequest) returns (RegisterResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/auth/register"
+      body: "*"
+    };
+  }
+
+  // Login authenticates a user and returns tokens
+  rpc Login(LoginRequest) returns (LoginResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/auth/login"
+      body: "*"
+    };
+  }
+
+  // RefreshToken refreshes an access token
+  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/auth/refresh"
+      body: "*"
+    };
+  }
+
+  // Logout logs out a user
+  rpc Logout(LogoutRequest) returns (LogoutResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/auth/logout"
+      body: "*"
+    };
+  }
+}
+
+message RegisterRequest {
+  string username = 1;
+  string email = 2;
+  string password = 3;
+  string full_name = 4;
+}
+
+message RegisterResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+  int64 expires_at = 3;
+  User user = 4;
 }
 
 message LoginRequest {
@@ -23,13 +67,13 @@ message LoginResponse {
 }
 
 message User {
-  int64 id = 1;
+  string id = 1;
   string username = 2;
   string email = 3;
   string full_name = 4;
-  int64 role_id = 5;
+  string role_id = 5;
   string role_name = 6;
-  int64 store_id = 7;
+  string store_id = 7;
   bool is_active = 8;
 }
 

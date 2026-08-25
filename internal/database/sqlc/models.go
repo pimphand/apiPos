@@ -11,9 +11,9 @@ import (
 )
 
 type CashierShift struct {
-	ID             int64              `db:"id" json:"id"`
-	UserID         int64              `db:"user_id" json:"user_id"`
-	StoreID        int64              `db:"store_id" json:"store_id"`
+	ID             pgtype.UUID        `db:"id" json:"id"`
+	UserID         pgtype.UUID        `db:"user_id" json:"user_id"`
+	StoreID        pgtype.UUID        `db:"store_id" json:"store_id"`
 	OpeningCash    pgtype.Numeric     `db:"opening_cash" json:"opening_cash"`
 	ClosingCash    pgtype.Numeric     `db:"closing_cash" json:"closing_cash"`
 	CashSales      pgtype.Numeric     `db:"cash_sales" json:"cash_sales"`
@@ -29,7 +29,7 @@ type CashierShift struct {
 }
 
 type Category struct {
-	ID          int64       `db:"id" json:"id"`
+	ID          pgtype.UUID `db:"id" json:"id"`
 	Name        string      `db:"name" json:"name"`
 	Description pgtype.Text `db:"description" json:"description"`
 	IsActive    bool        `db:"is_active" json:"is_active"`
@@ -38,7 +38,7 @@ type Category struct {
 }
 
 type Customer struct {
-	ID        int64       `db:"id" json:"id"`
+	ID        pgtype.UUID `db:"id" json:"id"`
 	Code      string      `db:"code" json:"code"`
 	Name      string      `db:"name" json:"name"`
 	Email     pgtype.Text `db:"email" json:"email"`
@@ -50,22 +50,22 @@ type Customer struct {
 }
 
 type InventoryTransaction struct {
-	ID            int64       `db:"id" json:"id"`
-	ProductID     int64       `db:"product_id" json:"product_id"`
-	StoreID       int64       `db:"store_id" json:"store_id"`
+	ID            pgtype.UUID `db:"id" json:"id"`
+	ProductID     pgtype.UUID `db:"product_id" json:"product_id"`
+	StoreID       pgtype.UUID `db:"store_id" json:"store_id"`
 	Type          string      `db:"type" json:"type"`
 	Quantity      int32       `db:"quantity" json:"quantity"`
 	ReferenceType pgtype.Text `db:"reference_type" json:"reference_type"`
-	ReferenceID   pgtype.Int8 `db:"reference_id" json:"reference_id"`
+	ReferenceID   pgtype.UUID `db:"reference_id" json:"reference_id"`
 	BeforeStock   int32       `db:"before_stock" json:"before_stock"`
 	AfterStock    int32       `db:"after_stock" json:"after_stock"`
-	CreatedBy     int64       `db:"created_by" json:"created_by"`
+	CreatedBy     pgtype.UUID `db:"created_by" json:"created_by"`
 	CreatedAt     time.Time   `db:"created_at" json:"created_at"`
 }
 
 type Payment struct {
-	ID            int64          `db:"id" json:"id"`
-	SaleID        int64          `db:"sale_id" json:"sale_id"`
+	ID            pgtype.UUID    `db:"id" json:"id"`
+	SaleID        pgtype.UUID    `db:"sale_id" json:"sale_id"`
 	PaymentMethod string         `db:"payment_method" json:"payment_method"`
 	Amount        pgtype.Numeric `db:"amount" json:"amount"`
 	Reference     pgtype.Text    `db:"reference" json:"reference"`
@@ -74,12 +74,12 @@ type Payment struct {
 }
 
 type Product struct {
-	ID           int64          `db:"id" json:"id"`
+	ID           pgtype.UUID    `db:"id" json:"id"`
 	Sku          string         `db:"sku" json:"sku"`
 	Barcode      pgtype.Text    `db:"barcode" json:"barcode"`
 	Name         string         `db:"name" json:"name"`
 	Description  pgtype.Text    `db:"description" json:"description"`
-	CategoryID   pgtype.Int8    `db:"category_id" json:"category_id"`
+	CategoryID   pgtype.UUID    `db:"category_id" json:"category_id"`
 	CostPrice    pgtype.Numeric `db:"cost_price" json:"cost_price"`
 	SellingPrice pgtype.Numeric `db:"selling_price" json:"selling_price"`
 	Stock        int32          `db:"stock" json:"stock"`
@@ -90,16 +90,16 @@ type Product struct {
 }
 
 type RefreshToken struct {
-	ID        int64     `db:"id" json:"id"`
-	UserID    int64     `db:"user_id" json:"user_id"`
-	Token     string    `db:"token" json:"token"`
-	ExpiresAt time.Time `db:"expires_at" json:"expires_at"`
-	IsRevoked bool      `db:"is_revoked" json:"is_revoked"`
-	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	ID        pgtype.UUID `db:"id" json:"id"`
+	UserID    pgtype.UUID `db:"user_id" json:"user_id"`
+	Token     string      `db:"token" json:"token"`
+	ExpiresAt time.Time   `db:"expires_at" json:"expires_at"`
+	IsRevoked bool        `db:"is_revoked" json:"is_revoked"`
+	CreatedAt time.Time   `db:"created_at" json:"created_at"`
 }
 
 type Role struct {
-	ID          int64       `db:"id" json:"id"`
+	ID          pgtype.UUID `db:"id" json:"id"`
 	Name        string      `db:"name" json:"name"`
 	Description pgtype.Text `db:"description" json:"description"`
 	CreatedAt   time.Time   `db:"created_at" json:"created_at"`
@@ -107,11 +107,11 @@ type Role struct {
 }
 
 type Sale struct {
-	ID            int64          `db:"id" json:"id"`
+	ID            pgtype.UUID    `db:"id" json:"id"`
 	InvoiceNumber string         `db:"invoice_number" json:"invoice_number"`
-	StoreID       int64          `db:"store_id" json:"store_id"`
-	CashierID     int64          `db:"cashier_id" json:"cashier_id"`
-	CustomerID    pgtype.Int8    `db:"customer_id" json:"customer_id"`
+	StoreID       pgtype.UUID    `db:"store_id" json:"store_id"`
+	CashierID     pgtype.UUID    `db:"cashier_id" json:"cashier_id"`
+	CustomerID    pgtype.UUID    `db:"customer_id" json:"customer_id"`
 	Subtotal      pgtype.Numeric `db:"subtotal" json:"subtotal"`
 	Discount      pgtype.Numeric `db:"discount" json:"discount"`
 	Tax           pgtype.Numeric `db:"tax" json:"tax"`
@@ -122,9 +122,9 @@ type Sale struct {
 }
 
 type SaleItem struct {
-	ID        int64          `db:"id" json:"id"`
-	SaleID    int64          `db:"sale_id" json:"sale_id"`
-	ProductID int64          `db:"product_id" json:"product_id"`
+	ID        pgtype.UUID    `db:"id" json:"id"`
+	SaleID    pgtype.UUID    `db:"sale_id" json:"sale_id"`
+	ProductID pgtype.UUID    `db:"product_id" json:"product_id"`
 	Quantity  int32          `db:"quantity" json:"quantity"`
 	UnitPrice pgtype.Numeric `db:"unit_price" json:"unit_price"`
 	Discount  pgtype.Numeric `db:"discount" json:"discount"`
@@ -133,7 +133,7 @@ type SaleItem struct {
 }
 
 type Store struct {
-	ID        int64       `db:"id" json:"id"`
+	ID        pgtype.UUID `db:"id" json:"id"`
 	Name      string      `db:"name" json:"name"`
 	Address   pgtype.Text `db:"address" json:"address"`
 	Phone     pgtype.Text `db:"phone" json:"phone"`
@@ -143,13 +143,13 @@ type Store struct {
 }
 
 type User struct {
-	ID           int64              `db:"id" json:"id"`
+	ID           pgtype.UUID        `db:"id" json:"id"`
 	Username     string             `db:"username" json:"username"`
 	Email        string             `db:"email" json:"email"`
 	PasswordHash string             `db:"password_hash" json:"password_hash"`
 	FullName     string             `db:"full_name" json:"full_name"`
-	RoleID       int64              `db:"role_id" json:"role_id"`
-	StoreID      pgtype.Int8        `db:"store_id" json:"store_id"`
+	RoleID       pgtype.UUID        `db:"role_id" json:"role_id"`
+	StoreID      pgtype.UUID        `db:"store_id" json:"store_id"`
 	IsActive     bool               `db:"is_active" json:"is_active"`
 	LastLogin    pgtype.Timestamptz `db:"last_login" json:"last_login"`
 	CreatedAt    time.Time          `db:"created_at" json:"created_at"`

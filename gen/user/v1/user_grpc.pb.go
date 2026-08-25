@@ -31,11 +31,17 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type UserServiceClient interface {
+	// CreateUser creates a new user
 	CreateUser(ctx context.Context, in *CreateUserRequest, opts ...grpc.CallOption) (*UserResponse, error)
+	// GetUser gets a user by ID
 	GetUser(ctx context.Context, in *GetUserRequest, opts ...grpc.CallOption) (*UserResponse, error)
+	// ListUsers lists users with filters
 	ListUsers(ctx context.Context, in *ListUsersRequest, opts ...grpc.CallOption) (*ListUsersResponse, error)
+	// UpdateUser updates a user
 	UpdateUser(ctx context.Context, in *UpdateUserRequest, opts ...grpc.CallOption) (*UserResponse, error)
+	// DeleteUser deletes a user
 	DeleteUser(ctx context.Context, in *DeleteUserRequest, opts ...grpc.CallOption) (*DeleteUserResponse, error)
+	// UpdateUserRole updates a user's role
 	UpdateUserRole(ctx context.Context, in *UpdateUserRoleRequest, opts ...grpc.CallOption) (*UserResponse, error)
 }
 
@@ -111,11 +117,17 @@ func (c *userServiceClient) UpdateUserRole(ctx context.Context, in *UpdateUserRo
 // All implementations must embed UnimplementedUserServiceServer
 // for forward compatibility.
 type UserServiceServer interface {
+	// CreateUser creates a new user
 	CreateUser(context.Context, *CreateUserRequest) (*UserResponse, error)
+	// GetUser gets a user by ID
 	GetUser(context.Context, *GetUserRequest) (*UserResponse, error)
+	// ListUsers lists users with filters
 	ListUsers(context.Context, *ListUsersRequest) (*ListUsersResponse, error)
+	// UpdateUser updates a user
 	UpdateUser(context.Context, *UpdateUserRequest) (*UserResponse, error)
+	// DeleteUser deletes a user
 	DeleteUser(context.Context, *DeleteUserRequest) (*DeleteUserResponse, error)
+	// UpdateUserRole updates a user's role
 	UpdateUserRole(context.Context, *UpdateUserRoleRequest) (*UserResponse, error)
 	mustEmbedUnimplementedUserServiceServer()
 }

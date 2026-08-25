@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	db "apiPos/internal/database/sqlc"
 )
 
@@ -24,11 +26,11 @@ func (r *CashierRepositoryImpl) CloseCashierShift(ctx context.Context, arg db.Cl
 	return r.queries.CloseCashierShift(ctx, arg)
 }
 
-func (r *CashierRepositoryImpl) GetCurrentShift(ctx context.Context, userID int64) (db.CashierShift, error) {
+func (r *CashierRepositoryImpl) GetCurrentShift(ctx context.Context, userID pgtype.UUID) (db.CashierShift, error) {
 	return r.queries.GetCurrentShift(ctx, userID)
 }
 
-func (r *CashierRepositoryImpl) GetShiftByID(ctx context.Context, id int64) (db.CashierShift, error) {
+func (r *CashierRepositoryImpl) GetShiftByID(ctx context.Context, id pgtype.UUID) (db.CashierShift, error) {
 	return r.queries.GetShiftByID(ctx, id)
 }
 

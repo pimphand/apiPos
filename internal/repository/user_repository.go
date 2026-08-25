@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	db "apiPos/internal/database/sqlc"
 )
 
@@ -20,7 +22,7 @@ func (r *UserRepositoryImpl) CreateUser(ctx context.Context, arg db.CreateUserPa
 	return r.queries.CreateUser(ctx, arg)
 }
 
-func (r *UserRepositoryImpl) GetUserByID(ctx context.Context, id int64) (db.User, error) {
+func (r *UserRepositoryImpl) GetUserByID(ctx context.Context, id pgtype.UUID) (db.User, error) {
 	return r.queries.GetUserByID(ctx, id)
 }
 
@@ -44,15 +46,15 @@ func (r *UserRepositoryImpl) UpdateUserPassword(ctx context.Context, arg db.Upda
 	return r.queries.UpdateUserPassword(ctx, arg)
 }
 
-func (r *UserRepositoryImpl) UpdateUserLastLogin(ctx context.Context, id int64) error {
+func (r *UserRepositoryImpl) UpdateUserLastLogin(ctx context.Context, id pgtype.UUID) error {
 	return r.queries.UpdateUserLastLogin(ctx, id)
 }
 
-func (r *UserRepositoryImpl) DeleteUser(ctx context.Context, id int64) error {
+func (r *UserRepositoryImpl) DeleteUser(ctx context.Context, id pgtype.UUID) error {
 	return r.queries.DeleteUser(ctx, id)
 }
 
-func (r *UserRepositoryImpl) DeactivateUser(ctx context.Context, id int64) error {
+func (r *UserRepositoryImpl) DeactivateUser(ctx context.Context, id pgtype.UUID) error {
 	return r.queries.DeactivateUser(ctx, id)
 }
 
@@ -72,6 +74,10 @@ func (r *UserRepositoryImpl) RevokeRefreshToken(ctx context.Context, token strin
 	return r.queries.RevokeRefreshToken(ctx, token)
 }
 
-func (r *UserRepositoryImpl) RevokeAllUserRefreshTokens(ctx context.Context, userID int64) error {
+func (r *UserRepositoryImpl) RevokeAllUserRefreshTokens(ctx context.Context, userID pgtype.UUID) error {
 	return r.queries.RevokeAllUserRefreshTokens(ctx, userID)
+}
+
+func (r *UserRepositoryImpl) ListRoles(ctx context.Context) ([]db.Role, error) {
+	return r.queries.ListRoles(ctx)
 }

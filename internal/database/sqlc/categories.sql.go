@@ -54,7 +54,7 @@ SET is_active = false,
 WHERE id = $1
 `
 
-func (q *Queries) DeactivateCategory(ctx context.Context, id int64) error {
+func (q *Queries) DeactivateCategory(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, deactivateCategory, id)
 	return err
 }
@@ -63,7 +63,7 @@ const deleteCategory = `-- name: DeleteCategory :exec
 DELETE FROM categories WHERE id = $1
 `
 
-func (q *Queries) DeleteCategory(ctx context.Context, id int64) error {
+func (q *Queries) DeleteCategory(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, deleteCategory, id)
 	return err
 }
@@ -72,7 +72,7 @@ const getCategoryByID = `-- name: GetCategoryByID :one
 SELECT id, name, description, is_active, created_at, updated_at FROM categories WHERE id = $1
 `
 
-func (q *Queries) GetCategoryByID(ctx context.Context, id int64) (Category, error) {
+func (q *Queries) GetCategoryByID(ctx context.Context, id pgtype.UUID) (Category, error) {
 	row := q.db.QueryRow(ctx, getCategoryByID, id)
 	var i Category
 	err := row.Scan(
@@ -130,7 +130,7 @@ RETURNING id, name, description, is_active, created_at, updated_at
 `
 
 type UpdateCategoryParams struct {
-	ID          int64       `db:"id" json:"id"`
+	ID          pgtype.UUID `db:"id" json:"id"`
 	Name        string      `db:"name" json:"name"`
 	Description pgtype.Text `db:"description" json:"description"`
 	IsActive    bool        `db:"is_active" json:"is_active"`

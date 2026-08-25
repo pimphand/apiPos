@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	db "apiPos/internal/database/sqlc"
 )
 
@@ -20,11 +22,11 @@ func (r *PaymentRepositoryImpl) CreatePayment(ctx context.Context, arg db.Create
 	return r.queries.CreatePayment(ctx, arg)
 }
 
-func (r *PaymentRepositoryImpl) GetPaymentByID(ctx context.Context, id int64) (db.Payment, error) {
+func (r *PaymentRepositoryImpl) GetPaymentByID(ctx context.Context, id pgtype.UUID) (db.Payment, error) {
 	return r.queries.GetPaymentByID(ctx, id)
 }
 
-func (r *PaymentRepositoryImpl) GetPaymentsBySaleID(ctx context.Context, saleID int64) ([]db.Payment, error) {
+func (r *PaymentRepositoryImpl) GetPaymentsBySaleID(ctx context.Context, saleID pgtype.UUID) ([]db.Payment, error) {
 	return r.queries.GetPaymentsBySaleID(ctx, saleID)
 }
 
@@ -32,10 +34,10 @@ func (r *PaymentRepositoryImpl) ListPayments(ctx context.Context, arg db.ListPay
 	return r.queries.ListPayments(ctx, arg)
 }
 
-func (r *PaymentRepositoryImpl) DeletePayment(ctx context.Context, id int64) error {
+func (r *PaymentRepositoryImpl) DeletePayment(ctx context.Context, id pgtype.UUID) error {
 	return r.queries.DeletePayment(ctx, id)
 }
 
-func (r *PaymentRepositoryImpl) GetTotalPaymentsBySaleID(ctx context.Context, saleID int64) (interface{}, error) {
+func (r *PaymentRepositoryImpl) GetTotalPaymentsBySaleID(ctx context.Context, saleID pgtype.UUID) (interface{}, error) {
 	return r.queries.GetTotalPaymentsBySaleID(ctx, saleID)
 }

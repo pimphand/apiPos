@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
@@ -96,4 +97,12 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 func setupTestDB(t *testing.T) *db.Queries {
 	t.Helper()
 	return testQueries
+}
+
+// zeroUUID returns a valid zero UUID (all zeros) for use as "no filter" in queries
+func zeroUUID() pgtype.UUID {
+	return pgtype.UUID{
+		Bytes:  [16]byte{},
+		Valid:  true,
+	}
 }

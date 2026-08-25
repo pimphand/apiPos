@@ -7,7 +7,7 @@ RETURNING *;
 SELECT * FROM roles WHERE id = $1;
 
 -- name: ListRoles :many
-SELECT * FROM roles ORDER BY id;
+SELECT * FROM roles ORDER BY name;
 
 -- name: CreateUser :one
 INSERT INTO users (username, email, password_hash, full_name, role_id, store_id)
@@ -25,7 +25,7 @@ SELECT * FROM users WHERE email = $1;
 
 -- name: ListUsers :many
 SELECT * FROM users
-WHERE ($1::BIGINT = 0 OR role_id = $1)
+WHERE ($1::UUID = '00000000-0000-0000-0000-000000000000'::UUID OR role_id = $1)
   AND ($2::BOOLEAN = false OR is_active = $2)
 ORDER BY created_at DESC
 LIMIT $3 OFFSET $4;

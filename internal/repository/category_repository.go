@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	db "apiPos/internal/database/sqlc"
 )
 
@@ -20,7 +22,7 @@ func (r *CategoryRepositoryImpl) CreateCategory(ctx context.Context, arg db.Crea
 	return r.queries.CreateCategory(ctx, arg)
 }
 
-func (r *CategoryRepositoryImpl) GetCategoryByID(ctx context.Context, id int64) (db.Category, error) {
+func (r *CategoryRepositoryImpl) GetCategoryByID(ctx context.Context, id pgtype.UUID) (db.Category, error) {
 	return r.queries.GetCategoryByID(ctx, id)
 }
 
@@ -32,11 +34,11 @@ func (r *CategoryRepositoryImpl) UpdateCategory(ctx context.Context, arg db.Upda
 	return r.queries.UpdateCategory(ctx, arg)
 }
 
-func (r *CategoryRepositoryImpl) DeleteCategory(ctx context.Context, id int64) error {
+func (r *CategoryRepositoryImpl) DeleteCategory(ctx context.Context, id pgtype.UUID) error {
 	return r.queries.DeleteCategory(ctx, id)
 }
 
-func (r *CategoryRepositoryImpl) DeactivateCategory(ctx context.Context, id int64) error {
+func (r *CategoryRepositoryImpl) DeactivateCategory(ctx context.Context, id pgtype.UUID) error {
 	return r.queries.DeactivateCategory(ctx, id)
 }
 

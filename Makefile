@@ -1,6 +1,6 @@
 # POS Application Makefile
 
-.PHONY: all build test run proto sqlc migrate-up migrate-down docker-up docker-down lint clean
+.PHONY: all build test run proto sqlc migrate-up migrate-down docker-up docker-down lint clean swagger
 
 # Build the application
 all: build test
@@ -46,7 +46,17 @@ test:
 	@echo "Running tests..."
 	@go test ./... -v
 
+# Generate swagger spec
+swagger:
+	@echo "Generating swagger spec..."
+	@buf generate
+
 # Clean build artifacts
 clean:
 	@echo "Cleaning..."
 	@rm -f main
+
+# Stop docs container (if running)
+stop-docs:
+	@docker compose stop docs 2>/dev/null || true
+	@docker compose rm -f docs 2>/dev/null || true

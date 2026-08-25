@@ -28,8 +28,8 @@ SELECT * FROM cashier_shifts WHERE id = $1;
 
 -- name: ListShifts :many
 SELECT * FROM cashier_shifts
-WHERE ($1::BIGINT = 0 OR user_id = $1)
-  AND ($2::BIGINT = 0 OR store_id = $2)
+WHERE ($1::UUID = '00000000-0000-0000-0000-000000000000'::UUID OR user_id = $1)
+  AND ($2::UUID = '00000000-0000-0000-0000-000000000000'::UUID OR store_id = $2)
   AND ($3::VARCHAR = '' OR status = $3)
 ORDER BY opened_at DESC
 LIMIT $4 OFFSET $5;

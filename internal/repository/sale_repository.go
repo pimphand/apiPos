@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	db "apiPos/internal/database/sqlc"
 )
 
@@ -20,7 +22,7 @@ func (r *SaleRepositoryImpl) CreateSale(ctx context.Context, arg db.CreateSalePa
 	return r.queries.CreateSale(ctx, arg)
 }
 
-func (r *SaleRepositoryImpl) GetSaleByID(ctx context.Context, id int64) (db.Sale, error) {
+func (r *SaleRepositoryImpl) GetSaleByID(ctx context.Context, id pgtype.UUID) (db.Sale, error) {
 	return r.queries.GetSaleByID(ctx, id)
 }
 
@@ -40,7 +42,7 @@ func (r *SaleRepositoryImpl) UpdateSale(ctx context.Context, arg db.UpdateSalePa
 	return r.queries.UpdateSale(ctx, arg)
 }
 
-func (r *SaleRepositoryImpl) DeleteSale(ctx context.Context, id int64) error {
+func (r *SaleRepositoryImpl) DeleteSale(ctx context.Context, id pgtype.UUID) error {
 	return r.queries.DeleteSale(ctx, id)
 }
 
@@ -52,10 +54,10 @@ func (r *SaleRepositoryImpl) CreateSaleItem(ctx context.Context, arg db.CreateSa
 	return r.queries.CreateSaleItem(ctx, arg)
 }
 
-func (r *SaleRepositoryImpl) GetSaleItemsBySaleID(ctx context.Context, saleID int64) ([]db.SaleItem, error) {
+func (r *SaleRepositoryImpl) GetSaleItemsBySaleID(ctx context.Context, saleID pgtype.UUID) ([]db.SaleItem, error) {
 	return r.queries.GetSaleItemsBySaleID(ctx, saleID)
 }
 
-func (r *SaleRepositoryImpl) DeleteSaleItemsBySaleID(ctx context.Context, saleID int64) error {
+func (r *SaleRepositoryImpl) DeleteSaleItemsBySaleID(ctx context.Context, saleID pgtype.UUID) error {
 	return r.queries.DeleteSaleItemsBySaleID(ctx, saleID)
 }

@@ -54,3 +54,7 @@ logs/
 
 # Database migrations backup
 *.sql.bak
+
+# Swagger UI downloaded files
+cmd/swagger/swagger-ui/
+

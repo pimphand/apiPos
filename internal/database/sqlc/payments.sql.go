@@ -19,7 +19,7 @@ RETURNING id, sale_id, payment_method, amount, reference, paid_at, created_at
 `
 
 type CreatePaymentParams struct {
-	SaleID        int64          `db:"sale_id" json:"sale_id"`
+	SaleID        pgtype.UUID    `db:"sale_id" json:"sale_id"`
 	PaymentMethod string         `db:"payment_method" json:"payment_method"`
 	Amount        pgtype.Numeric `db:"amount" json:"amount"`
 	Reference     pgtype.Text    `db:"reference" json:"reference"`
@@ -51,7 +51,7 @@ const deletePayment = `-- name: DeletePayment :exec
 DELETE FROM payments WHERE id = $1
 `
 
-func (q *Queries) DeletePayment(ctx context.Context, id int64) error {
+func (q *Queries) DeletePayment(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, deletePayment, id)
 	return err
 }
@@ -60,7 +60,7 @@ const getPaymentByID = `-- name: GetPaymentByID :one
 SELECT id, sale_id, payment_method, amount, reference, paid_at, created_at FROM payments WHERE id = $1
 `
 
-func (q *Queries) GetPaymentByID(ctx context.Context, id int64) (Payment, error) {
+func (q *Queries) GetPaymentByID(ctx context.Context, id pgtype.UUID) (Payment, error) {
 	row := q.db.QueryRow(ctx, getPaymentByID, id)
 	var i Payment
 	err := row.Scan(
@@ -79,7 +79,7 @@ const getPaymentsBySaleID = `-- name: GetPaymentsBySaleID :many
 SELECT id, sale_id, payment_method, amount, reference, paid_at, created_at FROM payments WHERE sale_id = $1 ORDER BY paid_at
 `
 
-func (q *Queries) GetPaymentsBySaleID(ctx context.Context, saleID int64) ([]Payment, error) {
+func (q *Queries) GetPaymentsBySaleID(ctx context.Context, saleID pgtype.UUID) ([]Payment, error) {
 	rows, err := q.db.Query(ctx, getPaymentsBySaleID, saleID)
 	if err != nil {
 		return nil, err
@@ -111,7 +111,7 @@ const getTotalPaymentsBySaleID = `-- name: GetTotalPaymentsBySaleID :one
 SELECT COALESCE(SUM(amount), 0) as total_paid FROM payments WHERE sale_id = $1
 `
 
-func (q *Queries) GetTotalPaymentsBySaleID(ctx context.Context, saleID int64) (interface{}, error) {
+func (q *Queries) GetTotalPaymentsBySaleID(ctx context.Context, saleID pgtype.UUID) (interface{}, error) {
 	row := q.db.QueryRow(ctx, getTotalPaymentsBySaleID, saleID)
 	var total_paid interface{}
 	err := row.Scan(&total_paid)
@@ -120,7 +120,7 @@ func (q *Queries) GetTotalPaymentsBySaleID(ctx context.Context, saleID int64) (i
 
 const listPayments = `-- name: ListPayments :many
 SELECT id, sale_id, payment_method, amount, reference, paid_at, created_at FROM payments
-WHERE ($1::BIGINT = 0 OR sale_id = $1)
+WHERE ($1::UUID = '00000000-0000-0000-0000-000000000000'::UUID OR sale_id = $1)
   AND ($2::VARCHAR = '' OR payment_method = $2)
   AND ($3::TIMESTAMPTZ = '1970-01-01' OR paid_at >= $3)
   AND ($4::TIMESTAMPTZ = '1970-01-01' OR paid_at <= $4)
@@ -129,12 +129,12 @@ LIMIT $5 OFFSET $6
 `
 
 type ListPaymentsParams struct {
-	Column1 int64     `db:"column_1" json:"column_1"`
-	Column2 string    `db:"column_2" json:"column_2"`
-	Column3 time.Time `db:"column_3" json:"column_3"`
-	Column4 time.Time `db:"column_4" json:"column_4"`
-	Limit   int32     `db:"limit" json:"limit"`
-	Offset  int32     `db:"offset" json:"offset"`
+	Column1 pgtype.UUID `db:"column_1" json:"column_1"`
+	Column2 string      `db:"column_2" json:"column_2"`
+	Column3 time.Time   `db:"column_3" json:"column_3"`
+	Column4 time.Time   `db:"column_4" json:"column_4"`
+	Limit   int32       `db:"limit" json:"limit"`
+	Offset  int32       `db:"offset" json:"offset"`
 }
 
 func (q *Queries) ListPayments(ctx context.Context, arg ListPaymentsParams) ([]Payment, error) {

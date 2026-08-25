@@ -15,7 +15,7 @@ SELECT * FROM products WHERE barcode = $1 AND barcode IS NOT NULL;
 -- name: ListProducts :many
 SELECT * FROM products
 WHERE ($1::BOOLEAN = false OR is_active = $1)
-  AND ($2::BIGINT = 0 OR category_id = $2)
+  AND ($2::UUID = '00000000-0000-0000-0000-000000000000'::UUID OR category_id = $2)
 ORDER BY created_at DESC
 LIMIT $3 OFFSET $4;
 

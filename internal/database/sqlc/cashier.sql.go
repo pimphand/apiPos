@@ -27,7 +27,7 @@ RETURNING id, user_id, store_id, opening_cash, closing_cash, cash_sales, cash_re
 `
 
 type CloseCashierShiftParams struct {
-	ID             int64          `db:"id" json:"id"`
+	ID             pgtype.UUID    `db:"id" json:"id"`
 	ClosingCash    pgtype.Numeric `db:"closing_cash" json:"closing_cash"`
 	CashSales      pgtype.Numeric `db:"cash_sales" json:"cash_sales"`
 	CashRefund     pgtype.Numeric `db:"cash_refund" json:"cash_refund"`
@@ -85,7 +85,7 @@ ORDER BY opened_at DESC
 LIMIT 1
 `
 
-func (q *Queries) GetCurrentShift(ctx context.Context, userID int64) (CashierShift, error) {
+func (q *Queries) GetCurrentShift(ctx context.Context, userID pgtype.UUID) (CashierShift, error) {
 	row := q.db.QueryRow(ctx, getCurrentShift, userID)
 	var i CashierShift
 	err := row.Scan(
@@ -112,7 +112,7 @@ const getShiftByID = `-- name: GetShiftByID :one
 SELECT id, user_id, store_id, opening_cash, closing_cash, cash_sales, cash_refund, expected_cash, actual_cash, cash_difference, status, opened_at, closed_at, created_at, updated_at FROM cashier_shifts WHERE id = $1
 `
 
-func (q *Queries) GetShiftByID(ctx context.Context, id int64) (CashierShift, error) {
+func (q *Queries) GetShiftByID(ctx context.Context, id pgtype.UUID) (CashierShift, error) {
 	row := q.db.QueryRow(ctx, getShiftByID, id)
 	var i CashierShift
 	err := row.Scan(
@@ -137,19 +137,19 @@ func (q *Queries) GetShiftByID(ctx context.Context, id int64) (CashierShift, err
 
 const listShifts = `-- name: ListShifts :many
 SELECT id, user_id, store_id, opening_cash, closing_cash, cash_sales, cash_refund, expected_cash, actual_cash, cash_difference, status, opened_at, closed_at, created_at, updated_at FROM cashier_shifts
-WHERE ($1::BIGINT = 0 OR user_id = $1)
-  AND ($2::BIGINT = 0 OR store_id = $2)
+WHERE ($1::UUID = '00000000-0000-0000-0000-000000000000'::UUID OR user_id = $1)
+  AND ($2::UUID = '00000000-0000-0000-0000-000000000000'::UUID OR store_id = $2)
   AND ($3::VARCHAR = '' OR status = $3)
 ORDER BY opened_at DESC
 LIMIT $4 OFFSET $5
 `
 
 type ListShiftsParams struct {
-	Column1 int64  `db:"column_1" json:"column_1"`
-	Column2 int64  `db:"column_2" json:"column_2"`
-	Column3 string `db:"column_3" json:"column_3"`
-	Limit   int32  `db:"limit" json:"limit"`
-	Offset  int32  `db:"offset" json:"offset"`
+	Column1 pgtype.UUID `db:"column_1" json:"column_1"`
+	Column2 pgtype.UUID `db:"column_2" json:"column_2"`
+	Column3 string      `db:"column_3" json:"column_3"`
+	Limit   int32       `db:"limit" json:"limit"`
+	Offset  int32       `db:"offset" json:"offset"`
 }
 
 func (q *Queries) ListShifts(ctx context.Context, arg ListShiftsParams) ([]CashierShift, error) {
@@ -201,8 +201,8 @@ RETURNING id, user_id, store_id, opening_cash, closing_cash, cash_sales, cash_re
 `
 
 type OpenCashierShiftParams struct {
-	UserID      int64          `db:"user_id" json:"user_id"`
-	StoreID     int64          `db:"store_id" json:"store_id"`
+	UserID      pgtype.UUID    `db:"user_id" json:"user_id"`
+	StoreID     pgtype.UUID    `db:"store_id" json:"store_id"`
 	OpeningCash pgtype.Numeric `db:"opening_cash" json:"opening_cash"`
 }
 
@@ -237,7 +237,7 @@ WHERE id = $1 AND status = 'OPEN'
 `
 
 type UpdateShiftCashRefundParams struct {
-	ID         int64          `db:"id" json:"id"`
+	ID         pgtype.UUID    `db:"id" json:"id"`
 	CashRefund pgtype.Numeric `db:"cash_refund" json:"cash_refund"`
 }
 
@@ -254,7 +254,7 @@ WHERE id = $1 AND status = 'OPEN'
 `
 
 type UpdateShiftCashSalesParams struct {
-	ID        int64          `db:"id" json:"id"`
+	ID        pgtype.UUID    `db:"id" json:"id"`
 	CashSales pgtype.Numeric `db:"cash_sales" json:"cash_sales"`
 }
 

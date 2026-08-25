@@ -88,7 +88,7 @@ ORDER BY p.name
 `
 
 type GetInventorySummaryReportRow struct {
-	ID           int64          `db:"id" json:"id"`
+	ID           pgtype.UUID    `db:"id" json:"id"`
 	Sku          string         `db:"sku" json:"sku"`
 	Name         string         `db:"name" json:"name"`
 	CategoryName pgtype.Text    `db:"category_name" json:"category_name"`
@@ -245,11 +245,11 @@ type GetTopSellingProductsParams struct {
 }
 
 type GetTopSellingProductsRow struct {
-	ID                int64  `db:"id" json:"id"`
-	Sku               string `db:"sku" json:"sku"`
-	Name              string `db:"name" json:"name"`
-	TotalQuantitySold int64  `db:"total_quantity_sold" json:"total_quantity_sold"`
-	TotalRevenue      int64  `db:"total_revenue" json:"total_revenue"`
+	ID                pgtype.UUID `db:"id" json:"id"`
+	Sku               string      `db:"sku" json:"sku"`
+	Name              string      `db:"name" json:"name"`
+	TotalQuantitySold int64       `db:"total_quantity_sold" json:"total_quantity_sold"`
+	TotalRevenue      int64       `db:"total_revenue" json:"total_revenue"`
 }
 
 func (q *Queries) GetTopSellingProducts(ctx context.Context, arg GetTopSellingProductsParams) ([]GetTopSellingProductsRow, error) {

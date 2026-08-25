@@ -11,10 +11,11 @@ import (
 
 // Config holds all configuration for the application.
 type Config struct {
-	App   AppConfig
-	GRPC  GRPCConfig
-	DB    DatabaseConfig
-	JWT   JWTConfig
+	App  AppConfig
+	GRPC GRPCConfig
+	HTTP HTTPConfig
+	DB   DatabaseConfig
+	JWT  JWTConfig
 }
 
 // AppConfig holds application-level configuration.
@@ -24,6 +25,11 @@ type AppConfig struct {
 
 // GRPCConfig holds gRPC server configuration.
 type GRPCConfig struct {
+	Port int
+}
+
+// HTTPConfig holds HTTP server configuration.
+type HTTPConfig struct {
 	Port int
 }
 
@@ -39,9 +45,9 @@ type DatabaseConfig struct {
 
 // JWTConfig holds JWT configuration.
 type JWTConfig struct {
-	Secret       string
-	AccessTTL   time.Duration
-	RefreshTTL  time.Duration
+	Secret      string
+	AccessTTL  time.Duration
+	RefreshTTL time.Duration
 }
 
 // DSN returns the PostgreSQL connection string.
@@ -61,6 +67,9 @@ func Load() *Config {
 		GRPC: GRPCConfig{
 			Port: getEnvAsInt("GRPC_PORT", 50051),
 		},
+		HTTP: HTTPConfig{
+			Port: getEnvAsInt("HTTP_PORT", 8080),
+		},
 		DB: DatabaseConfig{
 			Host:     getEnv("DATABASE_HOST", "localhost"),
 			Port:     getEnvAsInt("DATABASE_PORT", 5432),
@@ -70,9 +79,9 @@ func Load() *Config {
 			SSLMode:  getEnv("DATABASE_SSLMODE", "disable"),
 		},
 		JWT: JWTConfig{
-			Secret:      getEnv("JWT_SECRET", "change-me"),
-			AccessTTL:   getEnvAsDuration("JWT_ACCESS_TTL", 15*time.Minute),
-			RefreshTTL:  getEnvAsDuration("JWT_REFRESH_TTL", 720*time.Hour),
+			Secret:     getEnv("JWT_SECRET", "change-me"),
+			AccessTTL:  getEnvAsDuration("JWT_ACCESS_TTL", 15*time.Minute),
+			RefreshTTL: getEnvAsDuration("JWT_REFRESH_TTL", 720*time.Hour),
 		},
 	}
 }

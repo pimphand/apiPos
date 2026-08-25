@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	db "apiPos/internal/database/sqlc"
 )
 
@@ -20,7 +22,7 @@ func (r *CustomerRepositoryImpl) CreateCustomer(ctx context.Context, arg db.Crea
 	return r.queries.CreateCustomer(ctx, arg)
 }
 
-func (r *CustomerRepositoryImpl) GetCustomerByID(ctx context.Context, id int64) (db.Customer, error) {
+func (r *CustomerRepositoryImpl) GetCustomerByID(ctx context.Context, id pgtype.UUID) (db.Customer, error) {
 	return r.queries.GetCustomerByID(ctx, id)
 }
 
@@ -40,11 +42,11 @@ func (r *CustomerRepositoryImpl) UpdateCustomer(ctx context.Context, arg db.Upda
 	return r.queries.UpdateCustomer(ctx, arg)
 }
 
-func (r *CustomerRepositoryImpl) DeleteCustomer(ctx context.Context, id int64) error {
+func (r *CustomerRepositoryImpl) DeleteCustomer(ctx context.Context, id pgtype.UUID) error {
 	return r.queries.DeleteCustomer(ctx, id)
 }
 
-func (r *CustomerRepositoryImpl) DeactivateCustomer(ctx context.Context, id int64) error {
+func (r *CustomerRepositoryImpl) DeactivateCustomer(ctx context.Context, id pgtype.UUID) error {
 	return r.queries.DeactivateCustomer(ctx, id)
 }
 

@@ -56,7 +56,7 @@ SET is_active = false,
 WHERE id = $1
 `
 
-func (q *Queries) DeactivateStore(ctx context.Context, id int64) error {
+func (q *Queries) DeactivateStore(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, deactivateStore, id)
 	return err
 }
@@ -65,7 +65,7 @@ const deleteStore = `-- name: DeleteStore :exec
 DELETE FROM stores WHERE id = $1
 `
 
-func (q *Queries) DeleteStore(ctx context.Context, id int64) error {
+func (q *Queries) DeleteStore(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, deleteStore, id)
 	return err
 }
@@ -74,7 +74,7 @@ const getStoreByID = `-- name: GetStoreByID :one
 SELECT id, name, address, phone, is_active, created_at, updated_at FROM stores WHERE id = $1
 `
 
-func (q *Queries) GetStoreByID(ctx context.Context, id int64) (Store, error) {
+func (q *Queries) GetStoreByID(ctx context.Context, id pgtype.UUID) (Store, error) {
 	row := q.db.QueryRow(ctx, getStoreByID, id)
 	var i Store
 	err := row.Scan(
@@ -135,7 +135,7 @@ RETURNING id, name, address, phone, is_active, created_at, updated_at
 `
 
 type UpdateStoreParams struct {
-	ID       int64       `db:"id" json:"id"`
+	ID       pgtype.UUID `db:"id" json:"id"`
 	Name     string      `db:"name" json:"name"`
 	Address  pgtype.Text `db:"address" json:"address"`
 	Phone    pgtype.Text `db:"phone" json:"phone"`

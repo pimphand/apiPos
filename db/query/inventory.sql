@@ -8,8 +8,8 @@ SELECT * FROM inventory_transactions WHERE id = $1;
 
 -- name: ListInventoryTransactions :many
 SELECT * FROM inventory_transactions
-WHERE ($1::BIGINT = 0 OR product_id = $1)
-  AND ($2::BIGINT = 0 OR store_id = $2)
+WHERE ($1::UUID = '00000000-0000-0000-0000-000000000000'::UUID OR product_id = $1)
+  AND ($2::UUID = '00000000-0000-0000-0000-000000000000'::UUID OR store_id = $2)
   AND ($3::VARCHAR = '' OR type = $3)
   AND ($4::TIMESTAMPTZ = '1970-01-01' OR created_at >= $4)
   AND ($5::TIMESTAMPTZ = '1970-01-01' OR created_at <= $5)
@@ -32,7 +32,7 @@ SELECT
     COUNT(it.id) as total_transactions
 FROM products p
 LEFT JOIN inventory_transactions it ON p.id = it.product_id
-WHERE ($1::BIGINT = 0 OR p.category_id = $1)
+WHERE ($1::UUID = '00000000-0000-0000-0000-000000000000'::UUID OR p.category_id = $1)
   AND p.is_active = true
 GROUP BY p.id, p.sku, p.name, p.stock, p.minimum_stock
 ORDER BY p.name;
