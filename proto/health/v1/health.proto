@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package health.v1;
+
+option go_package = "apiPos/gen/health/v1;healthv1";
+
+// HealthService provides health check functionality.
+service HealthService {
+  // Check returns the health status of the service.
+  rpc Check(CheckRequest) returns (CheckResponse);
+}
+
+message CheckRequest {}
+
+message CheckResponse {
+  // Status represents the health status.
+  string status = 1;
+
+  // Details contains additional health information.
+  map<string, string> details = 2;
+}

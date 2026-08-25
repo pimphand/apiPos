@@ -1,0 +1,56 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+main
+
+# Test binary, built with "go test -c"
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage.html
+
+# Go workspace file
+go.work
+
+# Temporary files
+tmp/
+tmp
+
+# Vendor directory (uncomment if you want to commit vendor)
+vendor/
+
+# IDE specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS X generated file
+.DS_Store
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Docker volumes
+postgres_data/
+
+# Build artifacts
+dist/
+build/
+
+# Logs
+*.log
+logs/
+
+# Proto generated files (if you want to regenerate)
+# gen/
+
+# Database migrations backup
+*.sql.bak
