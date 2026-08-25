@@ -1,0 +1,111 @@
+syntax = "proto3";
+
+package permission.v1;
+
+option go_package = "apiPos/gen/permission/v1;permissionv1";
+
+import "google/api/annotations.proto";
+
+service PermissionService {
+  // GetPermission gets a permission by ID
+  rpc GetPermission(GetPermissionRequest) returns (PermissionResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/permissions/{id}"
+    };
+  }
+
+  // ListPermissions lists all permissions
+  rpc ListPermissions(ListPermissionsRequest) returns (ListPermissionsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/permissions"
+    };
+  }
+
+  // ListPermissionsByResource lists permissions filtered by resource
+  rpc ListPermissionsByResource(ListPermissionsByResourceRequest) returns (ListPermissionsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/permissions/resource/{resource}"
+    };
+  }
+
+  // CreatePermission creates a new permission
+  rpc CreatePermission(CreatePermissionRequest) returns (PermissionResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/permissions"
+      body: "*"
+    };
+  }
+
+  // UpdatePermission updates a permission
+  rpc UpdatePermission(UpdatePermissionRequest) returns (PermissionResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/permissions/{id}"
+      body: "*"
+    };
+  }
+
+  // DeletePermission deletes a permission
+  rpc DeletePermission(DeletePermissionRequest) returns (DeletePermissionResponse) {
+    option (google.api.http) = {
+      delete: "/api/v1/permissions/{id}"
+    };
+  }
+}
+
+message GetPermissionRequest {
+  string id = 1;
+}
+
+message ListPermissionsRequest {
+  int32 page = 1;
+  int32 per_page = 2;
+}
+
+message ListPermissionsByResourceRequest {
+  string resource = 1;
+  int32 page = 2;
+  int32 per_page = 3;
+}
+
+message ListPermissionsResponse {
+  repeated Permission permissions = 1;
+  int64 total_count = 2;
+}
+
+message CreatePermissionRequest {
+  string name = 1;
+  string resource = 2;
+  string action = 3;
+  string description = 4;
+}
+
+message UpdatePermissionRequest {
+  string id = 1;
+  string name = 2;
+  string resource = 3;
+  string action = 4;
+  string description = 5;
+}
+
+message DeletePermissionRequest {
+  string id = 1;
+}
+
+message DeletePermissionResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message PermissionResponse {
+  Permission permission = 1;
+}
+
+message Permission {
+  string id = 1;
+  string name = 2;
+  string resource = 3;
+  string action = 4;
+  string description = 5;
+  string created_at = 6;
+  string updated_at = 7;
+}

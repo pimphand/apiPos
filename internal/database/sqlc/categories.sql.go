@@ -13,10 +13,11 @@ import (
 
 const countCategories = `-- name: CountCategories :one
 SELECT COUNT(*) FROM categories
+WHERE ($1::BOOLEAN = false OR is_active = $1)
 `
 
-func (q *Queries) CountCategories(ctx context.Context) (int64, error) {
-	row := q.db.QueryRow(ctx, countCategories)
+func (q *Queries) CountCategories(ctx context.Context, dollar_1 bool) (int64, error) {
+	row := q.db.QueryRow(ctx, countCategories, dollar_1)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -90,10 +91,17 @@ const listCategories = `-- name: ListCategories :many
 SELECT id, name, description, is_active, created_at, updated_at FROM categories
 WHERE ($1::BOOLEAN = false OR is_active = $1)
 ORDER BY name
+LIMIT $2 OFFSET $3
 `
 
-func (q *Queries) ListCategories(ctx context.Context, dollar_1 bool) ([]Category, error) {
-	rows, err := q.db.Query(ctx, listCategories, dollar_1)
+type ListCategoriesParams struct {
+	Column1 bool  `db:"column_1" json:"column_1"`
+	Limit   int32 `db:"limit" json:"limit"`
+	Offset  int32 `db:"offset" json:"offset"`
+}
+
+func (q *Queries) ListCategories(ctx context.Context, arg ListCategoriesParams) ([]Category, error) {
+	rows, err := q.db.Query(ctx, listCategories, arg.Column1, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}

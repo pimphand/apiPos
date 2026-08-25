@@ -48,6 +48,17 @@ const (
 	MsgShiftOpened    = "Shift opened successfully"
 	MsgShiftClosed    = "Shift closed successfully"
 
+	// Role
+	MsgRoleCreated  = "Role created successfully"
+	MsgRoleUpdated  = "Role updated successfully"
+	MsgRoleDeleted  = "Role deleted successfully"
+
+	// Permission
+	MsgPermissionCreated  = "Permission created successfully"
+	MsgPermissionUpdated  = "Permission updated successfully"
+	MsgPermissionDeleted  = "Permission deleted successfully"
+	MsgPermissionAssigned = "Permissions assigned successfully"
+
 	// General
 	MsgOperationSuccess = "Operation completed successfully"
 )

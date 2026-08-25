@@ -4,8 +4,8 @@ import (
 	"context"
 
 	userv1 "apiPos/gen/user/v1"
-	db "apiPos/internal/database/sqlc"
 	"apiPos/internal/apperror"
+	gormdb "apiPos/internal/database/gorm"
 	"apiPos/internal/response"
 	"apiPos/internal/user"
 )
@@ -29,7 +29,7 @@ func (h *UserHandler) CreateUser(ctx context.Context, req *userv1.CreateUserRequ
 	}
 
 	return &userv1.UserResponse{
-		User: toProtoUser(u, ""),
+		User: toProtoUserFromGORM(u, ""),
 	}, nil
 }
 
@@ -41,7 +41,7 @@ func (h *UserHandler) GetUser(ctx context.Context, req *userv1.GetUserRequest) (
 	}
 
 	return &userv1.UserResponse{
-		User: toProtoUser(u, ""),
+		User: toProtoUserFromGORM(u, ""),
 	}, nil
 }
 
@@ -54,12 +54,23 @@ func (h *UserHandler) ListUsers(ctx context.Context, req *userv1.ListUsersReques
 
 	protoUsers := make([]*userv1.User, len(users))
 	for i, u := range users {
-		protoUsers[i] = toProtoUser(&u, "")
+		protoUsers[i] = toProtoUserFromGORM(&u, "")
+	}
+
+	page := req.Page
+	perPage := req.PerPage
+	if page <= 0 {
+		page = 1
+	}
+	if perPage <= 0 {
+		perPage = 20
 	}
 
 	return &userv1.ListUsersResponse{
 		Users:      protoUsers,
 		TotalCount: total,
+		Page:       page,
+		PerPage:    perPage,
 	}, nil
 }
 
@@ -71,7 +82,7 @@ func (h *UserHandler) UpdateUser(ctx context.Context, req *userv1.UpdateUserRequ
 	}
 
 	return &userv1.UserResponse{
-		User: toProtoUser(u, ""),
+		User: toProtoUserFromGORM(u, ""),
 	}, nil
 }
 
@@ -96,20 +107,22 @@ func (h *UserHandler) UpdateUserRole(ctx context.Context, req *userv1.UpdateUser
 	}
 
 	return &userv1.UserResponse{
-		User: toProtoUser(u, ""),
+		User: toProtoUserFromGORM(u, ""),
 	}, nil
 }
 
-// toProtoUser converts a db.User to proto User
-func toProtoUser(u *db.User, roleName string) *userv1.User {
+// toProtoUserFromGORM converts a GORM User model to proto User
+func toProtoUserFromGORM(u *gormdb.User, roleName string) *userv1.User {
 	return &userv1.User{
-		Id:       uuidToString(u.ID),
-		Username: u.Username,
-		Email:    u.Email,
-		FullName: u.FullName,
-		RoleId:   uuidToString(u.RoleID),
-		RoleName: roleName,
-		StoreId:  uuidToString(u.StoreID),
-		IsActive: u.IsActive,
+		Id:        u.ID.String(),
+		Username:  u.Username,
+		Email:     u.Email,
+		FullName:  u.FullName,
+		RoleId:    u.RoleID.String(),
+		RoleName:  roleName,
+		StoreId:   u.StoreID.String(),
+		IsActive:  u.IsActive,
+		CreatedAt: u.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		UpdatedAt: u.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
 }

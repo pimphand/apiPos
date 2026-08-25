@@ -52,10 +52,11 @@ var (
 	ErrInvalidReference = errors.New("invalid reference")
 
 	// General errors
-	ErrNotFound       = errors.New("resource not found")
-	ErrAlreadyExists  = errors.New("resource already exists")
-	ErrInvalidRequest = errors.New("invalid request")
-	ErrInternal       = errors.New("internal server error")
+	ErrNotFound          = errors.New("resource not found")
+	ErrAlreadyExists     = errors.New("resource already exists")
+	ErrInvalidRequest    = errors.New("invalid request")
+	ErrInternal          = errors.New("internal server error")
+	ErrFailedPrecondition = errors.New("failed precondition")
 )
 
 // AppError represents a structured application error
@@ -160,6 +161,10 @@ func describePGError(err error) (string, codes.Code) {
 			return "Barcode already exists", codes.AlreadyExists
 		case strings.Contains(constraint, "categories_name"):
 			return "Category name already exists", codes.AlreadyExists
+		case strings.Contains(constraint, "roles_name"):
+			return "Role name already exists", codes.AlreadyExists
+		case strings.Contains(constraint, "permissions_name"):
+			return "Permission name already exists", codes.AlreadyExists
 		case strings.Contains(constraint, "stores_name"):
 			return "Store name already exists", codes.AlreadyExists
 		case strings.Contains(constraint, "sales_invoice"):
@@ -282,6 +287,8 @@ func MapError(err error) *AppError {
 		return New(codes.InvalidArgument, "Invalid request", err)
 	case errors.Is(err, ErrInternal):
 		return New(codes.Internal, "Internal server error", err)
+	case errors.Is(err, ErrFailedPrecondition):
+		return New(codes.FailedPrecondition, "Failed precondition", err)
 
 	default:
 		return New(codes.Internal, "Internal server error", err)

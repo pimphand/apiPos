@@ -5,12 +5,12 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/google/uuid"
+	"gorm.io/gorm"
 
 	"apiPos/internal/apperror"
 	"apiPos/internal/auth"
-	"apiPos/internal/database/sqlc"
+	gormdb "apiPos/internal/database/gorm"
 	"apiPos/internal/repository"
 )
 
@@ -28,45 +28,23 @@ func NewService(repos *repository.Repositories, authService *auth.AuthService) *
 	}
 }
 
-// parseUUID safely parses a string to pgtype.UUID
-func parseUUID(s string) pgtype.UUID {
-	if s == "" {
-		return pgtype.UUID{Valid: false}
-	}
-	var u pgtype.UUID
-	err := u.Scan(s)
-	if err != nil {
-		return pgtype.UUID{Valid: false}
-	}
-	return u
-}
-
-// uuidToString converts pgtype.UUID to string
-func uuidToString(u pgtype.UUID) string {
-	if !u.Valid {
-		return ""
-	}
-	b := u.Bytes
-	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
-}
-
 // CreateUser creates a new user
-func (s *Service) CreateUser(ctx context.Context, username, email, password, fullName, roleIDStr, storeIDStr string) (*db.User, error) {
+func (s *Service) CreateUser(ctx context.Context, username, email, password, fullName, roleIDStr, storeIDStr string) (*gormdb.User, error) {
 	// Check if username already exists
-	_, err := s.repos.User.GetUserByUsername(ctx, username)
+	_, err := s.repos.User.GetByUsername(ctx, username)
 	if err == nil {
 		return nil, apperror.ErrUserAlreadyExists
 	}
-	if !errors.Is(err, pgx.ErrNoRows) {
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to check username", err)
 	}
 
 	// Check if email already exists
-	_, err = s.repos.User.GetUserByEmail(ctx, email)
+	_, err = s.repos.User.GetByEmail(ctx, email)
 	if err == nil {
 		return nil, apperror.ErrUserAlreadyExists
 	}
-	if !errors.Is(err, pgx.ErrNoRows) {
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to check email", err)
 	}
 
@@ -78,7 +56,7 @@ func (s *Service) CreateUser(ctx context.Context, username, email, password, ful
 
 	// Parse role_id - required
 	roleUUID := parseUUID(roleIDStr)
-	if !roleUUID.Valid {
+	if roleUUID == "" {
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Invalid role_id format", fmt.Errorf("role_id: %s", roleIDStr))
 	}
 
@@ -86,175 +64,164 @@ func (s *Service) CreateUser(ctx context.Context, username, email, password, ful
 	storeUUID := parseUUID(storeIDStr)
 
 	// Create user
-	user, err := s.repos.User.CreateUser(ctx, db.CreateUserParams{
+	user := &gormdb.User{
 		Username:     username,
 		Email:        email,
 		PasswordHash: hashedPassword,
 		FullName:     fullName,
-		RoleID:       roleUUID,
-		StoreID:      storeUUID,
-	})
-	if err != nil {
-		// Let MapError handle PostgreSQL-specific errors (FK violation, etc.)
+		RoleID:       parseUUIDToUUID(roleIDStr),
+		StoreID:      parseUUIDToUUID(storeUUID),
+	}
+
+	if err := s.repos.User.Create(ctx, user); err != nil {
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to create user", err)
 	}
 
-	return &user, nil
+	return user, nil
 }
 
 // GetUser gets a user by ID
-func (s *Service) GetUser(ctx context.Context, id string) (*db.User, error) {
-	userUUID := parseUUID(id)
-	if !userUUID.Valid {
+func (s *Service) GetUser(ctx context.Context, id string) (*gormdb.User, error) {
+	if !isValidUUID(id) {
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Invalid user ID format", fmt.Errorf("id: %s", id))
 	}
 
-	user, err := s.repos.User.GetUserByID(ctx, userUUID)
+	user, err := s.repos.User.GetByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperror.ErrUserNotFound
 		}
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to get user", err)
 	}
-	return &user, nil
+	return user, nil
 }
 
 // ListUsers lists users with filters
-func (s *Service) ListUsers(ctx context.Context, roleIDStr string, isActive bool, page, perPage int32) ([]db.User, int64, error) {
-	offset := (page - 1) * perPage
-	if offset < 0 {
-		offset = 0
+func (s *Service) ListUsers(ctx context.Context, roleIDStr string, isActiveStr string, page, perPage int32) ([]gormdb.User, int64, error) {
+	if page <= 0 {
+		page = 1
+	}
+	if perPage <= 0 {
+		perPage = 20
+	}
+	if perPage > 100 {
+		perPage = 100
 	}
 
-	roleUUID := parseUUID(roleIDStr)
-
-	users, err := s.repos.User.ListUsers(ctx, db.ListUsersParams{
-		Column1: roleUUID,
-		Column2: isActive,
-		Limit:   perPage,
-		Offset:  offset,
+	users, totalCount, err := s.repos.User.List(ctx, repository.UserListParams{
+		RoleID:   roleIDStr,
+		IsActive: isActiveStr,
+		Page:     page,
+		PerPage:  perPage,
 	})
 	if err != nil {
 		return nil, 0, apperror.Wrap(apperror.ErrInternal, "Failed to list users", err)
 	}
 
-	// Get total count
-	count, err := s.repos.User.CountUsers(ctx)
-	if err != nil {
-		return nil, 0, apperror.Wrap(apperror.ErrInternal, "Failed to count users", err)
-	}
-
-	return users, count, nil
+	return users, totalCount, nil
 }
 
 // UpdateUser updates a user
-func (s *Service) UpdateUser(ctx context.Context, idStr, email, fullName, roleIDStr, storeIDStr string, isActive bool) (*db.User, error) {
-	idUUID := parseUUID(idStr)
-	if !idUUID.Valid {
+func (s *Service) UpdateUser(ctx context.Context, idStr, email, fullName, roleIDStr, storeIDStr string, isActive bool) (*gormdb.User, error) {
+	if !isValidUUID(idStr) {
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Invalid user ID format", fmt.Errorf("id: %s", idStr))
 	}
 
 	// Check if user exists
-	_, err := s.repos.User.GetUserByID(ctx, idUUID)
+	user, err := s.repos.User.GetByID(ctx, idStr)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperror.ErrUserNotFound
 		}
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to get user", err)
 	}
 
-	roleUUID := parseUUID(roleIDStr)
-	storeUUID := parseUUID(storeIDStr)
+	// Update fields
+	if email != "" {
+		user.Email = email
+	}
+	if fullName != "" {
+		user.FullName = fullName
+	}
+	if roleIDStr != "" {
+		user.RoleID = parseUUIDToUUID(roleIDStr)
+	}
+	if storeIDStr != "" {
+		user.StoreID = parseUUIDToUUID(storeIDStr)
+	}
+	user.IsActive = isActive
 
-	// Update user
-	user, err := s.repos.User.UpdateUser(ctx, db.UpdateUserParams{
-		ID:       idUUID,
-		FullName: fullName,
-		Email:    email,
-		RoleID:   roleUUID,
-		StoreID:  storeUUID,
-		IsActive: isActive,
-	})
-	if err != nil {
+	if err := s.repos.User.Update(ctx, user); err != nil {
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to update user", err)
 	}
 
-	return &user, nil
+	return user, nil
 }
 
 // DeleteUser deletes a user
 func (s *Service) DeleteUser(ctx context.Context, idStr string) error {
-	idUUID := parseUUID(idStr)
-	if !idUUID.Valid {
+	if !isValidUUID(idStr) {
 		return apperror.Wrap(apperror.ErrInvalidRequest, "Invalid user ID format", fmt.Errorf("id: %s", idStr))
 	}
 
 	// Check if user exists
-	_, err := s.repos.User.GetUserByID(ctx, idUUID)
+	_, err := s.repos.User.GetByID(ctx, idStr)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return apperror.ErrUserNotFound
 		}
 		return apperror.Wrap(apperror.ErrInternal, "Failed to get user", err)
 	}
 
-	return s.repos.User.DeleteUser(ctx, idUUID)
+	return s.repos.User.Delete(ctx, idStr)
 }
 
 // UpdateUserRole updates a user's role
-func (s *Service) UpdateUserRole(ctx context.Context, idStr, roleIDStr string) (*db.User, error) {
-	idUUID := parseUUID(idStr)
-	if !idUUID.Valid {
+func (s *Service) UpdateUserRole(ctx context.Context, idStr, roleIDStr string) (*gormdb.User, error) {
+	if !isValidUUID(idStr) {
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Invalid user ID format", fmt.Errorf("id: %s", idStr))
 	}
 
 	// Check if user exists
-	user, err := s.repos.User.GetUserByID(ctx, idUUID)
+	user, err := s.repos.User.GetByID(ctx, idStr)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperror.ErrUserNotFound
 		}
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to get user", err)
 	}
 
-	roleUUID := parseUUID(roleIDStr)
-	if !roleUUID.Valid {
+	if !isValidUUID(roleIDStr) {
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Invalid role_id format", fmt.Errorf("role_id: %s", roleIDStr))
 	}
 
 	// Update user role
-	updatedUser, err := s.repos.User.UpdateUser(ctx, db.UpdateUserParams{
-		ID:       idUUID,
-		FullName: user.FullName,
-		Email:    user.Email,
-		RoleID:   roleUUID,
-		StoreID:  user.StoreID,
-		IsActive: user.IsActive,
-	})
-	if err != nil {
+	user.RoleID = parseUUIDToUUID(roleIDStr)
+
+	if err := s.repos.User.Update(ctx, user); err != nil {
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to update user role", err)
 	}
 
-	return &updatedUser, nil
+	return user, nil
 }
 
 // Register creates a new user with default role (Cashier)
-func (s *Service) Register(ctx context.Context, username, email, password, fullName string) (*auth.TokenPair, *db.User, error) {
+func (s *Service) Register(ctx context.Context, username, email, password, fullName string) (*auth.TokenPair, *gormdb.User, error) {
 	// Check if username already exists
-	_, err := s.repos.User.GetUserByUsername(ctx, username)
+	_, err := s.repos.User.GetByUsername(ctx, username)
 	if err == nil {
 		return nil, nil, apperror.ErrUserAlreadyExists
 	}
-	if !errors.Is(err, pgx.ErrNoRows) {
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil, apperror.Wrap(apperror.ErrInternal, "Failed to check username", err)
 	}
 
 	// Check if email already exists
-	_, err = s.repos.User.GetUserByEmail(ctx, email)
+	_, err = s.repos.User.GetByEmail(ctx, email)
 	if err == nil {
 		return nil, nil, apperror.ErrUserAlreadyExists
 	}
-	if !errors.Is(err, pgx.ErrNoRows) {
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil, apperror.Wrap(apperror.ErrInternal, "Failed to check email", err)
 	}
 
@@ -265,57 +232,57 @@ func (s *Service) Register(ctx context.Context, username, email, password, fullN
 	}
 
 	// Look up the cashier role
-	roles, err := s.repos.User.ListRoles(ctx)
+	roles, err := s.repos.Role.List(ctx)
 	if err != nil {
 		return nil, nil, apperror.Wrap(apperror.ErrInternal, "Failed to list roles", err)
 	}
 
-	var cashierRoleID pgtype.UUID
+	var cashierRoleID string
 	for _, r := range roles {
 		if r.Name == "cashier" {
-			cashierRoleID = r.ID
+			cashierRoleID = r.ID.String()
 			break
 		}
 	}
-	if !cashierRoleID.Valid {
+	if cashierRoleID == "" {
 		return nil, nil, apperror.Wrap(apperror.ErrInternal, "Cashier role not found", fmt.Errorf("cashier role missing"))
 	}
 
 	// Create user with default role (Cashier)
-	user, err := s.repos.User.CreateUser(ctx, db.CreateUserParams{
+	user := &gormdb.User{
 		Username:     username,
 		Email:        email,
 		PasswordHash: hashedPassword,
 		FullName:     fullName,
-		RoleID:       cashierRoleID,
-	})
-	if err != nil {
+		RoleID:       parseUUIDToUUID(cashierRoleID),
+	}
+
+	if err := s.repos.User.Create(ctx, user); err != nil {
 		return nil, nil, apperror.Wrap(apperror.ErrInternal, "Failed to create user", err)
 	}
 
 	// Generate tokens
-	storeIDStr := uuidToString(user.StoreID)
 	tokenPair, err := s.auth.GenerateTokenPair(
-		uuidToString(user.ID),
+		user.ID.String(),
 		user.Username,
 		user.Email,
-		uuidToString(user.RoleID),
+		user.RoleID.String(),
 		"cashier",
-		storeIDStr,
+		user.StoreID.String(),
 	)
 	if err != nil {
 		return nil, nil, apperror.Wrap(apperror.ErrInternal, "Failed to generate tokens", err)
 	}
 
-	return tokenPair, &user, nil
+	return tokenPair, user, nil
 }
 
 // Login authenticates a user
-func (s *Service) Login(ctx context.Context, username, password string) (*auth.TokenPair, *db.User, error) {
+func (s *Service) Login(ctx context.Context, username, password string) (*auth.TokenPair, *gormdb.User, error) {
 	// Get user by username
-	user, err := s.repos.User.GetUserByUsername(ctx, username)
+	user, err := s.repos.User.GetByUsername(ctx, username)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil, apperror.ErrInvalidCredentials
 		}
 		return nil, nil, apperror.Wrap(apperror.ErrInternal, "Failed to get user", err)
@@ -332,23 +299,22 @@ func (s *Service) Login(ctx context.Context, username, password string) (*auth.T
 	}
 
 	// Generate tokens
-	storeIDStr := uuidToString(user.StoreID)
 	tokenPair, err := s.auth.GenerateTokenPair(
-		uuidToString(user.ID),
+		user.ID.String(),
 		user.Username,
 		user.Email,
-		uuidToString(user.RoleID),
+		user.RoleID.String(),
 		"user",
-		storeIDStr,
+		user.StoreID.String(),
 	)
 	if err != nil {
 		return nil, nil, apperror.Wrap(apperror.ErrInternal, "Failed to generate tokens", err)
 	}
 
 	// Update last login
-	_ = s.repos.User.UpdateUserLastLogin(ctx, user.ID)
+	_ = s.repos.User.UpdateLastLogin(ctx, user.ID.String())
 
-	return tokenPair, &user, nil
+	return tokenPair, user, nil
 }
 
 // RefreshToken refreshes an access token
@@ -359,12 +325,10 @@ func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*auth.
 		return nil, err
 	}
 
-	userID := parseUUID(userIDStr)
-
 	// Get user
-	user, err := s.repos.User.GetUserByID(ctx, userID)
+	user, err := s.repos.User.GetByID(ctx, userIDStr)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperror.ErrInvalidToken
 		}
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to get user", err)
@@ -376,18 +340,50 @@ func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*auth.
 	}
 
 	// Generate new tokens
-	storeIDStr := uuidToString(user.StoreID)
 	tokenPair, err := s.auth.GenerateTokenPair(
-		uuidToString(user.ID),
+		user.ID.String(),
 		user.Username,
 		user.Email,
-		uuidToString(user.RoleID),
+		user.RoleID.String(),
 		"user",
-		storeIDStr,
+		user.StoreID.String(),
 	)
 	if err != nil {
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to generate tokens", err)
 	}
 
 	return tokenPair, nil
+}
+
+// parseUUID converts a string to UUID string
+func parseUUID(s string) string {
+	if s == "" {
+		return ""
+	}
+	// Simple validation - just check format
+	if len(s) != 36 {
+		return ""
+	}
+	return s
+}
+
+// isValidUUID validates UUID format
+func isValidUUID(s string) bool {
+	if s == "" {
+		return false
+	}
+	// Simple validation - check length and format
+	return len(s) == 36 && s[8] == '-' && s[13] == '-' && s[18] == '-' && s[23] == '-'
+}
+
+// parseUUIDToUUID converts string to uuid.UUID
+func parseUUIDToUUID(s string) uuid.UUID {
+	if s == "" {
+		return uuid.UUID{}
+	}
+	u, err := uuid.Parse(s)
+	if err != nil {
+		return uuid.UUID{}
+	}
+	return u
 }

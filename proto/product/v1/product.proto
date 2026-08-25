@@ -1,0 +1,192 @@
+syntax = "proto3";
+
+package product.v1;
+
+option go_package = "apiPos/gen/product/v1;productv1";
+
+import "google/api/annotations.proto";
+
+service ProductService {
+  // CreateProduct creates a new product
+  rpc CreateProduct(CreateProductRequest) returns (ProductResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/products"
+      body: "*"
+    };
+  }
+
+  // GetProduct gets a product by ID
+  rpc GetProduct(GetProductRequest) returns (ProductResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/products/{id}"
+    };
+  }
+
+  // GetProductByBarcode looks up a product by barcode
+  rpc GetProductByBarcode(GetProductByBarcodeRequest) returns (ProductResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/products/barcode/{barcode}"
+    };
+  }
+
+  // GetProductBySKU looks up a product by SKU
+  rpc GetProductBySKU(GetProductBySKURequest) returns (ProductResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/products/sku/{sku}"
+    };
+  }
+
+  // ListProducts lists products with filters
+  rpc ListProducts(ListProductsRequest) returns (ListProductsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/products"
+    };
+  }
+
+  // SearchProducts searches products by name
+  rpc SearchProducts(SearchProductsRequest) returns (ListProductsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/products/search"
+    };
+  }
+
+  // UpdateProduct updates a product
+  rpc UpdateProduct(UpdateProductRequest) returns (ProductResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/products/{id}"
+      body: "*"
+    };
+  }
+
+  // DeleteProduct deletes a product
+  rpc DeleteProduct(DeleteProductRequest) returns (DeleteProductResponse) {
+    option (google.api.http) = {
+      delete: "/api/v1/products/{id}"
+    };
+  }
+
+  // ActivateProduct activates a product
+  rpc ActivateProduct(ActivateProductRequest) returns (DeleteProductResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/products/{id}/activate"
+      body: "*"
+    };
+  }
+
+  // DeactivateProduct deactivates a product
+  rpc DeactivateProduct(DeactivateProductRequest) returns (DeleteProductResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/products/{id}/deactivate"
+      body: "*"
+    };
+  }
+
+  // GetLowStockProducts lists products with low stock
+  rpc GetLowStockProducts(LowStockProductsRequest) returns (ListProductsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/products/low-stock"
+    };
+  }
+}
+
+message CreateProductRequest {
+  string sku = 1;
+  string barcode = 2;
+  string name = 3;
+  string description = 4;
+  string category_id = 5;
+  double cost_price = 6;
+  double selling_price = 7;
+  int32 stock = 8;
+  int32 minimum_stock = 9;
+}
+
+message GetProductRequest {
+  string id = 1;
+}
+
+message GetProductByBarcodeRequest {
+  string barcode = 1;
+}
+
+message GetProductBySKURequest {
+  string sku = 1;
+}
+
+message ListProductsRequest {
+  // Filter: "" = all, "true" = active only, "false" = inactive only
+  string is_active = 1;
+  string category_id = 2;
+  int32 page = 3;
+  int32 per_page = 4;
+}
+
+message ListProductsResponse {
+  repeated Product products = 1;
+  int64 total_count = 2;
+  int32 page = 3;
+  int32 per_page = 4;
+}
+
+message SearchProductsRequest {
+  string name = 1;
+  // Filter: "" = all, "true" = active only, "false" = inactive only
+  string is_active = 2;
+  int32 page = 3;
+  int32 per_page = 4;
+}
+
+message UpdateProductRequest {
+  string id = 1;
+  string sku = 2;
+  string barcode = 3;
+  string name = 4;
+  string description = 5;
+  string category_id = 6;
+  double cost_price = 7;
+  double selling_price = 8;
+  int32 minimum_stock = 9;
+  bool is_active = 10;
+}
+
+message DeleteProductRequest {
+  string id = 1;
+}
+
+message DeleteProductResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ActivateProductRequest {
+  string id = 1;
+}
+
+message DeactivateProductRequest {
+  string id = 1;
+}
+
+message LowStockProductsRequest {
+  int32 page = 1;
+  int32 per_page = 2;
+}
+
+message ProductResponse {
+  Product product = 1;
+}
+
+message Product {
+  string id = 1;
+  string sku = 2;
+  string barcode = 3;
+  string name = 4;
+  string description = 5;
+  string category_id = 6;
+  double cost_price = 7;
+  double selling_price = 8;
+  int32 stock = 9;
+  int32 minimum_stock = 10;
+  bool is_active = 11;
+  string created_at = 12;
+  string updated_at = 13;
+}

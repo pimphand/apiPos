@@ -19,12 +19,22 @@ WHERE ($1::BOOLEAN = false OR is_active = $1)
 ORDER BY created_at DESC
 LIMIT $3 OFFSET $4;
 
+-- name: CountProducts :one
+SELECT COUNT(*) FROM products
+WHERE ($1::BOOLEAN = false OR is_active = $1)
+  AND ($2::UUID = '00000000-0000-0000-0000-000000000000'::UUID OR category_id = $2);
+
 -- name: SearchProductsByName :many
 SELECT * FROM products
 WHERE name ILIKE '%' || $1 || '%'
   AND ($2::BOOLEAN = false OR is_active = $2)
 ORDER BY name
 LIMIT $3 OFFSET $4;
+
+-- name: CountSearchProductsByName :one
+SELECT COUNT(*) FROM products
+WHERE name ILIKE '%' || $1 || '%'
+  AND ($2::BOOLEAN = false OR is_active = $2);
 
 -- name: UpdateProduct :one
 UPDATE products
@@ -74,13 +84,15 @@ WHERE id = $1;
 -- name: DeleteProduct :exec
 DELETE FROM products WHERE id = $1;
 
--- name: CountProducts :one
-SELECT COUNT(*) FROM products;
-
 -- name: GetLowStockProducts :many
 SELECT * FROM products
 WHERE stock <= minimum_stock AND is_active = true
-ORDER BY stock ASC;
+ORDER BY stock ASC
+LIMIT $1 OFFSET $2;
+
+-- name: CountLowStockProducts :one
+SELECT COUNT(*) FROM products
+WHERE stock <= minimum_stock AND is_active = true;
 
 -- name: GetProductStockForUpdate :one
 SELECT id, stock FROM products WHERE id = $1 FOR UPDATE;

@@ -23,12 +23,49 @@ func (q *Queries) ActivateProduct(ctx context.Context, id pgtype.UUID) error {
 	return err
 }
 
-const countProducts = `-- name: CountProducts :one
+const countLowStockProducts = `-- name: CountLowStockProducts :one
 SELECT COUNT(*) FROM products
+WHERE stock <= minimum_stock AND is_active = true
 `
 
-func (q *Queries) CountProducts(ctx context.Context) (int64, error) {
-	row := q.db.QueryRow(ctx, countProducts)
+func (q *Queries) CountLowStockProducts(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countLowStockProducts)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countProducts = `-- name: CountProducts :one
+SELECT COUNT(*) FROM products
+WHERE ($1::BOOLEAN = false OR is_active = $1)
+  AND ($2::UUID = '00000000-0000-0000-0000-000000000000'::UUID OR category_id = $2)
+`
+
+type CountProductsParams struct {
+	Column1 bool        `db:"column_1" json:"column_1"`
+	Column2 pgtype.UUID `db:"column_2" json:"column_2"`
+}
+
+func (q *Queries) CountProducts(ctx context.Context, arg CountProductsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countProducts, arg.Column1, arg.Column2)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countSearchProductsByName = `-- name: CountSearchProductsByName :one
+SELECT COUNT(*) FROM products
+WHERE name ILIKE '%' || $1 || '%'
+  AND ($2::BOOLEAN = false OR is_active = $2)
+`
+
+type CountSearchProductsByNameParams struct {
+	Column1 pgtype.Text `db:"column_1" json:"column_1"`
+	Column2 bool        `db:"column_2" json:"column_2"`
+}
+
+func (q *Queries) CountSearchProductsByName(ctx context.Context, arg CountSearchProductsByNameParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countSearchProductsByName, arg.Column1, arg.Column2)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -125,10 +162,16 @@ const getLowStockProducts = `-- name: GetLowStockProducts :many
 SELECT id, sku, barcode, name, description, category_id, cost_price, selling_price, stock, minimum_stock, is_active, created_at, updated_at FROM products
 WHERE stock <= minimum_stock AND is_active = true
 ORDER BY stock ASC
+LIMIT $1 OFFSET $2
 `
 
-func (q *Queries) GetLowStockProducts(ctx context.Context) ([]Product, error) {
-	rows, err := q.db.Query(ctx, getLowStockProducts)
+type GetLowStockProductsParams struct {
+	Limit  int32 `db:"limit" json:"limit"`
+	Offset int32 `db:"offset" json:"offset"`
+}
+
+func (q *Queries) GetLowStockProducts(ctx context.Context, arg GetLowStockProductsParams) ([]Product, error) {
+	rows, err := q.db.Query(ctx, getLowStockProducts, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}

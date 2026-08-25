@@ -293,14 +293,14 @@ func (q *Queries) ListRoles(ctx context.Context) ([]Role, error) {
 const listUsers = `-- name: ListUsers :many
 SELECT id, username, email, password_hash, full_name, role_id, store_id, is_active, last_login, created_at, updated_at FROM users
 WHERE ($1::UUID = '00000000-0000-0000-0000-000000000000'::UUID OR role_id = $1)
-  AND ($2::BOOLEAN = false OR is_active = $2)
+  AND ($2::TEXT = '' OR is_active = ($2::TEXT = 'true'))
 ORDER BY created_at DESC
 LIMIT $3 OFFSET $4
 `
 
 type ListUsersParams struct {
 	Column1 pgtype.UUID `db:"column_1" json:"column_1"`
-	Column2 bool        `db:"column_2" json:"column_2"`
+	Column2 string      `db:"column_2" json:"column_2"`
 	Limit   int32       `db:"limit" json:"limit"`
 	Offset  int32       `db:"offset" json:"offset"`
 }

@@ -2,24 +2,12 @@ package handler
 
 import (
 	"context"
-	"fmt"
-
-	"github.com/jackc/pgx/v5/pgtype"
 
 	authv1 "apiPos/gen/auth/v1"
 	"apiPos/internal/apperror"
 	"apiPos/internal/response"
 	"apiPos/internal/user"
 )
-
-// uuidToString converts pgtype.UUID to formatted string
-func uuidToString(u pgtype.UUID) string {
-	if !u.Valid {
-		return ""
-	}
-	b := u.Bytes
-	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
-}
 
 // AuthHandler implements the AuthService gRPC server
 type AuthHandler struct {
@@ -44,12 +32,12 @@ func (h *AuthHandler) Register(ctx context.Context, req *authv1.RegisterRequest)
 		RefreshToken: tokenPair.RefreshToken,
 		ExpiresAt:    tokenPair.ExpiresAt.Unix(),
 		User: &authv1.User{
-			Id:       uuidToString(u.ID),
+			Id:       u.ID.String(),
 			Username: u.Username,
 			Email:    u.Email,
 			FullName: u.FullName,
-			RoleId:   uuidToString(u.RoleID),
-			StoreId:  uuidToString(u.StoreID),
+			RoleId:   u.RoleID.String(),
+			StoreId:  u.StoreID.String(),
 			IsActive: u.IsActive,
 		},
 	}, nil
@@ -67,12 +55,12 @@ func (h *AuthHandler) Login(ctx context.Context, req *authv1.LoginRequest) (*aut
 		RefreshToken: tokenPair.RefreshToken,
 		ExpiresAt:    tokenPair.ExpiresAt.Unix(),
 		User: &authv1.User{
-			Id:       uuidToString(u.ID),
+			Id:       u.ID.String(),
 			Username: u.Username,
 			Email:    u.Email,
 			FullName: u.FullName,
-			RoleId:   uuidToString(u.RoleID),
-			StoreId:  uuidToString(u.StoreID),
+			RoleId:   u.RoleID.String(),
+			StoreId:  u.StoreID.String(),
 			IsActive: u.IsActive,
 		},
 	}, nil

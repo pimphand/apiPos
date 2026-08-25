@@ -1,0 +1,110 @@
+syntax = "proto3";
+
+package category.v1;
+
+option go_package = "apiPos/gen/category/v1;categoryv1";
+
+import "google/api/annotations.proto";
+
+service CategoryService {
+  // CreateCategory creates a new category
+  rpc CreateCategory(CreateCategoryRequest) returns (CategoryResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/categories"
+      body: "*"
+    };
+  }
+
+  // GetCategory gets a category by ID
+  rpc GetCategory(GetCategoryRequest) returns (CategoryResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/categories/{id}"
+    };
+  }
+
+  // ListCategories lists all categories
+  rpc ListCategories(ListCategoriesRequest) returns (ListCategoriesResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/categories"
+    };
+  }
+
+  // UpdateCategory updates a category
+  rpc UpdateCategory(UpdateCategoryRequest) returns (CategoryResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/categories/{id}"
+      body: "*"
+    };
+  }
+
+  // DeleteCategory deletes a category
+  rpc DeleteCategory(DeleteCategoryRequest) returns (DeleteCategoryResponse) {
+    option (google.api.http) = {
+      delete: "/api/v1/categories/{id}"
+    };
+  }
+
+  // DeactivateCategory soft-deletes a category
+  rpc DeactivateCategory(DeactivateCategoryRequest) returns (DeleteCategoryResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/categories/{id}/deactivate"
+      body: "*"
+    };
+  }
+}
+
+message CreateCategoryRequest {
+  string name = 1;
+  string description = 2;
+}
+
+message GetCategoryRequest {
+  string id = 1;
+}
+
+message ListCategoriesRequest {
+  // Filter: "" = all, "true" = active only, "false" = inactive only
+  string is_active = 1;
+  int32 page = 2;
+  int32 per_page = 3;
+}
+
+message ListCategoriesResponse {
+  repeated Category categories = 1;
+  int64 total_count = 2;
+  int32 page = 3;
+  int32 per_page = 4;
+}
+
+message UpdateCategoryRequest {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  bool is_active = 4;
+}
+
+message DeleteCategoryRequest {
+  string id = 1;
+}
+
+message DeleteCategoryResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message DeactivateCategoryRequest {
+  string id = 1;
+}
+
+message CategoryResponse {
+  Category category = 1;
+}
+
+message Category {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  bool is_active = 4;
+  string created_at = 5;
+  string updated_at = 6;
+}

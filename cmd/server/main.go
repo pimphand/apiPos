@@ -7,7 +7,7 @@ import (
 	"syscall"
 
 	"apiPos/internal/config"
-	"apiPos/internal/database"
+	gormdb "apiPos/internal/database/gorm"
 	"apiPos/internal/server"
 )
 
@@ -17,8 +17,15 @@ func main() {
 
 	log.Printf("Starting POS application in %s mode", cfg.App.Env)
 
-	// Initialize database
-	db := database.New(cfg)
+	// Initialize GORM database
+	db := gormdb.New(&gormdb.Config{
+		Host:     cfg.DB.Host,
+		Port:     os.Getenv("DATABASE_PORT"),
+		User:     cfg.DB.User,
+		Password: cfg.DB.Password,
+		DBName:   cfg.DB.Name,
+		SSLMode:  cfg.DB.SSLMode,
+	})
 	defer db.Close()
 
 	// Create and start gRPC server

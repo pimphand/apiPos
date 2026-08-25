@@ -9,7 +9,12 @@ SELECT * FROM categories WHERE id = $1;
 -- name: ListCategories :many
 SELECT * FROM categories
 WHERE ($1::BOOLEAN = false OR is_active = $1)
-ORDER BY name;
+ORDER BY name
+LIMIT $2 OFFSET $3;
+
+-- name: CountCategories :one
+SELECT COUNT(*) FROM categories
+WHERE ($1::BOOLEAN = false OR is_active = $1);
 
 -- name: UpdateCategory :one
 UPDATE categories
@@ -28,6 +33,3 @@ UPDATE categories
 SET is_active = false,
     updated_at = NOW()
 WHERE id = $1;
-
--- name: CountCategories :one
-SELECT COUNT(*) FROM categories;

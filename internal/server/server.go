@@ -15,39 +15,64 @@ import (
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 
+	activitylogv1 "apiPos/gen/activitylog/v1"
 	authv1 "apiPos/gen/auth/v1"
+	categoryv1 "apiPos/gen/category/v1"
+	permissionv1 "apiPos/gen/permission/v1"
+	productv1 "apiPos/gen/product/v1"
+	rolev1 "apiPos/gen/role/v1"
 	userv1 "apiPos/gen/user/v1"
+	"apiPos/internal/activitylog"
 	"apiPos/internal/auth"
+	"apiPos/internal/category"
 	"apiPos/internal/config"
-	"apiPos/internal/database"
+	gormdb "apiPos/internal/database/gorm"
 	"apiPos/internal/handler"
+	"apiPos/internal/permission"
+	"apiPos/internal/product"
 	"apiPos/internal/repository"
+	"apiPos/internal/role"
 	"apiPos/internal/user"
 	"apiPos/middleware"
 )
 
 // Server holds the gRPC server and its dependencies
 type Server struct {
-	grpcServer   *grpc.Server
-	config       *config.Config
-	db           database.Service
-	repositories *repository.Repositories
-	authService  *auth.AuthService
-	userService  *user.Service
+	grpcServer         *grpc.Server
+	config             *config.Config
+	db                 *gormdb.DB
+	repositories       *repository.Repositories
+	authService        *auth.AuthService
+	userService        *user.Service
+	categoryService    *category.Service
+	productService     *product.Service
+	roleService        *role.Service
+	permissionService  *permission.Service
+	activityLogService *activitylog.Service
 }
 
 // New creates a new gRPC server
-func New(cfg *config.Config, db database.Service) *Server {
-	repos := repository.New(db.Queries())
+func New(cfg *config.Config, db *gormdb.DB) *Server {
+	repos := repository.New(db.GetDB())
 	authService := auth.NewAuthService(cfg)
 	userService := user.NewService(repos, authService)
+	categoryService := category.NewService(repos)
+	productService := product.NewService(repos)
+	roleService := role.NewService(repos)
+	permissionService := permission.NewService(repos)
+	activityLogService := activitylog.NewService(repos)
 
 	return &Server{
-		config:       cfg,
-		db:           db,
-		repositories: repos,
-		authService:  authService,
-		userService:  userService,
+		config:             cfg,
+		db:                 db,
+		repositories:       repos,
+		authService:        authService,
+		userService:        userService,
+		categoryService:    categoryService,
+		productService:     productService,
+		roleService:        roleService,
+		permissionService:  permissionService,
+		activityLogService: activityLogService,
 	}
 }
 
@@ -122,6 +147,31 @@ func (s *Server) startHTTP() error {
 		return fmt.Errorf("failed to register user gateway: %w", err)
 	}
 
+	// Register CategoryService
+	if err := categoryv1.RegisterCategoryServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", s.config.GRPC.Port), opts); err != nil {
+		return fmt.Errorf("failed to register category gateway: %w", err)
+	}
+
+	// Register ProductService
+	if err := productv1.RegisterProductServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", s.config.GRPC.Port), opts); err != nil {
+		return fmt.Errorf("failed to register product gateway: %w", err)
+	}
+
+	// Register RoleService
+	if err := rolev1.RegisterRoleServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", s.config.GRPC.Port), opts); err != nil {
+		return fmt.Errorf("failed to register role gateway: %w", err)
+	}
+
+	// Register PermissionService
+	if err := permissionv1.RegisterPermissionServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", s.config.GRPC.Port), opts); err != nil {
+		return fmt.Errorf("failed to register permission gateway: %w", err)
+	}
+
+	// Register ActivityLogService
+	if err := activitylogv1.RegisterActivityLogServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", s.config.GRPC.Port), opts); err != nil {
+		return fmt.Errorf("failed to register activity log gateway: %w", err)
+	}
+
 	httpMux := http.NewServeMux()
 	httpMux.HandleFunc("/", s.handleSwaggerUI)
 	httpMux.HandleFunc("/swagger.json", s.handleSwaggerJSON)
@@ -176,12 +226,32 @@ func (s *Server) registerServices() {
 	healthServer.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus("auth.v1.AuthService", healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus("user.v1.UserService", healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus("category.v1.CategoryService", healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus("product.v1.ProductService", healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus("role.v1.RoleService", healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus("permission.v1.PermissionService", healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus("activitylog.v1.ActivityLogService", healthpb.HealthCheckResponse_SERVING)
 
 	authHandler := handler.NewAuthHandler(s.userService)
 	authv1.RegisterAuthServiceServer(s.grpcServer, authHandler)
 
 	userHandler := handler.NewUserHandler(s.userService)
 	userv1.RegisterUserServiceServer(s.grpcServer, userHandler)
+
+	categoryHandler := handler.NewCategoryHandler(s.categoryService)
+	categoryv1.RegisterCategoryServiceServer(s.grpcServer, categoryHandler)
+
+	productHandler := handler.NewProductHandler(s.productService)
+	productv1.RegisterProductServiceServer(s.grpcServer, productHandler)
+
+	roleHandler := handler.NewRoleHandler(s.roleService)
+	rolev1.RegisterRoleServiceServer(s.grpcServer, roleHandler)
+
+	permissionHandler := handler.NewPermissionHandler(s.permissionService)
+	permissionv1.RegisterPermissionServiceServer(s.grpcServer, permissionHandler)
+
+	activityLogHandler := handler.NewActivityLogHandler(s.activityLogService)
+	activitylogv1.RegisterActivityLogServiceServer(s.grpcServer, activityLogHandler)
 
 	log.Println("All services registered")
 }

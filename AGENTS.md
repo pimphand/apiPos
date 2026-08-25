@@ -2,7 +2,7 @@
 
 You are a senior Go backend engineer and system architect.
 
-Build a production-ready **Point of Sale (POS) application** using **Go, gRPC, Protocol Buffers, PostgreSQL, Docker, and sqlc**.
+Build a production-ready **Point of Sale (POS) application** using **Go, gRPC, Protocol Buffers, PostgreSQL, Docker, and Gorm**.
 
 ## 1. Technology Stack
 
@@ -13,7 +13,7 @@ Use:
 * Protocol Buffers
 * PostgreSQL
 * pgx
-* sqlc
+* GORM (for ORM operations)
 * golang-migrate
 * Docker
 * Docker Compose
@@ -21,7 +21,7 @@ Use:
 * Makefile
 * grpcurl for API testing
 
-Do not use a heavy ORM. Use `sqlc` for type-safe database queries.
+Use `GORM` as the primary ORM for all database operations. Model definitions are in `internal/database/gorm/models.go`.
 
 ## 2. Architecture
 
@@ -55,7 +55,6 @@ pos/
 ├── Dockerfile
 ├── docker-compose.yml
 ├── Makefile
-├── sqlc.yaml
 ├── buf.yaml
 ├── buf.gen.yaml
 └── go.mod
@@ -442,6 +441,46 @@ Do not expose internal database errors directly to clients.
 
 Return structured and meaningful errors.
 
+### SQL Error Safety Rules
+
+**CRITICAL:** Never expose raw SQL errors to API clients. Always use the `apperror` package to map errors:
+
+1. **PostgreSQL Unique Violation (23505):** Map to `ALREADY_EXISTS` with user-friendly message:
+   - `users_username` → "Username already exists"
+   - `users_email` → "Email already exists"
+   - `products_sku` → "Product SKU already exists"
+   - `products_barcode` → "Barcode already exists"
+   - `categories_name` → "Category name already exists"
+
+2. **PostgreSQL Foreign Key Violation (23503):** Map to `INVALID_ARGUMENT` with message:
+   - "Invalid category reference"
+   - "Invalid product reference"
+   - "Invalid role reference"
+   - "Invalid store reference"
+
+3. **PostgreSQL Connection Errors:** Map to `INTERNAL` with generic message:
+   - Always use: `apperror.Wrap(apperror.ErrInternal, "Friendly message", err)`
+   - Never return raw `err` to client
+
+4. **Pattern for all handlers:**
+   ```go
+   result, err := s.service.DoSomething(ctx, args)
+   if err != nil {
+       return nil, apperror.MapError(err).GRPCStatus().Err()
+   }
+   ```
+
+5. **Pattern for service layer:**
+   ```go
+   result, err := s.repos.Something.Create(ctx, params)
+   if err != nil {
+       // PostgreSQL errors are automatically caught by MapError
+       // For business logic errors, return sentinel errors:
+       return nil, apperror.ErrCategoryNotFound
+       return nil, apperror.Wrap(apperror.ErrInternal, "Failed to create", err)
+   }
+   ```
+
 ## 7. Authentication Middleware
 
 Create gRPC middleware/interceptors for:
@@ -537,7 +576,7 @@ make test
 make proto
 make migrate-up
 make migrate-down
-make sqlc
+make gorm
 make docker-up
 make docker-down
 make lint
@@ -602,7 +641,7 @@ Never allow a sale to be created while inventory remains unchanged.
 
 Use PostgreSQL transactions and appropriate row locking when necessary.
 
-## 13. Observability
+## 13. Observability & Activity Logging
 
 Implement:
 
@@ -611,6 +650,7 @@ Implement:
 * gRPC request logging
 * Error logging
 * Recovery interceptor
+* **Activity logging** - Record all user activities in the database
 
 Use a standard Go logging package such as `slog`.
 
@@ -620,7 +660,224 @@ Do not log:
 * JWT secrets
 * sensitive authentication data
 
-## 14. API Documentation
+### Activity Logging Rules
+
+**ALL user activities MUST be recorded in the `activity_logs` table.** This provides a complete audit trail.
+
+#### Activity Log Fields
+
+```text
+id          UUID PRIMARY KEY
+user_id     UUID (nullable - for system actions)
+username    VARCHAR(50)
+action      VARCHAR(50) NOT NULL  -- LOGIN, LOGOUT, CREATE, UPDATE, DELETE, VIEW
+resource    VARCHAR(100) NOT NULL -- users, products, categories, etc.
+resource_id VARCHAR(100)         -- ID of the affected resource
+description TEXT NOT NULL         -- Human-readable description
+ip_address  VARCHAR(50)
+user_agent  TEXT
+metadata    JSONB                -- Additional context (old/new values, etc.)
+created_at  TIMESTAMPTZ
+```
+
+#### Action Types
+
+```text
+LOGIN     - User login
+LOGOUT    - User logout
+CREATE    - Created a new resource
+UPDATE    - Updated an existing resource
+DELETE    - Deleted a resource
+VIEW      - Viewed a resource (optional)
+```
+
+#### When to Log
+
+1. **Authentication:** LOGIN, LOGOUT
+2. **CRUD Operations:** CREATE, UPDATE, DELETE for all entities
+3. **Financial Operations:** All payment and sale operations
+4. **Permission Changes:** Role assignment, permission changes
+5. **Stock Changes:** Inventory adjustments
+
+#### Activity Log Implementation Pattern
+
+```go
+// In handler/service layer:
+func (h *Handler) CreateProduct(ctx context.Context, req *CreateProductRequest) (*ProductResponse, error) {
+    // Get user from context
+    claims, _ := auth.ClaimsFromContext(ctx)
+    
+    // Perform the operation
+    product, err := h.service.CreateProduct(ctx, req)
+    if err != nil {
+        return nil, err
+    }
+    
+    // Log the activity
+    h.activityLogService.CreateLog(ctx, activitylog.LogParams{
+        UserID:     claims.UserID,
+        Username:   claims.Username,
+        Action:     "CREATE",
+        Resource:   "products",
+        ResourceID: product.ID.String(),
+        Metadata:   fmt.Sprintf(`{"name":"%s","sku":"%s"}`, product.Name, product.SKU),
+    })
+    
+    return product, nil
+}
+```
+
+#### Activity Log Service Methods
+
+```go
+// CreateLog creates a new activity log entry
+func (s *Service) CreateLog(ctx context.Context, params LogParams) (*gormdb.ActivityLog, error)
+
+// ListLogs lists activity logs with filters
+func (s *Service) ListLogs(ctx context.Context, userID, action, resource, startDate, endDate string, page, perPage int32) ([]gormdb.ActivityLog, int64, error)
+
+// ListLogsByUser lists activity logs for a specific user
+func (s *Service) ListLogsByUser(ctx context.Context, userID string, page, perPage int32) ([]gormdb.ActivityLog, int64, error)
+
+// ListLogsByResource lists activity logs for a specific resource
+func (s *Service) ListLogsByResource(ctx context.Context, resource, resourceID string, page, perPage int32) ([]gormdb.ActivityLog, int64, error)
+```
+
+#### Activity Log API Endpoints
+
+```text
+GET /api/v1/activity-logs              - List all logs (with filters)
+GET /api/v1/activity-logs/{id}         - Get a specific log
+GET /api/v1/activity-logs/user/{user_id} - Get logs by user
+GET /api/v1/activity-logs/resource/{resource} - Get logs by resource
+```
+
+#### Example Activity Log Entries
+
+```json
+{
+  "id": "uuid",
+  "user_id": "uuid",
+  "username": "admin",
+  "action": "CREATE",
+  "resource": "products",
+  "resource_id": "uuid",
+  "description": "User 'admin' created products",
+  "ip_address": "192.168.1.1",
+  "user_agent": "Mozilla/5.0...",
+  "metadata": `{"name":"Coffee","sku":"SKU001"}`,
+  "created_at": "2024-01-01T12:00:00Z"
+}
+```
+
+## 14. Pagination
+
+**All list endpoints MUST have consistent pagination.**
+
+### Pagination Parameters
+
+Every list endpoint must accept these query parameters:
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `page` | integer | 1 | Page number (min: 1) |
+| `per_page` | integer | 20 | Items per page (min: 1, max: 100) |
+
+### Pagination Response
+
+Every list response must include:
+
+```json
+{
+  "data": [...],
+  "total_count": 100,
+  "page": 1,
+  "per_page": 20
+}
+```
+
+### Pagination Rules
+
+1. **Default values:** page=1, per_page=20
+2. **Maximum per_page:** 100 (cap at 100)
+3. **Minimum values:** page >= 1, per_page >= 1
+4. **Calculate offset:** `offset = (page - 1) * per_page`
+5. **Always return total_count** for client-side pagination
+
+### Service Layer Pattern
+
+```go
+// PaginationResult holds pagination metadata
+type PaginationResult struct {
+    TotalCount int64
+    Page       int32
+    PerPage    int32
+}
+
+// ListResult holds the result of listing items
+type ListResult struct {
+    Items      []Model
+    Pagination PaginationResult
+}
+
+func (s *Service) List(ctx context.Context, page, perPage int32) (*ListResult, error) {
+    // Normalize pagination params
+    if page <= 0 { page = 1 }
+    if perPage <= 0 { perPage = 20 }
+    if perPage > 100 { perPage = 100 }
+    
+    offset := (page - 1) * perPage
+    
+    // Get items
+    items, err := s.repo.List(ctx, offset, perPage)
+    
+    // Get total count
+    total, err := s.repo.Count(ctx)
+    
+    return &ListResult{
+        Items: items,
+        Pagination: PaginationResult{
+            TotalCount: total,
+            Page:       page,
+            PerPage:    perPage,
+        },
+    }, nil
+}
+```
+
+### Handler Layer Pattern
+
+```go
+func (h *Handler) List(ctx context.Context, req *ListRequest) (*ListResponse, error) {
+    result, err := h.service.List(ctx, req.Page, req.PerPage)
+    
+    return &ListResponse{
+        Items:      result.Items,
+        TotalCount: result.Pagination.TotalCount,
+        Page:       result.Pagination.Page,
+        PerPage:    result.Pagination.PerPage,
+    }, nil
+}
+```
+
+### Proto Definition Pattern
+
+```protobuf
+message ListProductsRequest {
+    string name = 1;
+    int32 page = 2;
+    int32 per_page = 3;
+}
+
+message ListProductsResponse {
+    repeated Product products = 1;
+    int64 total_count = 2;
+    int32 page = 3;
+    int32 per_page = 4;
+}
+```
+
+## 15. API Documentation
 
 Provide:
 
@@ -630,8 +887,64 @@ Provide:
 * Setup instructions
 * Example grpcurl commands
 * Example requests/responses
+* Swagger/OpenAPI documentation
 
-Example:
+### Swagger Documentation Requirements
+
+**Every module must have Swagger documentation in `docs/swagger-enhanced.json`.**
+
+When implementing a new module, add the following to the swagger file:
+
+1. **Tags:** Add a tag for the module:
+   ```json
+   {
+     "name": "ModuleName",
+     "description": "Module description"
+   }
+   ```
+
+2. **Paths:** Add all endpoints with:
+   - Summary and description
+   - operationId
+   - Security (BearerAuth for protected endpoints)
+   - Request/response schemas with examples
+   - Proper error responses ($ref to ErrorResponse)
+
+3. **Definitions:** Add request/response models with:
+   - Required fields marked
+   - Examples for all fields
+   - Proper types (string, integer, boolean, etc.)
+
+4. **Error Response Format:**
+   ```json
+   {
+     "code": "NOT_FOUND",
+     "message": "Resource not found"
+   }
+   ```
+
+### Example Swagger Entry
+
+```json
+"/api/v1/categories": {
+  "get": {
+    "tags": ["Categories"],
+    "summary": "List Categories",
+    "description": "List all categories.",
+    "operationId": "category_list",
+    "security": [{"BearerAuth": []}],
+    "parameters": [...],
+    "responses": {
+      "200": {
+        "description": "List of categories",
+        "schema": { "$ref": "#/definitions/ListCategoriesResponse" }
+      }
+    }
+  }
+}
+```
+
+Example grpcurl command:
 
 ```bash
 grpcurl \
@@ -641,7 +954,7 @@ grpcurl \
   product.ProductService/CreateProduct
 ```
 
-## 15. Development Order
+## 16. Development Order
 
 Do not attempt to implement everything at once.
 
@@ -663,7 +976,7 @@ Configuration
 
 ```text
 Database migrations
-sqlc
+Gorm
 Repository layer
 ```
 
@@ -722,7 +1035,79 @@ Performance optimization
 Documentation
 ```
 
-## 16. Coding Rules
+## 17. Roles & Permissions
+
+### Roles
+
+Implement CRUD operations for roles:
+
+```text
+CreateRole   - Create a new role
+GetRole      - Get a role by ID
+ListRoles    - List all roles
+UpdateRole   - Update a role
+DeleteRole   - Delete a role (prevent deleting default roles)
+```
+
+Default roles (cannot be deleted):
+- admin
+- manager
+- cashier
+
+### Permissions
+
+Implement CRUD operations for permissions:
+
+```text
+GetPermission          - Get a permission by ID
+ListPermissions        - List all permissions
+ListPermissionsByResource - List permissions by resource
+CreatePermission       - Create a new permission
+UpdatePermission       - Update a permission
+DeletePermission       - Delete a permission
+```
+
+### Role-Permission Assignment
+
+```text
+GetRolePermissions    - Get all permissions for a role
+AssignPermissions     - Replace all permissions for a role
+RemovePermission      - Remove a permission from a role
+```
+
+### Permission Format
+
+Permissions follow the format: `{resource}.{action}`
+
+Examples:
+```text
+users.create
+users.read
+users.update
+users.delete
+products.create
+products.read
+inventory.adjust
+sales.create
+sales.read
+reports.read
+```
+
+### Permission Resources
+
+```text
+users, roles, permissions, categories, products, inventory,
+customers, sales, payments, cashier, reports, activity_logs
+```
+
+### Permission Actions
+
+```text
+create, read, update, delete, assign, adjust, cancel, refund,
+open_shift, close_shift, view_shift
+```
+
+## 18. Coding Rules
 
 Follow these rules:
 
@@ -741,8 +1126,110 @@ Follow these rules:
 13. Add tests for important business logic.
 14. Keep interfaces small.
 15. Prefer explicit code over unnecessary abstraction.
+16. **NEVER expose raw SQL errors to API clients** - always use `apperror.MapError()` to convert.
+17. **Update Swagger documentation** when adding new endpoints.
+18. **Follow the handler-service-repository pattern** consistently.
+19. **Use GORM for all database operations** - models are in `internal/database/gorm/models.go`.
+20. **Always use GORM transactions** for operations that modify multiple tables.
+21. **Log all user activities** - Use `activityLogService.CreateLog()` for audit trail.
+22. **Use `is_active` as string in proto** - Never use `bool` for filter fields (proto3 defaults to false).
 
-## 17. Expected Deliverables
+### GORM Usage Rules
+
+**ALL database operations MUST use GORM.** Follow these patterns:
+
+#### Model Definition
+```go
+type Product struct {
+    ID           uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+    SKU          string     `gorm:"type:varchar(50);uniqueIndex;not null" json:"sku"`
+    Name         string     `gorm:"type:varchar(200);not null" json:"name"`
+    Stock        int32      `gorm:"default:0" json:"stock"`
+    IsActive     bool       `gorm:"default:true" json:"is_active"`
+    CreatedAt    time.Time  `gorm:"autoCreateTime" json:"created_at"`
+    UpdatedAt    time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
+}
+```
+
+#### Create
+```go
+func (r *ProductRepository) Create(ctx context.Context, product *Product) error {
+    return r.db.WithContext(ctx).Create(product).Error
+}
+```
+
+#### Read (Single)
+```go
+func (r *ProductRepository) GetByID(ctx context.Context, id uuid.UUID) (*Product, error) {
+    var product Product
+    err := r.db.WithContext(ctx).Where("id = ?", id).First(&product).Error
+    if err != nil {
+        return nil, err
+    }
+    return &product, nil
+}
+```
+
+#### Read (List with Pagination)
+```go
+func (r *ProductRepository) List(ctx context.Context, page, perPage int32) ([]Product, int64, error) {
+    var products []Product
+    var total int64
+    
+    query := r.db.WithContext(ctx).Model(&Product{})
+    query.Count(&total)
+    
+    offset := (page - 1) * perPage
+    err := query.Offset(int(offset)).Limit(int(perPage)).Find(&products).Error
+    return products, total, err
+}
+```
+
+#### Update
+```go
+func (r *ProductRepository) Update(ctx context.Context, product *Product) error {
+    return r.db.WithContext(ctx).Save(product).Error
+}
+```
+
+#### Delete (Soft Delete)
+```go
+func (r *ProductRepository) Delete(ctx context.Context, id uuid.UUID) error {
+    return r.db.WithContext(ctx).Where("id = ?", id).Delete(&Product{}).Error
+}
+```
+
+#### Transaction
+```go
+func (s *Service) Checkout(ctx context.Context, req CheckoutRequest) error {
+    return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+        // Create sale
+        if err := tx.Create(&sale).Error; err != nil {
+            return err
+        }
+        // Decrease stock
+        if err := tx.Model(&Product{}).Where("id = ?", productID).
+            Update("stock", gorm.Expr("stock - ?", quantity)).Error; err != nil {
+            return err
+        }
+        return nil
+    })
+}
+```
+
+#### Search with Conditions
+```go
+func (r *ProductRepository) Search(ctx context.Context, name string) ([]Product, error) {
+    var products []Product
+    err := r.db.WithContext(ctx).
+        Where("name ILIKE ?", "%"+name+"%").
+        Where("is_active = ?", true).
+        Find(&products).Error
+    return products, err
+}
+```
+
+## 18. Expected Deliverables
 
 At the end of the implementation, the project must be runnable with:
 
@@ -763,7 +1250,7 @@ Provide:
 3. Protobuf definitions
 4. Generated protobuf setup
 5. PostgreSQL migrations
-6. sqlc queries
+6. gorm
 7. Docker configuration
 8. Makefile
 9. Authentication middleware
