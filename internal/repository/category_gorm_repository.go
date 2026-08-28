@@ -12,6 +12,7 @@ import (
 type CategoryRepository interface {
 	Create(ctx context.Context, category *gormdb.Category) error
 	GetByID(ctx context.Context, id string) (*gormdb.Category, error)
+	GetByIDs(ctx context.Context, ids []string) ([]gormdb.Category, error)
 	List(ctx context.Context, params CategoryListParams) ([]gormdb.Category, int64, error)
 	Update(ctx context.Context, category *gormdb.Category) error
 	Delete(ctx context.Context, id string) error
@@ -95,4 +96,14 @@ func (r *CategoryRepo) Deactivate(ctx context.Context, id string) error {
 		Model(&gormdb.Category{}).
 		Where("id = ?", id).
 		Update("is_active", false).Error
+}
+
+// GetByIDs gets multiple categories by their IDs
+func (r *CategoryRepo) GetByIDs(ctx context.Context, ids []string) ([]gormdb.Category, error) {
+	var categories []gormdb.Category
+	if len(ids) == 0 {
+		return categories, nil
+	}
+	err := r.WithContext(ctx).Where("id IN ?", ids).Find(&categories).Error
+	return categories, err
 }

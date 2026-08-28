@@ -66,6 +66,10 @@ func (m *mockCategoryRepo) Deactivate(ctx context.Context, id string) error {
 	return nil
 }
 
+func (m *mockCategoryRepo) GetByIDs(ctx context.Context, ids []string) ([]gormdb.Category, error) {
+	return []gormdb.Category{}, nil
+}
+
 func testCategory() *gormdb.Category {
 	return &gormdb.Category{
 		ID:          uuid.New(),

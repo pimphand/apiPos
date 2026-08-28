@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -38,28 +39,9 @@ func NewService(repos *repository.Repositories) *Service {
 
 // CreateProduct creates a new product
 func (s *Service) CreateProduct(ctx context.Context, req CreateProductRequest) (*gormdb.Product, error) {
-	// Check if SKU already exists
-	_, err := s.repos.Product.GetBySKU(ctx, req.SKU)
-	if err == nil {
-		return nil, apperror.ErrProductAlreadyExists
-	}
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to check SKU", err)
-	}
-
-	// Check if barcode already exists
-	if req.Barcode != "" {
-		_, err := s.repos.Product.GetByBarcode(ctx, req.Barcode)
-		if err == nil {
-			return nil, apperror.Wrap(apperror.ErrProductAlreadyExists, "Barcode already exists", nil)
-		}
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperror.Wrap(apperror.ErrInternal, "Failed to check barcode", err)
-		}
-	}
-
 	// Parse category_id
 	var categoryID uuid.UUID
+	var err error
 	if req.CategoryID != "" {
 		categoryID, err = uuid.Parse(req.CategoryID)
 		if err != nil {
@@ -69,8 +51,6 @@ func (s *Service) CreateProduct(ctx context.Context, req CreateProductRequest) (
 
 	// Create product
 	product := &gormdb.Product{
-		SKU:          req.SKU,
-		Barcode:      req.Barcode,
 		Name:         req.Name,
 		Description:  req.Description,
 		CategoryID:   categoryID,
@@ -84,10 +64,42 @@ func (s *Service) CreateProduct(ctx context.Context, req CreateProductRequest) (
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to create product", err)
 	}
 
+	// Create default SKU if SKU is provided
+	if req.SKU != "" {
+		defaultSKU := &gormdb.ProductSKU{
+			ProductID:    product.ID,
+			SKU:          req.SKU,
+			Barcode:      req.Barcode,
+			Variant:      req.Variant,
+			Color:        req.Color,
+			Size:         req.Size,
+			Unit:         req.Unit,
+			CostPrice:    req.CostPrice,
+			SellingPrice: req.SellingPrice,
+			Stock:        req.Stock,
+			MinimumStock: req.MinimumStock,
+			Weight:       req.Weight,
+			Volume:       req.Volume,
+			BatchNumber:  req.BatchNumber,
+			Location:     req.Location,
+			IsActive:     true,
+		}
+
+		if req.Unit != "" {
+			defaultSKU.Unit = req.Unit
+		} else {
+			defaultSKU.Unit = "pcs"
+		}
+
+		if err := s.repos.ProductSKU.Create(defaultSKU); err != nil {
+			return nil, apperror.Wrap(apperror.ErrInternal, "Failed to create default SKU", err)
+		}
+	}
+
 	return product, nil
 }
 
-// GetProduct gets a product by ID
+// GetProduct gets a product by ID (without SKUs by default for performance)
 func (s *Service) GetProduct(ctx context.Context, id string) (*gormdb.Product, error) {
 	if !isValidUUID(id) {
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Invalid product ID format", fmt.Errorf("id: %s", id))
@@ -104,13 +116,13 @@ func (s *Service) GetProduct(ctx context.Context, id string) (*gormdb.Product, e
 	return product, nil
 }
 
-// GetProductByBarcode looks up a product by barcode
-func (s *Service) GetProductByBarcode(ctx context.Context, barcode string) (*gormdb.Product, error) {
+// GetProductByBarcode looks up a product by barcode (via product_skus)
+func (s *Service) GetProductByBarcode(ctx context.Context, barcode string) (*gormdb.ProductSKU, error) {
 	if barcode == "" {
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Barcode is required", nil)
 	}
 
-	product, err := s.repos.Product.GetByBarcode(ctx, barcode)
+	productSKU, err := s.repos.ProductSKU.GetByBarcode(barcode)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperror.ErrProductNotFound
@@ -118,16 +130,16 @@ func (s *Service) GetProductByBarcode(ctx context.Context, barcode string) (*gor
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to get product by barcode", err)
 	}
 
-	return product, nil
+	return productSKU, nil
 }
 
-// GetProductBySKU looks up a product by SKU
-func (s *Service) GetProductBySKU(ctx context.Context, sku string) (*gormdb.Product, error) {
+// GetProductBySKU looks up a product by SKU (via product_skus)
+func (s *Service) GetProductBySKU(ctx context.Context, sku string) (*gormdb.ProductSKU, error) {
 	if sku == "" {
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "SKU is required", nil)
 	}
 
-	product, err := s.repos.Product.GetBySKU(ctx, sku)
+	productSKU, err := s.repos.ProductSKU.GetBySKU(sku)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperror.ErrProductNotFound
@@ -135,7 +147,7 @@ func (s *Service) GetProductBySKU(ctx context.Context, sku string) (*gormdb.Prod
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to get product by SKU", err)
 	}
 
-	return product, nil
+	return productSKU, nil
 }
 
 // ListProducts lists products with filters and pagination
@@ -170,6 +182,35 @@ func (s *Service) ListProducts(ctx context.Context, isActiveStr string, category
 	}, nil
 }
 
+// LoadProductSKUs loads SKUs for multiple products in batch
+func (s *Service) LoadProductSKUs(ctx context.Context, products []gormdb.Product) {
+	if len(products) == 0 {
+		return
+	}
+
+	productIDs := make([]uuid.UUID, len(products))
+	for i, p := range products {
+		productIDs[i] = p.ID
+	}
+
+	// Batch load all SKUs for these products
+	for i := range products {
+		skus, _, err := s.repos.ProductSKU.List(
+			products[i].ID,
+			"",  // search
+			"",  // variant
+			"",  // color
+			"",  // size
+			nil, // isActive
+			1,   // page
+			100, // perPage
+		)
+		if err == nil && len(skus) > 0 {
+			products[i].ProductSKUs = skus
+		}
+	}
+}
+
 // SearchProducts searches products by name
 func (s *Service) SearchProducts(ctx context.Context, name string, isActiveStr string, page, perPage int32) (*ListProductsResult, error) {
 	if page <= 0 {
@@ -202,7 +243,7 @@ func (s *Service) SearchProducts(ctx context.Context, name string, isActiveStr s
 	}, nil
 }
 
-// UpdateProduct updates a product
+// UpdateProduct updates a product and its SKUs
 func (s *Service) UpdateProduct(ctx context.Context, req UpdateProductRequest) (*gormdb.Product, error) {
 	if !isValidUUID(req.ID) {
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Invalid product ID format", fmt.Errorf("id: %s", req.ID))
@@ -217,13 +258,7 @@ func (s *Service) UpdateProduct(ctx context.Context, req UpdateProductRequest) (
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to get product", err)
 	}
 
-	// Update fields
-	if req.SKU != "" {
-		product.SKU = req.SKU
-	}
-	if req.Barcode != "" {
-		product.Barcode = req.Barcode
-	}
+	// Update product fields
 	if req.Name != "" {
 		product.Name = req.Name
 	}
@@ -246,6 +281,133 @@ func (s *Service) UpdateProduct(ctx context.Context, req UpdateProductRequest) (
 
 	if err := s.repos.Product.Update(ctx, product); err != nil {
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to update product", err)
+	}
+
+	// Delete SKUs
+	for _, skuID := range req.SKUsToDelete {
+		if isValidUUID(skuID) {
+			skuUUID, _ := uuid.Parse(skuID)
+			_ = s.repos.ProductSKU.Delete(skuUUID)
+		}
+	}
+
+	// Create or update SKUs
+	for _, skuItem := range req.SKUUpdates {
+		if skuItem.ID != "" && isValidUUID(skuItem.ID) {
+			// Update existing SKU
+			skuUUID, _ := uuid.Parse(skuItem.ID)
+			existingSKU, err := s.repos.ProductSKU.GetByID(skuUUID)
+			if err != nil {
+				continue // skip if not found
+			}
+
+			if skuItem.SKU != "" {
+				existingSKU.SKU = skuItem.SKU
+			}
+			if skuItem.Barcode != "" {
+				existingSKU.Barcode = skuItem.Barcode
+			}
+			if skuItem.Variant != "" {
+				existingSKU.Variant = skuItem.Variant
+			}
+			if skuItem.Color != "" {
+				existingSKU.Color = skuItem.Color
+			}
+			if skuItem.Size != "" {
+				existingSKU.Size = skuItem.Size
+			}
+			if skuItem.Unit != "" {
+				existingSKU.Unit = skuItem.Unit
+			}
+			if skuItem.CostPrice > 0 {
+				existingSKU.CostPrice = skuItem.CostPrice
+			}
+			if skuItem.SellingPrice > 0 {
+				existingSKU.SellingPrice = skuItem.SellingPrice
+			}
+			if skuItem.Stock > 0 {
+				existingSKU.Stock = skuItem.Stock
+			}
+			if skuItem.MinimumStock > 0 {
+				existingSKU.MinimumStock = skuItem.MinimumStock
+			}
+			if skuItem.Weight > 0 {
+				existingSKU.Weight = skuItem.Weight
+			}
+			if skuItem.Volume > 0 {
+				existingSKU.Volume = skuItem.Volume
+			}
+			if skuItem.BatchNumber != "" {
+				existingSKU.BatchNumber = skuItem.BatchNumber
+			}
+			if skuItem.Location != "" {
+				existingSKU.Location = skuItem.Location
+			}
+			if skuItem.ImageURL != "" {
+				existingSKU.ImageURL = skuItem.ImageURL
+			}
+			existingSKU.IsActive = skuItem.IsActive
+
+			if skuItem.Metadata != nil {
+				existingSKU.Metadata = make(map[string]any)
+				for k, v := range skuItem.Metadata {
+					existingSKU.Metadata[k] = v
+				}
+			}
+
+			if skuItem.ExpiryDate != "" {
+				if t, err := time.Parse("2006-01-02T15:04:05Z07:00", skuItem.ExpiryDate); err == nil {
+					existingSKU.ExpiryDate = &t
+				}
+			}
+
+			if err := s.repos.ProductSKU.Update(existingSKU); err != nil {
+				continue
+			}
+		} else {
+			// Create new SKU
+			unit := skuItem.Unit
+			if unit == "" {
+				unit = "pcs"
+			}
+
+			newSKU := &gormdb.ProductSKU{
+				ProductID:    product.ID,
+				SKU:          skuItem.SKU,
+				Barcode:      skuItem.Barcode,
+				Variant:      skuItem.Variant,
+				Color:        skuItem.Color,
+				Size:         skuItem.Size,
+				Unit:         unit,
+				CostPrice:    skuItem.CostPrice,
+				SellingPrice: skuItem.SellingPrice,
+				Stock:        skuItem.Stock,
+				MinimumStock: skuItem.MinimumStock,
+				Weight:       skuItem.Weight,
+				Volume:       skuItem.Volume,
+				BatchNumber:  skuItem.BatchNumber,
+				Location:     skuItem.Location,
+				ImageURL:     skuItem.ImageURL,
+				IsActive:     true,
+			}
+
+			if skuItem.Metadata != nil {
+				newSKU.Metadata = make(map[string]any)
+				for k, v := range skuItem.Metadata {
+					newSKU.Metadata[k] = v
+				}
+			}
+
+			if skuItem.ExpiryDate != "" {
+				if t, err := time.Parse("2006-01-02T15:04:05Z07:00", skuItem.ExpiryDate); err == nil {
+					newSKU.ExpiryDate = &t
+				}
+			}
+
+			if err := s.repos.ProductSKU.Create(newSKU); err != nil {
+				continue
+			}
+		}
 	}
 
 	return product, nil
@@ -337,8 +499,6 @@ func (s *Service) GetLowStockProducts(ctx context.Context, page, perPage int32) 
 
 // CreateProductRequest represents the request to create a product
 type CreateProductRequest struct {
-	SKU          string
-	Barcode      string
 	Name         string
 	Description  string
 	CategoryID   string
@@ -346,13 +506,23 @@ type CreateProductRequest struct {
 	SellingPrice float64
 	Stock        int32
 	MinimumStock int32
+
+	// Default SKU fields
+	SKU          string
+	Barcode      string
+	Variant      string
+	Color        string
+	Size         string
+	Unit         string
+	Weight       float64
+	Volume       float64
+	BatchNumber  string
+	Location     string
 }
 
 // UpdateProductRequest represents the request to update a product
 type UpdateProductRequest struct {
 	ID           string
-	SKU          string
-	Barcode      string
 	Name         string
 	Description  string
 	CategoryID   string
@@ -360,6 +530,33 @@ type UpdateProductRequest struct {
 	SellingPrice float64
 	MinimumStock int32
 	IsActive     bool
+
+	// SKU updates
+	SKUUpdates   []SKUUpdateItem
+	SKUsToDelete []string
+}
+
+// SKUUpdateItem represents an SKU to create or update
+type SKUUpdateItem struct {
+	ID           string
+	SKU          string
+	Barcode      string
+	Variant      string
+	Color        string
+	Size         string
+	Unit         string
+	CostPrice    float64
+	SellingPrice float64
+	Stock        int32
+	MinimumStock int32
+	Weight       float64
+	Volume       float64
+	ExpiryDate   string
+	BatchNumber  string
+	Location     string
+	ImageURL     string
+	IsActive     bool
+	Metadata     map[string]string
 }
 
 // isValidUUID validates UUID format

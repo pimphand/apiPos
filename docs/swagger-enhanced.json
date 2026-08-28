@@ -37,17 +37,29 @@
     {
       "name": "Activity Logs",
       "description": "User activity audit trail"
+    },
+    {
+      "name": "Product SKUs",
+      "description": "Product variants and SKU management"
     }
   ],
   "host": "localhost:8080",
   "basePath": "/",
-  "schemes": ["http"],
-  "consumes": ["application/json"],
-  "produces": ["application/json"],
+  "schemes": [
+    "http"
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
   "paths": {
     "/api/v1/auth/register": {
       "post": {
-        "tags": ["Authentication"],
+        "tags": [
+          "Authentication"
+        ],
         "summary": "Register",
         "description": "Create a new user account. Default role is Cashier.",
         "operationId": "auth_register",
@@ -56,22 +68,32 @@
             "name": "body",
             "in": "body",
             "required": true,
-            "schema": { "$ref": "#/definitions/RegisterRequest" }
+            "schema": {
+              "$ref": "#/definitions/RegisterRequest"
+            }
           }
         ],
         "responses": {
           "200": {
             "description": "Registration successful",
-            "schema": { "$ref": "#/definitions/RegisterResponse" }
+            "schema": {
+              "$ref": "#/definitions/RegisterResponse"
+            }
           },
-          "400": { "$ref": "#/definitions/ErrorResponse" },
-          "409": { "$ref": "#/definitions/ErrorResponse" }
+          "400": {
+            "$ref": "#/definitions/ErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
         }
       }
     },
     "/api/v1/auth/login": {
       "post": {
-        "tags": ["Authentication"],
+        "tags": [
+          "Authentication"
+        ],
         "summary": "Login",
         "description": "Authenticate user with username and password.",
         "operationId": "auth_login",
@@ -80,21 +102,29 @@
             "name": "body",
             "in": "body",
             "required": true,
-            "schema": { "$ref": "#/definitions/LoginRequest" }
+            "schema": {
+              "$ref": "#/definitions/LoginRequest"
+            }
           }
         ],
         "responses": {
           "200": {
             "description": "Login successful",
-            "schema": { "$ref": "#/definitions/LoginResponse" }
+            "schema": {
+              "$ref": "#/definitions/LoginResponse"
+            }
           },
-          "401": { "$ref": "#/definitions/ErrorResponse" }
+          "401": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
         }
       }
     },
     "/api/v1/auth/refresh": {
       "post": {
-        "tags": ["Authentication"],
+        "tags": [
+          "Authentication"
+        ],
         "summary": "Refresh Token",
         "description": "Get a new access token using a valid refresh token.",
         "operationId": "auth_refresh",
@@ -103,648 +133,1828 @@
             "name": "body",
             "in": "body",
             "required": true,
-            "schema": { "$ref": "#/definitions/RefreshTokenRequest" }
+            "schema": {
+              "$ref": "#/definitions/RefreshTokenRequest"
+            }
           }
         ],
         "responses": {
           "200": {
             "description": "Token refreshed",
-            "schema": { "$ref": "#/definitions/RefreshTokenResponse" }
+            "schema": {
+              "$ref": "#/definitions/RefreshTokenResponse"
+            }
           },
-          "401": { "$ref": "#/definitions/ErrorResponse" }
+          "401": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
         }
       }
     },
     "/api/v1/auth/logout": {
       "post": {
-        "tags": ["Authentication"],
+        "tags": [
+          "Authentication"
+        ],
         "summary": "Logout",
         "description": "Invalidate the refresh token and log out.",
         "operationId": "auth_logout",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "body",
             "in": "body",
             "required": true,
-            "schema": { "$ref": "#/definitions/LogoutRequest" }
+            "schema": {
+              "$ref": "#/definitions/LogoutRequest"
+            }
           }
         ],
         "responses": {
           "200": {
             "description": "Logged out",
-            "schema": { "$ref": "#/definitions/LogoutResponse" }
+            "schema": {
+              "$ref": "#/definitions/LogoutResponse"
+            }
           }
         }
       }
     },
     "/api/v1/users": {
       "get": {
-        "tags": ["Users"],
+        "tags": [
+          "Users"
+        ],
         "summary": "List Users",
         "description": "List all users with optional filtering and pagination.",
         "operationId": "user_list",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "role_id", "in": "query", "type": "string", "description": "Filter by role UUID" },
-          { "name": "is_active", "in": "query", "type": "string", "description": "Filter: '' = all, 'true' = active, 'false' = inactive" },
-          { "name": "page", "in": "query", "type": "integer", "default": 1, "description": "Page number" },
-          { "name": "per_page", "in": "query", "type": "integer", "default": 20, "description": "Items per page (max 100)" }
+          {
+            "name": "role_id",
+            "in": "query",
+            "type": "string",
+            "description": "Filter by role UUID"
+          },
+          {
+            "name": "is_active",
+            "in": "query",
+            "type": "string",
+            "description": "Filter: '' = all, 'true' = active, 'false' = inactive"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1,
+            "description": "Page number"
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "type": "integer",
+            "default": 20,
+            "description": "Items per page (max 100)"
+          }
         ],
         "responses": {
-          "200": { "description": "List of users", "schema": { "$ref": "#/definitions/PaginatedUsersResponse" } }
+          "200": {
+            "description": "List of users",
+            "schema": {
+              "$ref": "#/definitions/PaginatedUsersResponse"
+            }
+          }
         }
       },
       "post": {
-        "tags": ["Users"],
+        "tags": [
+          "Users"
+        ],
         "summary": "Create User",
         "description": "Create a new user account with the specified role.",
         "operationId": "user_create",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "body", "in": "body", "required": true, "schema": { "$ref": "#/definitions/CreateUserRequest" } }
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CreateUserRequest"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "User created", "schema": { "$ref": "#/definitions/UserResponse" } },
-          "409": { "$ref": "#/definitions/ErrorResponse" }
+          "200": {
+            "description": "User created",
+            "schema": {
+              "$ref": "#/definitions/UserResponse"
+            }
+          },
+          "409": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
         }
       }
     },
     "/api/v1/users/{id}": {
       "get": {
-        "tags": ["Users"],
+        "tags": [
+          "Users"
+        ],
         "summary": "Get User",
         "description": "Retrieve user details by UUID.",
         "operationId": "user_get",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "type": "string", "description": "User UUID" }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "User UUID"
+          }
         ],
         "responses": {
-          "200": { "description": "User details", "schema": { "$ref": "#/definitions/UserResponse" } },
-          "404": { "$ref": "#/definitions/ErrorResponse" }
+          "200": {
+            "description": "User details",
+            "schema": {
+              "$ref": "#/definitions/UserResponse"
+            }
+          },
+          "404": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
         }
       },
       "put": {
-        "tags": ["Users"],
+        "tags": [
+          "Users"
+        ],
         "summary": "Update User",
         "description": "Update user information.",
         "operationId": "user_update",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "type": "string" },
-          { "name": "body", "in": "body", "required": true, "schema": { "$ref": "#/definitions/UpdateUserRequest" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/UpdateUserRequest"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "User updated", "schema": { "$ref": "#/definitions/UserResponse" } },
-          "404": { "$ref": "#/definitions/ErrorResponse" }
+          "200": {
+            "description": "User updated",
+            "schema": {
+              "$ref": "#/definitions/UserResponse"
+            }
+          },
+          "404": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
         }
       },
       "delete": {
-        "tags": ["Users"],
+        "tags": [
+          "Users"
+        ],
         "summary": "Delete User",
         "description": "Permanently delete a user account.",
         "operationId": "user_delete",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "type": "string" }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
         ],
         "responses": {
-          "200": { "description": "User deleted", "schema": { "$ref": "#/definitions/DeleteResponse" } },
-          "404": { "$ref": "#/definitions/ErrorResponse" }
+          "200": {
+            "description": "User deleted",
+            "schema": {
+              "$ref": "#/definitions/DeleteResponse"
+            }
+          },
+          "404": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
         }
       }
     },
     "/api/v1/users/{id}/role": {
       "patch": {
-        "tags": ["Users"],
+        "tags": [
+          "Users"
+        ],
         "summary": "Update User Role",
         "description": "Change the role of a user.",
         "operationId": "user_update_role",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "type": "string" },
-          { "name": "body", "in": "body", "required": true, "schema": { "$ref": "#/definitions/UpdateUserRoleRequest" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/UpdateUserRoleRequest"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "Role updated", "schema": { "$ref": "#/definitions/UserResponse" } },
-          "404": { "$ref": "#/definitions/ErrorResponse" }
+          "200": {
+            "description": "Role updated",
+            "schema": {
+              "$ref": "#/definitions/UserResponse"
+            }
+          },
+          "404": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
         }
       }
     },
     "/api/v1/categories": {
       "get": {
-        "tags": ["Categories"],
+        "tags": [
+          "Categories"
+        ],
         "summary": "List Categories",
         "description": "List all categories with pagination.",
         "operationId": "category_list",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "is_active", "in": "query", "type": "string", "description": "Filter: '' = all, 'true' = active, 'false' = inactive" },
-          { "name": "page", "in": "query", "type": "integer", "default": 1 },
-          { "name": "per_page", "in": "query", "type": "integer", "default": 20 }
+          {
+            "name": "is_active",
+            "in": "query",
+            "type": "string",
+            "description": "Filter: '' = all, 'true' = active, 'false' = inactive"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          }
         ],
         "responses": {
-          "200": { "description": "List of categories", "schema": { "$ref": "#/definitions/PaginatedCategoriesResponse" } }
+          "200": {
+            "description": "List of categories",
+            "schema": {
+              "$ref": "#/definitions/PaginatedCategoriesResponse"
+            }
+          }
         }
       },
       "post": {
-        "tags": ["Categories"],
+        "tags": [
+          "Categories"
+        ],
         "summary": "Create Category",
         "description": "Create a new product category.",
         "operationId": "category_create",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "body", "in": "body", "required": true, "schema": { "$ref": "#/definitions/CreateCategoryRequest" } }
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CreateCategoryRequest"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "Category created", "schema": { "$ref": "#/definitions/CategoryResponse" } },
-          "409": { "$ref": "#/definitions/ErrorResponse" }
+          "200": {
+            "description": "Category created",
+            "schema": {
+              "$ref": "#/definitions/CategoryResponse"
+            }
+          },
+          "409": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
         }
       }
     },
     "/api/v1/categories/{id}": {
       "get": {
-        "tags": ["Categories"],
+        "tags": [
+          "Categories"
+        ],
         "summary": "Get Category",
         "description": "Retrieve category details by UUID.",
         "operationId": "category_get",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "type": "string" }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
         ],
         "responses": {
-          "200": { "description": "Category details", "schema": { "$ref": "#/definitions/CategoryResponse" } },
-          "404": { "$ref": "#/definitions/ErrorResponse" }
+          "200": {
+            "description": "Category details",
+            "schema": {
+              "$ref": "#/definitions/CategoryResponse"
+            }
+          },
+          "404": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
         }
       },
       "put": {
-        "tags": ["Categories"],
+        "tags": [
+          "Categories"
+        ],
         "summary": "Update Category",
         "operationId": "category_update",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "type": "string" },
-          { "name": "body", "in": "body", "required": true, "schema": { "$ref": "#/definitions/UpdateCategoryRequest" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/UpdateCategoryRequest"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "Category updated", "schema": { "$ref": "#/definitions/CategoryResponse" } }
+          "200": {
+            "description": "Category updated",
+            "schema": {
+              "$ref": "#/definitions/CategoryResponse"
+            }
+          }
         }
       },
       "delete": {
-        "tags": ["Categories"],
+        "tags": [
+          "Categories"
+        ],
         "summary": "Delete Category",
         "operationId": "category_delete",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "type": "string" }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
         ],
         "responses": {
-          "200": { "description": "Category deleted", "schema": { "$ref": "#/definitions/DeleteResponse" } }
+          "200": {
+            "description": "Category deleted",
+            "schema": {
+              "$ref": "#/definitions/DeleteResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/categories/{id}/deactivate": {
       "post": {
-        "tags": ["Categories"],
+        "tags": [
+          "Categories"
+        ],
         "summary": "Deactivate Category",
         "operationId": "category_deactivate",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "type": "string" }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
         ],
         "responses": {
-          "200": { "description": "Category deactivated", "schema": { "$ref": "#/definitions/DeleteResponse" } }
+          "200": {
+            "description": "Category deactivated",
+            "schema": {
+              "$ref": "#/definitions/DeleteResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/products": {
       "get": {
-        "tags": ["Products"],
+        "tags": [
+          "Products"
+        ],
         "summary": "List Products",
         "description": "List products with filters and pagination.",
         "operationId": "product_list",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "is_active", "in": "query", "type": "string", "description": "Filter: '' = all, 'true' = active, 'false' = inactive" },
-          { "name": "category_id", "in": "query", "type": "string", "description": "Filter by category UUID" },
-          { "name": "page", "in": "query", "type": "integer", "default": 1 },
-          { "name": "per_page", "in": "query", "type": "integer", "default": 20 }
+          {
+            "name": "is_active",
+            "in": "query",
+            "type": "string",
+            "description": "Filter: '' = all, 'true' = active, 'false' = inactive"
+          },
+          {
+            "name": "category_id",
+            "in": "query",
+            "type": "string",
+            "description": "Filter by category UUID"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          },
+          {
+            "name": "get_sku",
+            "in": "query",
+            "type": "boolean",
+            "default": false,
+            "description": "Include SKUs in response (default false for performance)"
+          }
         ],
         "responses": {
-          "200": { "description": "List of products", "schema": { "$ref": "#/definitions/PaginatedProductsResponse" } }
+          "200": {
+            "description": "List of products",
+            "schema": {
+              "$ref": "#/definitions/PaginatedProductsResponse"
+            }
+          }
         }
       },
       "post": {
-        "tags": ["Products"],
+        "tags": [
+          "Products"
+        ],
         "summary": "Create Product",
         "operationId": "product_create",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "body", "in": "body", "required": true, "schema": { "$ref": "#/definitions/CreateProductRequest" } }
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CreateProductRequest"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "Product created", "schema": { "$ref": "#/definitions/ProductResponse" } },
-          "409": { "$ref": "#/definitions/ErrorResponse" }
+          "200": {
+            "description": "Product created",
+            "schema": {
+              "$ref": "#/definitions/ProductResponse"
+            }
+          },
+          "409": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
         }
       }
     },
     "/api/v1/products/{id}": {
       "get": {
-        "tags": ["Products"],
+        "tags": [
+          "Products"
+        ],
         "summary": "Get Product",
         "operationId": "product_get",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "type": "string" }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "Product UUID"
+          },
+          {
+            "name": "get_sku",
+            "in": "query",
+            "required": false,
+            "type": "boolean",
+            "description": "Include product SKUs/variants in response (default: false for performance)"
+          }
         ],
         "responses": {
-          "200": { "description": "Product details", "schema": { "$ref": "#/definitions/ProductResponse" } }
+          "200": {
+            "description": "Product details",
+            "schema": {
+              "$ref": "#/definitions/ProductResponse"
+            }
+          }
         }
       },
       "put": {
-        "tags": ["Products"],
+        "tags": [
+          "Products"
+        ],
         "summary": "Update Product",
         "operationId": "product_update",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "type": "string" },
-          { "name": "body", "in": "body", "required": true, "schema": { "$ref": "#/definitions/UpdateProductRequest" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/UpdateProductRequest"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "Product updated", "schema": { "$ref": "#/definitions/ProductResponse" } }
+          "200": {
+            "description": "Product updated",
+            "schema": {
+              "$ref": "#/definitions/ProductResponse"
+            }
+          }
         }
       },
       "delete": {
-        "tags": ["Products"],
+        "tags": [
+          "Products"
+        ],
         "summary": "Delete Product",
         "operationId": "product_delete",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "type": "string" }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
         ],
         "responses": {
-          "200": { "description": "Product deleted", "schema": { "$ref": "#/definitions/DeleteResponse" } }
-        }
-      }
-    },
-    "/api/v1/products/barcode/{barcode}": {
-      "get": {
-        "tags": ["Products"],
-        "summary": "Get Product by Barcode",
-        "description": "Fast barcode lookup for POS cashier.",
-        "operationId": "product_get_by_barcode",
-        "security": [{"BearerAuth": []}],
-        "parameters": [
-          { "name": "barcode", "in": "path", "required": true, "type": "string" }
-        ],
-        "responses": {
-          "200": { "description": "Product details", "schema": { "$ref": "#/definitions/ProductResponse" } }
-        }
-      }
-    },
-    "/api/v1/products/sku/{sku}": {
-      "get": {
-        "tags": ["Products"],
-        "summary": "Get Product by SKU",
-        "operationId": "product_get_by_sku",
-        "security": [{"BearerAuth": []}],
-        "parameters": [
-          { "name": "sku", "in": "path", "required": true, "type": "string" }
-        ],
-        "responses": {
-          "200": { "description": "Product details", "schema": { "$ref": "#/definitions/ProductResponse" } }
+          "200": {
+            "description": "Product deleted",
+            "schema": {
+              "$ref": "#/definitions/DeleteResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/products/search": {
       "get": {
-        "tags": ["Products"],
+        "tags": [
+          "Products"
+        ],
         "summary": "Search Products",
         "description": "Search products by name with pagination.",
         "operationId": "product_search",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "name", "in": "query", "required": true, "type": "string" },
-          { "name": "is_active", "in": "query", "type": "string" },
-          { "name": "page", "in": "query", "type": "integer", "default": 1 },
-          { "name": "per_page", "in": "query", "type": "integer", "default": 20 }
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "is_active",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          },
+          {
+            "name": "get_sku",
+            "in": "query",
+            "type": "boolean",
+            "default": false,
+            "description": "Include SKUs in response (default false for performance)"
+          }
         ],
         "responses": {
-          "200": { "description": "Search results", "schema": { "$ref": "#/definitions/PaginatedProductsResponse" } }
+          "200": {
+            "description": "Search results",
+            "schema": {
+              "$ref": "#/definitions/PaginatedProductsResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/products/{id}/activate": {
       "post": {
-        "tags": ["Products"],
+        "tags": [
+          "Products"
+        ],
         "summary": "Activate Product",
         "operationId": "product_activate",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "type": "string" }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
         ],
         "responses": {
-          "200": { "description": "Product activated", "schema": { "$ref": "#/definitions/DeleteResponse" } }
+          "200": {
+            "description": "Product activated",
+            "schema": {
+              "$ref": "#/definitions/DeleteResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/products/{id}/deactivate": {
       "post": {
-        "tags": ["Products"],
+        "tags": [
+          "Products"
+        ],
         "summary": "Deactivate Product",
         "operationId": "product_deactivate",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "type": "string" }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
         ],
         "responses": {
-          "200": { "description": "Product deactivated", "schema": { "$ref": "#/definitions/DeleteResponse" } }
+          "200": {
+            "description": "Product deactivated",
+            "schema": {
+              "$ref": "#/definitions/DeleteResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/products/low-stock": {
       "get": {
-        "tags": ["Products"],
+        "tags": [
+          "Products"
+        ],
         "summary": "Get Low Stock Products",
         "description": "List products where stock <= minimum_stock.",
         "operationId": "product_low_stock",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "page", "in": "query", "type": "integer", "default": 1 },
-          { "name": "per_page", "in": "query", "type": "integer", "default": 20 }
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          },
+          {
+            "name": "get_sku",
+            "in": "query",
+            "type": "boolean",
+            "default": false,
+            "description": "Include SKUs in response (default false for performance)"
+          }
         ],
         "responses": {
-          "200": { "description": "Low stock products", "schema": { "$ref": "#/definitions/PaginatedProductsResponse" } }
+          "200": {
+            "description": "Low stock products",
+            "schema": {
+              "$ref": "#/definitions/PaginatedProductsResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/roles": {
       "get": {
-        "tags": ["Roles"],
+        "tags": [
+          "Roles"
+        ],
         "summary": "List Roles",
         "description": "List all roles with pagination.",
         "operationId": "role_list",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "page", "in": "query", "type": "integer", "default": 1 },
-          { "name": "per_page", "in": "query", "type": "integer", "default": 20 }
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          }
         ],
         "responses": {
-          "200": { "description": "List of roles", "schema": { "$ref": "#/definitions/PaginatedRolesResponse" } }
+          "200": {
+            "description": "List of roles",
+            "schema": {
+              "$ref": "#/definitions/PaginatedRolesResponse"
+            }
+          }
         }
       },
       "post": {
-        "tags": ["Roles"],
+        "tags": [
+          "Roles"
+        ],
         "summary": "Create Role",
         "description": "Create a new role.",
         "operationId": "role_create",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "body", "in": "body", "required": true, "schema": { "$ref": "#/definitions/CreateRoleRequest" } }
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CreateRoleRequest"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "Role created", "schema": { "$ref": "#/definitions/RoleResponse" } },
-          "409": { "$ref": "#/definitions/ErrorResponse" }
+          "200": {
+            "description": "Role created",
+            "schema": {
+              "$ref": "#/definitions/RoleResponse"
+            }
+          },
+          "409": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
         }
       }
     },
     "/api/v1/roles/{id}": {
       "get": {
-        "tags": ["Roles"],
+        "tags": [
+          "Roles"
+        ],
         "summary": "Get Role",
         "operationId": "role_get",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "type": "string" }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
         ],
         "responses": {
-          "200": { "description": "Role details", "schema": { "$ref": "#/definitions/RoleResponse" } }
+          "200": {
+            "description": "Role details",
+            "schema": {
+              "$ref": "#/definitions/RoleResponse"
+            }
+          }
         }
       },
       "put": {
-        "tags": ["Roles"],
+        "tags": [
+          "Roles"
+        ],
         "summary": "Update Role",
         "operationId": "role_update",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "type": "string" },
-          { "name": "body", "in": "body", "required": true, "schema": { "$ref": "#/definitions/UpdateRoleRequest" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/UpdateRoleRequest"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "Role updated", "schema": { "$ref": "#/definitions/RoleResponse" } }
+          "200": {
+            "description": "Role updated",
+            "schema": {
+              "$ref": "#/definitions/RoleResponse"
+            }
+          }
         }
       },
       "delete": {
-        "tags": ["Roles"],
+        "tags": [
+          "Roles"
+        ],
         "summary": "Delete Role",
         "description": "Delete a role. Cannot delete default roles (admin, manager, cashier).",
         "operationId": "role_delete",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "type": "string" }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
         ],
         "responses": {
-          "200": { "description": "Role deleted", "schema": { "$ref": "#/definitions/DeleteResponse" } }
+          "200": {
+            "description": "Role deleted",
+            "schema": {
+              "$ref": "#/definitions/DeleteResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/roles/{id}/permissions": {
       "get": {
-        "tags": ["Roles"],
+        "tags": [
+          "Roles"
+        ],
         "summary": "Get Role Permissions",
         "description": "Get all permissions assigned to a role.",
         "operationId": "role_get_permissions",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "type": "string" }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
         ],
         "responses": {
-          "200": { "description": "Role permissions", "schema": { "$ref": "#/definitions/RolePermissionsResponse" } }
+          "200": {
+            "description": "Role permissions",
+            "schema": {
+              "$ref": "#/definitions/RolePermissionsResponse"
+            }
+          }
         }
       },
       "post": {
-        "tags": ["Roles"],
+        "tags": [
+          "Roles"
+        ],
         "summary": "Assign Permissions to Role",
         "description": "Replace all permissions for a role with the provided list.",
         "operationId": "role_assign_permissions",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "type": "string" },
-          { "name": "body", "in": "body", "required": true, "schema": { "$ref": "#/definitions/AssignPermissionsRequest" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AssignPermissionsRequest"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "Permissions assigned", "schema": { "$ref": "#/definitions/RolePermissionsResponse" } }
+          "200": {
+            "description": "Permissions assigned",
+            "schema": {
+              "$ref": "#/definitions/RolePermissionsResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/roles/{role_id}/permissions/{permission_id}": {
       "delete": {
-        "tags": ["Roles"],
+        "tags": [
+          "Roles"
+        ],
         "summary": "Remove Permission from Role",
         "operationId": "role_remove_permission",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "role_id", "in": "path", "required": true, "type": "string" },
-          { "name": "permission_id", "in": "path", "required": true, "type": "string" }
+          {
+            "name": "role_id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "permission_id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
         ],
         "responses": {
-          "200": { "description": "Permission removed", "schema": { "$ref": "#/definitions/DeleteResponse" } }
+          "200": {
+            "description": "Permission removed",
+            "schema": {
+              "$ref": "#/definitions/DeleteResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/permissions": {
       "get": {
-        "tags": ["Permissions"],
+        "tags": [
+          "Permissions"
+        ],
         "summary": "List Permissions",
         "description": "List all permissions with pagination.",
         "operationId": "permission_list",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "page", "in": "query", "type": "integer", "default": 1 },
-          { "name": "per_page", "in": "query", "type": "integer", "default": 20 }
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          }
         ],
         "responses": {
-          "200": { "description": "List of permissions", "schema": { "$ref": "#/definitions/PaginatedPermissionsResponse" } }
+          "200": {
+            "description": "List of permissions",
+            "schema": {
+              "$ref": "#/definitions/PaginatedPermissionsResponse"
+            }
+          }
         }
       },
       "post": {
-        "tags": ["Permissions"],
+        "tags": [
+          "Permissions"
+        ],
         "summary": "Create Permission",
         "operationId": "permission_create",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "body", "in": "body", "required": true, "schema": { "$ref": "#/definitions/CreatePermissionRequest" } }
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CreatePermissionRequest"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "Permission created", "schema": { "$ref": "#/definitions/PermissionResponse" } },
-          "409": { "$ref": "#/definitions/ErrorResponse" }
+          "200": {
+            "description": "Permission created",
+            "schema": {
+              "$ref": "#/definitions/PermissionResponse"
+            }
+          },
+          "409": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
         }
       }
     },
     "/api/v1/permissions/{id}": {
       "get": {
-        "tags": ["Permissions"],
+        "tags": [
+          "Permissions"
+        ],
         "summary": "Get Permission",
         "operationId": "permission_get",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "type": "string" }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
         ],
         "responses": {
-          "200": { "description": "Permission details", "schema": { "$ref": "#/definitions/PermissionResponse" } }
+          "200": {
+            "description": "Permission details",
+            "schema": {
+              "$ref": "#/definitions/PermissionResponse"
+            }
+          }
         }
       },
       "put": {
-        "tags": ["Permissions"],
+        "tags": [
+          "Permissions"
+        ],
         "summary": "Update Permission",
         "operationId": "permission_update",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "type": "string" },
-          { "name": "body", "in": "body", "required": true, "schema": { "$ref": "#/definitions/UpdatePermissionRequest" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/UpdatePermissionRequest"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "Permission updated", "schema": { "$ref": "#/definitions/PermissionResponse" } }
+          "200": {
+            "description": "Permission updated",
+            "schema": {
+              "$ref": "#/definitions/PermissionResponse"
+            }
+          }
         }
       },
       "delete": {
-        "tags": ["Permissions"],
+        "tags": [
+          "Permissions"
+        ],
         "summary": "Delete Permission",
         "operationId": "permission_delete",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "type": "string" }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
         ],
         "responses": {
-          "200": { "description": "Permission deleted", "schema": { "$ref": "#/definitions/DeleteResponse" } }
+          "200": {
+            "description": "Permission deleted",
+            "schema": {
+              "$ref": "#/definitions/DeleteResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/permissions/resource/{resource}": {
       "get": {
-        "tags": ["Permissions"],
+        "tags": [
+          "Permissions"
+        ],
         "summary": "List Permissions by Resource",
         "description": "List permissions filtered by resource name.",
         "operationId": "permission_list_by_resource",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "resource", "in": "path", "required": true, "type": "string" },
-          { "name": "page", "in": "query", "type": "integer", "default": 1 },
-          { "name": "per_page", "in": "query", "type": "integer", "default": 20 }
+          {
+            "name": "resource",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          }
         ],
         "responses": {
-          "200": { "description": "List of permissions", "schema": { "$ref": "#/definitions/PaginatedPermissionsResponse" } }
+          "200": {
+            "description": "List of permissions",
+            "schema": {
+              "$ref": "#/definitions/PaginatedPermissionsResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/activity-logs": {
       "get": {
-        "tags": ["Activity Logs"],
+        "tags": [
+          "Activity Logs"
+        ],
         "summary": "List Activity Logs",
         "description": "List all activity logs with filters and pagination.",
         "operationId": "activity_log_list",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "user_id", "in": "query", "type": "string", "description": "Filter by user UUID" },
-          { "name": "action", "in": "query", "type": "string", "description": "Filter by action (LOGIN, CREATE, UPDATE, DELETE)" },
-          { "name": "resource", "in": "query", "type": "string", "description": "Filter by resource (users, products, etc.)" },
-          { "name": "start_date", "in": "query", "type": "string", "description": "Start date (YYYY-MM-DD)" },
-          { "name": "end_date", "in": "query", "type": "string", "description": "End date (YYYY-MM-DD)" },
-          { "name": "page", "in": "query", "type": "integer", "default": 1 },
-          { "name": "per_page", "in": "query", "type": "integer", "default": 20 }
+          {
+            "name": "user_id",
+            "in": "query",
+            "type": "string",
+            "description": "Filter by user UUID"
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "type": "string",
+            "description": "Filter by action (LOGIN, CREATE, UPDATE, DELETE)"
+          },
+          {
+            "name": "resource",
+            "in": "query",
+            "type": "string",
+            "description": "Filter by resource (users, products, etc.)"
+          },
+          {
+            "name": "start_date",
+            "in": "query",
+            "type": "string",
+            "description": "Start date (YYYY-MM-DD)"
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "type": "string",
+            "description": "End date (YYYY-MM-DD)"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          }
         ],
         "responses": {
-          "200": { "description": "List of activity logs", "schema": { "$ref": "#/definitions/PaginatedActivityLogsResponse" } }
+          "200": {
+            "description": "List of activity logs",
+            "schema": {
+              "$ref": "#/definitions/PaginatedActivityLogsResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/activity-logs/{id}": {
       "get": {
-        "tags": ["Activity Logs"],
+        "tags": [
+          "Activity Logs"
+        ],
         "summary": "Get Activity Log",
         "operationId": "activity_log_get",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "type": "string" }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
         ],
         "responses": {
-          "200": { "description": "Activity log details", "schema": { "$ref": "#/definitions/ActivityLogResponse" } }
+          "200": {
+            "description": "Activity log details",
+            "schema": {
+              "$ref": "#/definitions/ActivityLogResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/activity-logs/user/{user_id}": {
       "get": {
-        "tags": ["Activity Logs"],
+        "tags": [
+          "Activity Logs"
+        ],
         "summary": "Get Activity Logs by User",
         "description": "Get all activity logs for a specific user.",
         "operationId": "activity_log_list_by_user",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "user_id", "in": "path", "required": true, "type": "string" },
-          { "name": "page", "in": "query", "type": "integer", "default": 1 },
-          { "name": "per_page", "in": "query", "type": "integer", "default": 20 }
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          }
         ],
         "responses": {
-          "200": { "description": "List of activity logs", "schema": { "$ref": "#/definitions/PaginatedActivityLogsResponse" } }
+          "200": {
+            "description": "List of activity logs",
+            "schema": {
+              "$ref": "#/definitions/PaginatedActivityLogsResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/activity-logs/resource/{resource}": {
       "get": {
-        "tags": ["Activity Logs"],
+        "tags": [
+          "Activity Logs"
+        ],
         "summary": "Get Activity Logs by Resource",
         "description": "Get all activity logs for a specific resource type.",
         "operationId": "activity_log_list_by_resource",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "resource", "in": "path", "required": true, "type": "string" },
-          { "name": "resource_id", "in": "query", "type": "string", "description": "Filter by specific resource ID" },
-          { "name": "page", "in": "query", "type": "integer", "default": 1 },
-          { "name": "per_page", "in": "query", "type": "integer", "default": 20 }
+          {
+            "name": "resource",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "resource_id",
+            "in": "query",
+            "type": "string",
+            "description": "Filter by specific resource ID"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          }
         ],
         "responses": {
-          "200": { "description": "List of activity logs", "schema": { "$ref": "#/definitions/PaginatedActivityLogsResponse" } }
+          "200": {
+            "description": "List of activity logs",
+            "schema": {
+              "$ref": "#/definitions/PaginatedActivityLogsResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/products/{product_id}/skus": {
+      "get": {
+        "tags": [
+          "Product SKUs"
+        ],
+        "summary": "List Product SKUs by Product",
+        "description": "List all SKUs for a specific product.",
+        "operationId": "productsku_list_by_product",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "product_id",
+            "in": "path",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "variant",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "color",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of product SKUs",
+            "schema": {
+              "$ref": "#/definitions/ListProductSKUsResponse"
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Product SKUs"
+        ],
+        "summary": "Create Product SKU",
+        "description": "Create a new SKU variant for a product.",
+        "operationId": "productsku_create",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "product_id",
+            "in": "path",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/CreateProductSKURequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Created product SKU",
+            "schema": {
+              "$ref": "#/definitions/ProductSKUResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/product-skus": {
+      "get": {
+        "tags": [
+          "Product SKUs"
+        ],
+        "summary": "List All Product SKUs",
+        "description": "List all product SKUs across all products.",
+        "operationId": "productsku_list_all",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "variant",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "color",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "product_id",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of product SKUs",
+            "schema": {
+              "$ref": "#/definitions/ListProductSKUsResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/product-skus/{id}": {
+      "get": {
+        "tags": [
+          "Product SKUs"
+        ],
+        "summary": "Get Product SKU",
+        "description": "Get a product SKU by ID.",
+        "operationId": "productsku_get",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Product SKU details",
+            "schema": {
+              "$ref": "#/definitions/ProductSKUResponse"
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Product SKUs"
+        ],
+        "summary": "Update Product SKU",
+        "description": "Update a product SKU.",
+        "operationId": "productsku_update",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/UpdateProductSKURequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated product SKU",
+            "schema": {
+              "$ref": "#/definitions/ProductSKUResponse"
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Product SKUs"
+        ],
+        "summary": "Delete Product SKU",
+        "description": "Delete a product SKU.",
+        "operationId": "productsku_delete",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Delete success",
+            "schema": {
+              "$ref": "#/definitions/DeleteProductSKUResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/product-skus/barcode/{barcode}": {
+      "get": {
+        "tags": [
+          "Product SKUs"
+        ],
+        "summary": "Get Product SKU by Barcode",
+        "description": "Lookup a product SKU by barcode (optimized for POS scanning).",
+        "operationId": "productsku_get_by_barcode",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "barcode",
+            "in": "path",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Product SKU details",
+            "schema": {
+              "$ref": "#/definitions/ProductSKUResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/product-skus/sku/{sku}": {
+      "get": {
+        "tags": [
+          "Product SKUs"
+        ],
+        "summary": "Get Product SKU by SKU Code",
+        "description": "Lookup a product SKU by its SKU code.",
+        "operationId": "productsku_get_by_sku",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sku",
+            "in": "path",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Product SKU details",
+            "schema": {
+              "$ref": "#/definitions/ProductSKUResponse"
+            }
+          }
         }
       }
     }
@@ -753,371 +1963,1242 @@
     "ErrorResponse": {
       "type": "object",
       "properties": {
-        "code": { "type": "string", "example": "NOT_FOUND" },
-        "message": { "type": "string", "example": "Resource not found" }
+        "code": {
+          "type": "string",
+          "example": "NOT_FOUND"
+        },
+        "message": {
+          "type": "string",
+          "example": "Resource not found"
+        }
       }
     },
     "DeleteResponse": {
       "type": "object",
       "properties": {
-        "success": { "type": "boolean", "example": true },
-        "message": { "type": "string", "example": "Deleted successfully" }
+        "success": {
+          "type": "boolean",
+          "example": true
+        },
+        "message": {
+          "type": "string",
+          "example": "Deleted successfully"
+        }
       }
     },
     "RegisterRequest": {
       "type": "object",
-      "required": ["username", "email", "password", "full_name"],
+      "required": [
+        "username",
+        "email",
+        "password",
+        "full_name"
+      ],
       "properties": {
-        "username": { "type": "string", "example": "newuser" },
-        "email": { "type": "string", "format": "email", "example": "newuser@example.com" },
-        "password": { "type": "string", "format": "password", "example": "SecurePass123!" },
-        "full_name": { "type": "string", "example": "John Doe" }
+        "username": {
+          "type": "string",
+          "example": "newuser"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "example": "newuser@example.com"
+        },
+        "password": {
+          "type": "string",
+          "format": "password",
+          "example": "SecurePass123!"
+        },
+        "full_name": {
+          "type": "string",
+          "example": "John Doe"
+        }
       }
     },
     "RegisterResponse": {
       "type": "object",
       "properties": {
-        "access_token": { "type": "string" },
-        "refresh_token": { "type": "string" },
-        "expires_at": { "type": "integer", "format": "int64" },
-        "user": { "$ref": "#/definitions/User" }
+        "access_token": {
+          "type": "string"
+        },
+        "refresh_token": {
+          "type": "string"
+        },
+        "expires_at": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "user": {
+          "$ref": "#/definitions/User"
+        }
       }
     },
     "LoginRequest": {
       "type": "object",
-      "required": ["username", "password"],
+      "required": [
+        "username",
+        "password"
+      ],
       "properties": {
-        "username": { "type": "string", "example": "admin" },
-        "password": { "type": "string", "example": "admin123" }
+        "username": {
+          "type": "string",
+          "example": "admin"
+        },
+        "password": {
+          "type": "string",
+          "example": "admin123"
+        }
       }
     },
     "LoginResponse": {
       "type": "object",
       "properties": {
-        "access_token": { "type": "string" },
-        "refresh_token": { "type": "string" },
-        "expires_at": { "type": "integer", "format": "int64" },
-        "user": { "$ref": "#/definitions/User" }
+        "access_token": {
+          "type": "string"
+        },
+        "refresh_token": {
+          "type": "string"
+        },
+        "expires_at": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "user": {
+          "$ref": "#/definitions/User"
+        }
       }
     },
     "RefreshTokenRequest": {
       "type": "object",
-      "required": ["refresh_token"],
+      "required": [
+        "refresh_token"
+      ],
       "properties": {
-        "refresh_token": { "type": "string" }
+        "refresh_token": {
+          "type": "string"
+        }
       }
     },
     "RefreshTokenResponse": {
       "type": "object",
       "properties": {
-        "access_token": { "type": "string" },
-        "refresh_token": { "type": "string" },
-        "expires_at": { "type": "integer", "format": "int64" }
+        "access_token": {
+          "type": "string"
+        },
+        "refresh_token": {
+          "type": "string"
+        },
+        "expires_at": {
+          "type": "integer",
+          "format": "int64"
+        }
       }
     },
     "LogoutRequest": {
       "type": "object",
       "properties": {
-        "refresh_token": { "type": "string" }
+        "refresh_token": {
+          "type": "string"
+        }
       }
     },
     "LogoutResponse": {
       "type": "object",
       "properties": {
-        "success": { "type": "boolean" },
-        "message": { "type": "string" }
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        }
       }
     },
     "CreateUserRequest": {
       "type": "object",
-      "required": ["username", "email", "password", "full_name", "role_id"],
+      "required": [
+        "username",
+        "email",
+        "password",
+        "full_name",
+        "role_id"
+      ],
       "properties": {
-        "username": { "type": "string" },
-        "email": { "type": "string", "format": "email" },
-        "password": { "type": "string", "format": "password" },
-        "full_name": { "type": "string" },
-        "role_id": { "type": "string", "description": "Role UUID" },
-        "store_id": { "type": "string", "description": "Store UUID (optional)" }
+        "username": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "password": {
+          "type": "string",
+          "format": "password"
+        },
+        "full_name": {
+          "type": "string"
+        },
+        "role_id": {
+          "type": "string",
+          "description": "Role UUID"
+        },
+        "store_id": {
+          "type": "string",
+          "description": "Store UUID (optional)"
+        }
       }
     },
     "UpdateUserRequest": {
       "type": "object",
       "properties": {
-        "email": { "type": "string", "format": "email" },
-        "full_name": { "type": "string" },
-        "role_id": { "type": "string" },
-        "store_id": { "type": "string" },
-        "is_active": { "type": "boolean" }
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "full_name": {
+          "type": "string"
+        },
+        "role_id": {
+          "type": "string"
+        },
+        "store_id": {
+          "type": "string"
+        },
+        "is_active": {
+          "type": "boolean"
+        }
       }
     },
     "UpdateUserRoleRequest": {
       "type": "object",
-      "required": ["role_id"],
+      "required": [
+        "role_id"
+      ],
       "properties": {
-        "role_id": { "type": "string" }
+        "role_id": {
+          "type": "string"
+        }
       }
     },
     "UserResponse": {
       "type": "object",
       "properties": {
-        "user": { "$ref": "#/definitions/User" }
+        "user": {
+          "$ref": "#/definitions/User"
+        }
       }
     },
     "User": {
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "username": { "type": "string" },
-        "email": { "type": "string" },
-        "full_name": { "type": "string" },
-        "role_id": { "type": "string" },
-        "role_name": { "type": "string" },
-        "store_id": { "type": "string" },
-        "is_active": { "type": "boolean" },
-        "created_at": { "type": "string", "format": "date-time" },
-        "updated_at": { "type": "string", "format": "date-time" }
+        "id": {
+          "type": "string"
+        },
+        "username": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "full_name": {
+          "type": "string"
+        },
+        "role_id": {
+          "type": "string"
+        },
+        "role_name": {
+          "type": "string"
+        },
+        "store_id": {
+          "type": "string"
+        },
+        "is_active": {
+          "type": "boolean"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
       }
     },
     "PaginatedUsersResponse": {
       "type": "object",
       "properties": {
-        "users": { "type": "array", "items": { "$ref": "#/definitions/User" } },
-        "total_count": { "type": "integer", "format": "int64" },
-        "page": { "type": "integer", "description": "Current page number" },
-        "per_page": { "type": "integer", "description": "Items per page" }
+        "users": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/User"
+          }
+        },
+        "total_count": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "page": {
+          "type": "integer",
+          "description": "Current page number"
+        },
+        "per_page": {
+          "type": "integer",
+          "description": "Items per page"
+        }
       }
     },
     "CreateCategoryRequest": {
       "type": "object",
-      "required": ["name"],
+      "required": [
+        "name"
+      ],
       "properties": {
-        "name": { "type": "string" },
-        "description": { "type": "string" }
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
       }
     },
     "UpdateCategoryRequest": {
       "type": "object",
       "properties": {
-        "name": { "type": "string" },
-        "description": { "type": "string" },
-        "is_active": { "type": "boolean" }
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "is_active": {
+          "type": "boolean"
+        }
       }
     },
     "CategoryResponse": {
       "type": "object",
       "properties": {
-        "category": { "$ref": "#/definitions/Category" }
+        "category": {
+          "$ref": "#/definitions/Category"
+        }
       }
     },
     "Category": {
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" },
-        "description": { "type": "string" },
-        "is_active": { "type": "boolean" },
-        "created_at": { "type": "string", "format": "date-time" },
-        "updated_at": { "type": "string", "format": "date-time" }
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "is_active": {
+          "type": "boolean"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
       }
     },
     "PaginatedCategoriesResponse": {
       "type": "object",
       "properties": {
-        "categories": { "type": "array", "items": { "$ref": "#/definitions/Category" } },
-        "total_count": { "type": "integer", "format": "int64" },
-        "page": { "type": "integer" },
-        "per_page": { "type": "integer" }
+        "categories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Category"
+          }
+        },
+        "total_count": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "page": {
+          "type": "integer"
+        },
+        "per_page": {
+          "type": "integer"
+        }
       }
     },
     "CreateProductRequest": {
       "type": "object",
-      "required": ["sku", "name", "selling_price", "category_id"],
+      "required": [
+        "sku",
+        "name",
+        "selling_price",
+        "category_id"
+      ],
       "properties": {
-        "sku": { "type": "string", "description": "Stock Keeping Unit - unique" },
-        "barcode": { "type": "string" },
-        "name": { "type": "string" },
-        "description": { "type": "string" },
-        "category_id": { "type": "string", "description": "Category UUID" },
-        "cost_price": { "type": "number", "format": "double" },
-        "selling_price": { "type": "number", "format": "double" },
-        "stock": { "type": "integer", "format": "int32" },
-        "minimum_stock": { "type": "integer", "format": "int32" }
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "category_id": {
+          "type": "string",
+          "description": "Category UUID"
+        },
+        "cost_price": {
+          "type": "number",
+          "format": "double"
+        },
+        "selling_price": {
+          "type": "number",
+          "format": "double"
+        },
+        "stock": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "minimum_stock": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "sku": {
+          "type": "string",
+          "description": "SKU code for the default product variant",
+          "example": "COF-L-001"
+        },
+        "barcode": {
+          "type": "string",
+          "description": "Barcode for POS scanning",
+          "example": "8991234567890"
+        },
+        "variant": {
+          "type": "string",
+          "description": "Product variant (e.g., Large, Small)",
+          "example": "Large"
+        },
+        "color": {
+          "type": "string",
+          "description": "Product color",
+          "example": "Brown"
+        },
+        "size": {
+          "type": "string",
+          "description": "Product size",
+          "example": "L"
+        },
+        "unit": {
+          "type": "string",
+          "description": "Unit of measure",
+          "default": "pcs",
+          "example": "pcs"
+        },
+        "weight": {
+          "type": "number",
+          "format": "double",
+          "description": "Product weight",
+          "example": 0.35
+        },
+        "volume": {
+          "type": "number",
+          "format": "double",
+          "description": "Product volume",
+          "example": 0.5
+        },
+        "batch_number": {
+          "type": "string",
+          "description": "Batch number",
+          "example": "BATCH-2024-001"
+        },
+        "location": {
+          "type": "string",
+          "description": "Storage location",
+          "example": "A1-B2"
+        }
       }
     },
     "UpdateProductRequest": {
       "type": "object",
       "properties": {
-        "sku": { "type": "string" },
-        "barcode": { "type": "string" },
-        "name": { "type": "string" },
-        "description": { "type": "string" },
-        "category_id": { "type": "string" },
-        "cost_price": { "type": "number", "format": "double" },
-        "selling_price": { "type": "number", "format": "double" },
-        "minimum_stock": { "type": "integer", "format": "int32" },
-        "is_active": { "type": "boolean" }
+        "name": {
+          "type": "string",
+          "description": "Product name"
+        },
+        "description": {
+          "type": "string",
+          "description": "Product description"
+        },
+        "category_id": {
+          "type": "string",
+          "description": "Category UUID"
+        },
+        "cost_price": {
+          "type": "number",
+          "format": "double",
+          "description": "Cost price"
+        },
+        "selling_price": {
+          "type": "number",
+          "format": "double",
+          "description": "Selling price"
+        },
+        "minimum_stock": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Minimum stock level"
+        },
+        "is_active": {
+          "type": "boolean",
+          "description": "Is product active"
+        },
+        "sku_updates": {
+          "type": "array",
+          "description": "SKU updates - if id is empty, a new SKU will be created; if id is provided, the existing SKU will be updated",
+          "items": {
+            "$ref": "#/definitions/ProductSKUUpdate"
+          }
+        },
+        "sku_ids_to_delete": {
+          "type": "array",
+          "description": "SKU IDs to delete",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "ProductSKUUpdate": {
+      "type": "object",
+      "description": "SKU update item - if id is empty, a new SKU will be created; if id is provided, the existing SKU will be updated",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "SKU ID (empty = create new, non-empty = update existing)"
+        },
+        "sku": {
+          "type": "string",
+          "description": "SKU code"
+        },
+        "barcode": {
+          "type": "string",
+          "description": "Barcode"
+        },
+        "variant": {
+          "type": "string",
+          "description": "Variant name (e.g. Large, Small)"
+        },
+        "color": {
+          "type": "string",
+          "description": "Color"
+        },
+        "size": {
+          "type": "string",
+          "description": "Size (e.g. XL, M, S)"
+        },
+        "unit": {
+          "type": "string",
+          "description": "Unit (e.g. pcs, kg, ml)"
+        },
+        "cost_price": {
+          "type": "number",
+          "format": "double",
+          "description": "SKU cost price"
+        },
+        "selling_price": {
+          "type": "number",
+          "format": "double",
+          "description": "SKU selling price"
+        },
+        "stock": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Stock quantity"
+        },
+        "minimum_stock": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Minimum stock level"
+        },
+        "weight": {
+          "type": "number",
+          "format": "double",
+          "description": "Weight"
+        },
+        "volume": {
+          "type": "number",
+          "format": "double",
+          "description": "Volume"
+        },
+        "expiry_date": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Expiry date (ISO 8601)"
+        },
+        "batch_number": {
+          "type": "string",
+          "description": "Batch number"
+        },
+        "location": {
+          "type": "string",
+          "description": "Storage location"
+        },
+        "image_url": {
+          "type": "string",
+          "description": "Image URL"
+        },
+        "is_active": {
+          "type": "boolean",
+          "description": "Is SKU active"
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Additional metadata (key-value pairs)",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
       }
     },
     "ProductResponse": {
       "type": "object",
       "properties": {
-        "product": { "$ref": "#/definitions/Product" }
+        "product": {
+          "$ref": "#/definitions/Product"
+        }
       }
     },
     "Product": {
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "sku": { "type": "string" },
-        "barcode": { "type": "string" },
-        "name": { "type": "string" },
-        "description": { "type": "string" },
-        "category_id": { "type": "string" },
-        "cost_price": { "type": "number", "format": "double" },
-        "selling_price": { "type": "number", "format": "double" },
-        "stock": { "type": "integer", "format": "int32" },
-        "minimum_stock": { "type": "integer", "format": "int32" },
-        "is_active": { "type": "boolean" },
-        "created_at": { "type": "string", "format": "date-time" },
-        "updated_at": { "type": "string", "format": "date-time" }
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "category_id": {
+          "type": "string"
+        },
+        "category_name": {
+          "type": "string",
+          "description": "Category name (populated in responses)"
+        },
+        "cost_price": {
+          "type": "number",
+          "format": "double"
+        },
+        "selling_price": {
+          "type": "number",
+          "format": "double"
+        },
+        "stock": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "minimum_stock": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "is_active": {
+          "type": "boolean"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "skus": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ProductSKU"
+          },
+          "description": "List of product variants/SKUs (populated in GetProduct)"
+        },
+        "sku_count": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Number of SKUs for this product"
+        }
       }
     },
     "PaginatedProductsResponse": {
       "type": "object",
       "properties": {
-        "products": { "type": "array", "items": { "$ref": "#/definitions/Product" } },
-        "total_count": { "type": "integer", "format": "int64" },
-        "page": { "type": "integer" },
-        "per_page": { "type": "integer" }
+        "products": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Product"
+          }
+        },
+        "total_count": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "page": {
+          "type": "integer"
+        },
+        "per_page": {
+          "type": "integer"
+        }
       }
     },
     "CreateRoleRequest": {
       "type": "object",
-      "required": ["name"],
+      "required": [
+        "name"
+      ],
       "properties": {
-        "name": { "type": "string", "example": "supervisor" },
-        "description": { "type": "string", "example": "Supervisor role" }
+        "name": {
+          "type": "string",
+          "example": "supervisor"
+        },
+        "description": {
+          "type": "string",
+          "example": "Supervisor role"
+        }
       }
     },
     "UpdateRoleRequest": {
       "type": "object",
       "properties": {
-        "name": { "type": "string" },
-        "description": { "type": "string" }
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
       }
     },
     "RoleResponse": {
       "type": "object",
       "properties": {
-        "role": { "$ref": "#/definitions/Role" }
+        "role": {
+          "$ref": "#/definitions/Role"
+        }
       }
     },
     "Role": {
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" },
-        "description": { "type": "string" },
-        "created_at": { "type": "string", "format": "date-time" },
-        "updated_at": { "type": "string", "format": "date-time" }
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
       }
     },
     "PaginatedRolesResponse": {
       "type": "object",
       "properties": {
-        "roles": { "type": "array", "items": { "$ref": "#/definitions/Role" } },
-        "total_count": { "type": "integer", "format": "int64" },
-        "page": { "type": "integer" },
-        "per_page": { "type": "integer" }
+        "roles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Role"
+          }
+        },
+        "total_count": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "page": {
+          "type": "integer"
+        },
+        "per_page": {
+          "type": "integer"
+        }
       }
     },
     "AssignPermissionsRequest": {
       "type": "object",
-      "required": ["permission_ids"],
+      "required": [
+        "permission_ids"
+      ],
       "properties": {
-        "permission_ids": { "type": "array", "items": { "type": "string" }, "description": "List of permission UUIDs" }
+        "permission_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of permission UUIDs"
+        }
       }
     },
     "RolePermissionsResponse": {
       "type": "object",
       "properties": {
-        "permissions": { "type": "array", "items": { "$ref": "#/definitions/Permission" } },
-        "message": { "type": "string" }
+        "permissions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Permission"
+          }
+        },
+        "message": {
+          "type": "string"
+        }
       }
     },
     "CreatePermissionRequest": {
       "type": "object",
-      "required": ["name", "resource", "action"],
+      "required": [
+        "name",
+        "resource",
+        "action"
+      ],
       "properties": {
-        "name": { "type": "string", "example": "users.create" },
-        "resource": { "type": "string", "example": "users" },
-        "action": { "type": "string", "example": "create" },
-        "description": { "type": "string", "example": "Create new users" }
+        "name": {
+          "type": "string",
+          "example": "users.create"
+        },
+        "resource": {
+          "type": "string",
+          "example": "users"
+        },
+        "action": {
+          "type": "string",
+          "example": "create"
+        },
+        "description": {
+          "type": "string",
+          "example": "Create new users"
+        }
       }
     },
     "UpdatePermissionRequest": {
       "type": "object",
       "properties": {
-        "name": { "type": "string" },
-        "resource": { "type": "string" },
-        "action": { "type": "string" },
-        "description": { "type": "string" }
+        "name": {
+          "type": "string"
+        },
+        "resource": {
+          "type": "string"
+        },
+        "action": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
       }
     },
     "PermissionResponse": {
       "type": "object",
       "properties": {
-        "permission": { "$ref": "#/definitions/Permission" }
+        "permission": {
+          "$ref": "#/definitions/Permission"
+        }
       }
     },
     "Permission": {
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string", "example": "users.create" },
-        "resource": { "type": "string", "example": "users" },
-        "action": { "type": "string", "example": "create" },
-        "description": { "type": "string" }
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string",
+          "example": "users.create"
+        },
+        "resource": {
+          "type": "string",
+          "example": "users"
+        },
+        "action": {
+          "type": "string",
+          "example": "create"
+        },
+        "description": {
+          "type": "string"
+        }
       }
     },
     "PaginatedPermissionsResponse": {
       "type": "object",
       "properties": {
-        "permissions": { "type": "array", "items": { "$ref": "#/definitions/Permission" } },
-        "total_count": { "type": "integer", "format": "int64" },
-        "page": { "type": "integer" },
-        "per_page": { "type": "integer" }
+        "permissions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Permission"
+          }
+        },
+        "total_count": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "page": {
+          "type": "integer"
+        },
+        "per_page": {
+          "type": "integer"
+        }
       }
     },
     "ActivityLogResponse": {
       "type": "object",
       "properties": {
-        "log": { "$ref": "#/definitions/ActivityLog" }
+        "log": {
+          "$ref": "#/definitions/ActivityLog"
+        }
       }
     },
     "ActivityLog": {
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "user_id": { "type": "string" },
-        "username": { "type": "string" },
-        "action": { "type": "string", "example": "CREATE" },
-        "resource": { "type": "string", "example": "products" },
-        "resource_id": { "type": "string" },
-        "description": { "type": "string", "example": "User 'admin' created products" },
-        "ip_address": { "type": "string" },
-        "user_agent": { "type": "string" },
-        "metadata": { "type": "string", "description": "JSON metadata" },
-        "created_at": { "type": "string", "format": "date-time" }
+        "id": {
+          "type": "string"
+        },
+        "user_id": {
+          "type": "string"
+        },
+        "username": {
+          "type": "string"
+        },
+        "action": {
+          "type": "string",
+          "example": "CREATE"
+        },
+        "resource": {
+          "type": "string",
+          "example": "products"
+        },
+        "resource_id": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string",
+          "example": "User 'admin' created products"
+        },
+        "ip_address": {
+          "type": "string"
+        },
+        "user_agent": {
+          "type": "string"
+        },
+        "metadata": {
+          "type": "string",
+          "description": "JSON metadata"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        }
       }
     },
     "PaginatedActivityLogsResponse": {
       "type": "object",
       "properties": {
-        "logs": { "type": "array", "items": { "$ref": "#/definitions/ActivityLog" } },
-        "total_count": { "type": "integer", "format": "int64" },
-        "page": { "type": "integer" },
-        "per_page": { "type": "integer" }
+        "logs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ActivityLog"
+          }
+        },
+        "total_count": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "page": {
+          "type": "integer"
+        },
+        "per_page": {
+          "type": "integer"
+        }
+      }
+    },
+    "ProductSKU": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "product_id": {
+          "type": "string"
+        },
+        "sku": {
+          "type": "string"
+        },
+        "barcode": {
+          "type": "string"
+        },
+        "variant": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string"
+        },
+        "size": {
+          "type": "string"
+        },
+        "unit": {
+          "type": "string"
+        },
+        "cost_price": {
+          "type": "number",
+          "format": "double"
+        },
+        "selling_price": {
+          "type": "number",
+          "format": "double"
+        },
+        "stock": {
+          "type": "integer"
+        },
+        "minimum_stock": {
+          "type": "integer"
+        },
+        "weight": {
+          "type": "number",
+          "format": "double"
+        },
+        "volume": {
+          "type": "number",
+          "format": "double"
+        },
+        "expiry_date": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "batch_number": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "image_url": {
+          "type": "string"
+        },
+        "is_active": {
+          "type": "boolean"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "CreateProductSKURequest": {
+      "type": "object",
+      "required": [
+        "sku"
+      ],
+      "properties": {
+        "sku": {
+          "type": "string"
+        },
+        "barcode": {
+          "type": "string"
+        },
+        "variant": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string"
+        },
+        "size": {
+          "type": "string"
+        },
+        "unit": {
+          "type": "string",
+          "default": "pcs"
+        },
+        "cost_price": {
+          "type": "number",
+          "format": "double"
+        },
+        "selling_price": {
+          "type": "number",
+          "format": "double"
+        },
+        "stock": {
+          "type": "integer",
+          "default": 0
+        },
+        "minimum_stock": {
+          "type": "integer",
+          "default": 0
+        },
+        "weight": {
+          "type": "number",
+          "format": "double"
+        },
+        "volume": {
+          "type": "number",
+          "format": "double"
+        },
+        "expiry_date": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "batch_number": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "image_url": {
+          "type": "string"
+        },
+        "is_active": {
+          "type": "boolean",
+          "default": true
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "example": {
+        "sku": "COF-L-001",
+        "barcode": "8991234567890",
+        "variant": "Large",
+        "color": "Brown",
+        "size": "L",
+        "unit": "pcs",
+        "cost_price": 15000,
+        "selling_price": 25000,
+        "stock": 100,
+        "minimum_stock": 10,
+        "weight": 0.35,
+        "batch_number": "BATCH-2024-001",
+        "location": "A1-B2",
+        "is_active": true
+      }
+    },
+    "UpdateProductSKURequest": {
+      "type": "object",
+      "properties": {
+        "sku": {
+          "type": "string"
+        },
+        "barcode": {
+          "type": "string"
+        },
+        "variant": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string"
+        },
+        "size": {
+          "type": "string"
+        },
+        "unit": {
+          "type": "string"
+        },
+        "cost_price": {
+          "type": "number",
+          "format": "double"
+        },
+        "selling_price": {
+          "type": "number",
+          "format": "double"
+        },
+        "stock": {
+          "type": "integer"
+        },
+        "minimum_stock": {
+          "type": "integer"
+        },
+        "weight": {
+          "type": "number",
+          "format": "double"
+        },
+        "volume": {
+          "type": "number",
+          "format": "double"
+        },
+        "expiry_date": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "batch_number": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "image_url": {
+          "type": "string"
+        },
+        "is_active": {
+          "type": "boolean"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "ProductSKUResponse": {
+      "type": "object",
+      "properties": {
+        "product_sku": {
+          "$ref": "#/definitions/ProductSKU"
+        }
+      }
+    },
+    "ListProductSKUsResponse": {
+      "type": "object",
+      "properties": {
+        "product_skus": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ProductSKU"
+          }
+        },
+        "total_count": {
+          "type": "integer"
+        },
+        "page": {
+          "type": "integer"
+        },
+        "per_page": {
+          "type": "integer"
+        }
+      }
+    },
+    "DeleteProductSKUResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        }
       }
     }
   },

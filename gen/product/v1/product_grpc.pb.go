@@ -21,8 +21,6 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	ProductService_CreateProduct_FullMethodName       = "/product.v1.ProductService/CreateProduct"
 	ProductService_GetProduct_FullMethodName          = "/product.v1.ProductService/GetProduct"
-	ProductService_GetProductByBarcode_FullMethodName = "/product.v1.ProductService/GetProductByBarcode"
-	ProductService_GetProductBySKU_FullMethodName     = "/product.v1.ProductService/GetProductBySKU"
 	ProductService_ListProducts_FullMethodName        = "/product.v1.ProductService/ListProducts"
 	ProductService_SearchProducts_FullMethodName      = "/product.v1.ProductService/SearchProducts"
 	ProductService_UpdateProduct_FullMethodName       = "/product.v1.ProductService/UpdateProduct"
@@ -40,10 +38,6 @@ type ProductServiceClient interface {
 	CreateProduct(ctx context.Context, in *CreateProductRequest, opts ...grpc.CallOption) (*ProductResponse, error)
 	// GetProduct gets a product by ID
 	GetProduct(ctx context.Context, in *GetProductRequest, opts ...grpc.CallOption) (*ProductResponse, error)
-	// GetProductByBarcode looks up a product by barcode
-	GetProductByBarcode(ctx context.Context, in *GetProductByBarcodeRequest, opts ...grpc.CallOption) (*ProductResponse, error)
-	// GetProductBySKU looks up a product by SKU
-	GetProductBySKU(ctx context.Context, in *GetProductBySKURequest, opts ...grpc.CallOption) (*ProductResponse, error)
 	// ListProducts lists products with filters
 	ListProducts(ctx context.Context, in *ListProductsRequest, opts ...grpc.CallOption) (*ListProductsResponse, error)
 	// SearchProducts searches products by name
@@ -82,26 +76,6 @@ func (c *productServiceClient) GetProduct(ctx context.Context, in *GetProductReq
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ProductResponse)
 	err := c.cc.Invoke(ctx, ProductService_GetProduct_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *productServiceClient) GetProductByBarcode(ctx context.Context, in *GetProductByBarcodeRequest, opts ...grpc.CallOption) (*ProductResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ProductResponse)
-	err := c.cc.Invoke(ctx, ProductService_GetProductByBarcode_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *productServiceClient) GetProductBySKU(ctx context.Context, in *GetProductBySKURequest, opts ...grpc.CallOption) (*ProductResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ProductResponse)
-	err := c.cc.Invoke(ctx, ProductService_GetProductBySKU_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -186,10 +160,6 @@ type ProductServiceServer interface {
 	CreateProduct(context.Context, *CreateProductRequest) (*ProductResponse, error)
 	// GetProduct gets a product by ID
 	GetProduct(context.Context, *GetProductRequest) (*ProductResponse, error)
-	// GetProductByBarcode looks up a product by barcode
-	GetProductByBarcode(context.Context, *GetProductByBarcodeRequest) (*ProductResponse, error)
-	// GetProductBySKU looks up a product by SKU
-	GetProductBySKU(context.Context, *GetProductBySKURequest) (*ProductResponse, error)
 	// ListProducts lists products with filters
 	ListProducts(context.Context, *ListProductsRequest) (*ListProductsResponse, error)
 	// SearchProducts searches products by name
@@ -219,12 +189,6 @@ func (UnimplementedProductServiceServer) CreateProduct(context.Context, *CreateP
 }
 func (UnimplementedProductServiceServer) GetProduct(context.Context, *GetProductRequest) (*ProductResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetProduct not implemented")
-}
-func (UnimplementedProductServiceServer) GetProductByBarcode(context.Context, *GetProductByBarcodeRequest) (*ProductResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetProductByBarcode not implemented")
-}
-func (UnimplementedProductServiceServer) GetProductBySKU(context.Context, *GetProductBySKURequest) (*ProductResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetProductBySKU not implemented")
 }
 func (UnimplementedProductServiceServer) ListProducts(context.Context, *ListProductsRequest) (*ListProductsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListProducts not implemented")
@@ -300,42 +264,6 @@ func _ProductService_GetProduct_Handler(srv interface{}, ctx context.Context, de
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ProductServiceServer).GetProduct(ctx, req.(*GetProductRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ProductService_GetProductByBarcode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetProductByBarcodeRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ProductServiceServer).GetProductByBarcode(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: ProductService_GetProductByBarcode_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ProductServiceServer).GetProductByBarcode(ctx, req.(*GetProductByBarcodeRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ProductService_GetProductBySKU_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetProductBySKURequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ProductServiceServer).GetProductBySKU(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: ProductService_GetProductBySKU_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ProductServiceServer).GetProductBySKU(ctx, req.(*GetProductBySKURequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -480,14 +408,6 @@ var ProductService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetProduct",
 			Handler:    _ProductService_GetProduct_Handler,
-		},
-		{
-			MethodName: "GetProductByBarcode",
-			Handler:    _ProductService_GetProductByBarcode_Handler,
-		},
-		{
-			MethodName: "GetProductBySKU",
-			Handler:    _ProductService_GetProductBySKU_Handler,
 		},
 		{
 			MethodName: "ListProducts",

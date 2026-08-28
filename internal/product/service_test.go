@@ -18,8 +18,6 @@ import (
 type mockProductRepo struct {
 	createFunc          func(ctx context.Context, product *gormdb.Product) error
 	getByIDFunc         func(ctx context.Context, id string) (*gormdb.Product, error)
-	getBySKUFunc        func(ctx context.Context, sku string) (*gormdb.Product, error)
-	getByBarcodeFunc    func(ctx context.Context, barcode string) (*gormdb.Product, error)
 	listFunc            func(ctx context.Context, params repository.ProductListParams) ([]gormdb.Product, int64, error)
 	searchByNameFunc    func(ctx context.Context, params repository.ProductSearchParams) ([]gormdb.Product, int64, error)
 	updateFunc          func(ctx context.Context, product *gormdb.Product) error
@@ -44,16 +42,10 @@ func (m *mockProductRepo) GetByID(ctx context.Context, id string) (*gormdb.Produ
 }
 
 func (m *mockProductRepo) GetBySKU(ctx context.Context, sku string) (*gormdb.Product, error) {
-	if m.getBySKUFunc != nil {
-		return m.getBySKUFunc(ctx, sku)
-	}
 	return nil, gorm.ErrRecordNotFound
 }
 
 func (m *mockProductRepo) GetByBarcode(ctx context.Context, barcode string) (*gormdb.Product, error) {
-	if m.getByBarcodeFunc != nil {
-		return m.getByBarcodeFunc(ctx, barcode)
-	}
 	return nil, gorm.ErrRecordNotFound
 }
 
@@ -122,11 +114,65 @@ func (m *mockProductRepo) GetStockForUpdate(ctx context.Context, id string) (*go
 	return nil, nil
 }
 
+// mockProductSKURepo is a mock for ProductSKURepository
+type mockProductSKURepo struct {
+	createFunc       func(productSKU *gormdb.ProductSKU) error
+	getByIDFunc      func(id uuid.UUID) (*gormdb.ProductSKU, error)
+	getByBarcodeFunc func(barcode string) (*gormdb.ProductSKU, error)
+	getBySKUFunc     func(sku string) (*gormdb.ProductSKU, error)
+}
+
+func (m *mockProductSKURepo) Create(productSKU *gormdb.ProductSKU) error {
+	if m.createFunc != nil {
+		return m.createFunc(productSKU)
+	}
+	return nil
+}
+
+func (m *mockProductSKURepo) GetByID(id uuid.UUID) (*gormdb.ProductSKU, error) {
+	if m.getByIDFunc != nil {
+		return m.getByIDFunc(id)
+	}
+	return nil, gorm.ErrRecordNotFound
+}
+
+func (m *mockProductSKURepo) GetByBarcode(barcode string) (*gormdb.ProductSKU, error) {
+	if m.getByBarcodeFunc != nil {
+		return m.getByBarcodeFunc(barcode)
+	}
+	return nil, gorm.ErrRecordNotFound
+}
+
+func (m *mockProductSKURepo) GetBySKU(sku string) (*gormdb.ProductSKU, error) {
+	if m.getBySKUFunc != nil {
+		return m.getBySKUFunc(sku)
+	}
+	return nil, gorm.ErrRecordNotFound
+}
+
+func (m *mockProductSKURepo) List(productID uuid.UUID, search, variant, color, size string, isActive *bool, page, perPage int) ([]gormdb.ProductSKU, int64, error) {
+	return []gormdb.ProductSKU{}, 0, nil
+}
+
+func (m *mockProductSKURepo) ListAll(search, variant, color, size string, isActive *bool, productID uuid.UUID, page, perPage int) ([]gormdb.ProductSKU, int64, error) {
+	return []gormdb.ProductSKU{}, 0, nil
+}
+
+func (m *mockProductSKURepo) Update(productSKU *gormdb.ProductSKU) error {
+	return nil
+}
+
+func (m *mockProductSKURepo) Delete(id uuid.UUID) error {
+	return nil
+}
+
+func (m *mockProductSKURepo) CountByProductIDs(productIDs []uuid.UUID) (map[string]int32, error) {
+	return make(map[string]int32), nil
+}
+
 func testProduct() *gormdb.Product {
 	return &gormdb.Product{
 		ID:           uuid.New(),
-		SKU:          "SKU001",
-		Barcode:      "1234567890",
 		Name:         "Test Product",
 		Description:  "Test description",
 		CategoryID:   uuid.New(),
@@ -143,24 +189,21 @@ func TestProductService_CreateProduct(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		mockRepo := &mockProductRepo{
-			getBySKUFunc: func(ctx context.Context, sku string) (*gormdb.Product, error) {
-				return nil, gorm.ErrRecordNotFound
-			},
-			getByBarcodeFunc: func(ctx context.Context, barcode string) (*gormdb.Product, error) {
-				return nil, gorm.ErrRecordNotFound
-			},
 			createFunc: func(ctx context.Context, product *gormdb.Product) error {
 				product.ID = uuid.New()
 				return nil
 			},
 		}
 
-		repos := &repository.Repositories{Product: mockRepo}
+		mockProductSKURepo := &mockProductSKURepo{}
+
+		repos := &repository.Repositories{
+			Product:    mockRepo,
+			ProductSKU: mockProductSKURepo,
+		}
 		svc := NewService(repos)
 
 		product, err := svc.CreateProduct(ctx, CreateProductRequest{
-			SKU:          "SKU001",
-			Barcode:      "1234567890",
 			Name:         "Test Product",
 			Description:  "Test description",
 			CategoryID:   uuid.New().String(),
@@ -171,53 +214,8 @@ func TestProductService_CreateProduct(t *testing.T) {
 		})
 
 		require.NoError(t, err)
-		assert.Equal(t, "SKU001", product.SKU)
 		assert.Equal(t, "Test Product", product.Name)
 		assert.Equal(t, int32(100), product.Stock)
-	})
-
-	t.Run("duplicate sku", func(t *testing.T) {
-		mockRepo := &mockProductRepo{
-			getBySKUFunc: func(ctx context.Context, sku string) (*gormdb.Product, error) {
-				return testProduct(), nil
-			},
-		}
-
-		repos := &repository.Repositories{Product: mockRepo}
-		svc := NewService(repos)
-
-		_, err := svc.CreateProduct(ctx, CreateProductRequest{
-			SKU:          "SKU001",
-			Name:         "Test Product",
-			SellingPrice: 10000,
-		})
-
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "already exists")
-	})
-
-	t.Run("duplicate barcode", func(t *testing.T) {
-		mockRepo := &mockProductRepo{
-			getBySKUFunc: func(ctx context.Context, sku string) (*gormdb.Product, error) {
-				return nil, gorm.ErrRecordNotFound
-			},
-			getByBarcodeFunc: func(ctx context.Context, barcode string) (*gormdb.Product, error) {
-				return testProduct(), nil
-			},
-		}
-
-		repos := &repository.Repositories{Product: mockRepo}
-		svc := NewService(repos)
-
-		_, err := svc.CreateProduct(ctx, CreateProductRequest{
-			SKU:          "SKU002",
-			Barcode:      "1234567890",
-			Name:         "Test Product",
-			SellingPrice: 10000,
-		})
-
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "already exists")
 	})
 }
 
@@ -232,12 +230,16 @@ func TestProductService_GetProduct(t *testing.T) {
 			},
 		}
 
-		repos := &repository.Repositories{Product: mockRepo}
+		mockProductSKURepo := &mockProductSKURepo{}
+
+		repos := &repository.Repositories{
+			Product:    mockRepo,
+			ProductSKU: mockProductSKURepo,
+		}
 		svc := NewService(repos)
 
 		product, err := svc.GetProduct(ctx, validID)
 		require.NoError(t, err)
-		assert.Equal(t, "SKU001", product.SKU)
 		assert.Equal(t, "Test Product", product.Name)
 	})
 
@@ -248,7 +250,12 @@ func TestProductService_GetProduct(t *testing.T) {
 			},
 		}
 
-		repos := &repository.Repositories{Product: mockRepo}
+		mockProductSKURepo := &mockProductSKURepo{}
+
+		repos := &repository.Repositories{
+			Product:    mockRepo,
+			ProductSKU: mockProductSKURepo,
+		}
 		svc := NewService(repos)
 
 		_, err := svc.GetProduct(ctx, validID)
@@ -261,23 +268,38 @@ func TestProductService_GetProductByBarcode(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("success", func(t *testing.T) {
-		mockRepo := &mockProductRepo{
-			getByBarcodeFunc: func(ctx context.Context, barcode string) (*gormdb.Product, error) {
-				return testProduct(), nil
+		mockRepo := &mockProductRepo{}
+
+		mockProductSKURepo := &mockProductSKURepo{
+			getByBarcodeFunc: func(barcode string) (*gormdb.ProductSKU, error) {
+				return &gormdb.ProductSKU{
+					ID:        uuid.New(),
+					ProductID: uuid.New(),
+					SKU:       "SKU001",
+					Barcode:   "1234567890",
+				}, nil
 			},
 		}
 
-		repos := &repository.Repositories{Product: mockRepo}
+		repos := &repository.Repositories{
+			Product:    mockRepo,
+			ProductSKU: mockProductSKURepo,
+		}
 		svc := NewService(repos)
 
-		product, err := svc.GetProductByBarcode(ctx, "1234567890")
+		productSKU, err := svc.GetProductByBarcode(ctx, "1234567890")
 		require.NoError(t, err)
-		assert.Equal(t, "SKU001", product.SKU)
+		assert.Equal(t, "SKU001", productSKU.SKU)
 	})
 
 	t.Run("empty barcode", func(t *testing.T) {
 		mockRepo := &mockProductRepo{}
-		repos := &repository.Repositories{Product: mockRepo}
+		mockProductSKURepo := &mockProductSKURepo{}
+
+		repos := &repository.Repositories{
+			Product:    mockRepo,
+			ProductSKU: mockProductSKURepo,
+		}
 		svc := NewService(repos)
 
 		_, err := svc.GetProductByBarcode(ctx, "")
@@ -286,13 +308,18 @@ func TestProductService_GetProductByBarcode(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		mockRepo := &mockProductRepo{
-			getByBarcodeFunc: func(ctx context.Context, barcode string) (*gormdb.Product, error) {
+		mockRepo := &mockProductRepo{}
+
+		mockProductSKURepo := &mockProductSKURepo{
+			getByBarcodeFunc: func(barcode string) (*gormdb.ProductSKU, error) {
 				return nil, gorm.ErrRecordNotFound
 			},
 		}
 
-		repos := &repository.Repositories{Product: mockRepo}
+		repos := &repository.Repositories{
+			Product:    mockRepo,
+			ProductSKU: mockProductSKURepo,
+		}
 		svc := NewService(repos)
 
 		_, err := svc.GetProductByBarcode(ctx, "0000000000")
@@ -305,23 +332,38 @@ func TestProductService_GetProductBySKU(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("success", func(t *testing.T) {
-		mockRepo := &mockProductRepo{
-			getBySKUFunc: func(ctx context.Context, sku string) (*gormdb.Product, error) {
-				return testProduct(), nil
+		mockRepo := &mockProductRepo{}
+
+		mockProductSKURepo := &mockProductSKURepo{
+			getBySKUFunc: func(sku string) (*gormdb.ProductSKU, error) {
+				return &gormdb.ProductSKU{
+					ID:        uuid.New(),
+					ProductID: uuid.New(),
+					SKU:       "SKU001",
+					Barcode:   "1234567890",
+				}, nil
 			},
 		}
 
-		repos := &repository.Repositories{Product: mockRepo}
+		repos := &repository.Repositories{
+			Product:    mockRepo,
+			ProductSKU: mockProductSKURepo,
+		}
 		svc := NewService(repos)
 
-		product, err := svc.GetProductBySKU(ctx, "SKU001")
+		productSKU, err := svc.GetProductBySKU(ctx, "SKU001")
 		require.NoError(t, err)
-		assert.Equal(t, "SKU001", product.SKU)
+		assert.Equal(t, "SKU001", productSKU.SKU)
 	})
 
 	t.Run("empty sku", func(t *testing.T) {
 		mockRepo := &mockProductRepo{}
-		repos := &repository.Repositories{Product: mockRepo}
+		mockProductSKURepo := &mockProductSKURepo{}
+
+		repos := &repository.Repositories{
+			Product:    mockRepo,
+			ProductSKU: mockProductSKURepo,
+		}
 		svc := NewService(repos)
 
 		_, err := svc.GetProductBySKU(ctx, "")
@@ -330,13 +372,18 @@ func TestProductService_GetProductBySKU(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		mockRepo := &mockProductRepo{
-			getBySKUFunc: func(ctx context.Context, sku string) (*gormdb.Product, error) {
+		mockRepo := &mockProductRepo{}
+
+		mockProductSKURepo := &mockProductSKURepo{
+			getBySKUFunc: func(sku string) (*gormdb.ProductSKU, error) {
 				return nil, gorm.ErrRecordNotFound
 			},
 		}
 
-		repos := &repository.Repositories{Product: mockRepo}
+		repos := &repository.Repositories{
+			Product:    mockRepo,
+			ProductSKU: mockProductSKURepo,
+		}
 		svc := NewService(repos)
 
 		_, err := svc.GetProductBySKU(ctx, "NONEXISTENT")
@@ -352,13 +399,18 @@ func TestProductService_ListProducts(t *testing.T) {
 		mockRepo := &mockProductRepo{
 			listFunc: func(ctx context.Context, params repository.ProductListParams) ([]gormdb.Product, int64, error) {
 				return []gormdb.Product{
-					{ID: uuid.New(), SKU: "SKU001", Name: "Product 1", Stock: 100},
-					{ID: uuid.New(), SKU: "SKU002", Name: "Product 2", Stock: 50},
+					{ID: uuid.New(), Name: "Product 1", Stock: 100},
+					{ID: uuid.New(), Name: "Product 2", Stock: 50},
 				}, 2, nil
 			},
 		}
 
-		repos := &repository.Repositories{Product: mockRepo}
+		mockProductSKURepo := &mockProductSKURepo{}
+
+		repos := &repository.Repositories{
+			Product:    mockRepo,
+			ProductSKU: mockProductSKURepo,
+		}
 		svc := NewService(repos)
 
 		result, err := svc.ListProducts(ctx, "", "", 1, 10)
@@ -376,7 +428,12 @@ func TestProductService_ListProducts(t *testing.T) {
 			},
 		}
 
-		repos := &repository.Repositories{Product: mockRepo}
+		mockProductSKURepo := &mockProductSKURepo{}
+
+		repos := &repository.Repositories{
+			Product:    mockRepo,
+			ProductSKU: mockProductSKURepo,
+		}
 		svc := NewService(repos)
 
 		result, err := svc.ListProducts(ctx, "", "", 1, 10)
@@ -393,12 +450,17 @@ func TestProductService_SearchProducts(t *testing.T) {
 		mockRepo := &mockProductRepo{
 			searchByNameFunc: func(ctx context.Context, params repository.ProductSearchParams) ([]gormdb.Product, int64, error) {
 				return []gormdb.Product{
-					{ID: uuid.New(), SKU: "SKU001", Name: "Coffee", Stock: 100},
+					{ID: uuid.New(), Name: "Coffee", Stock: 100},
 				}, 1, nil
 			},
 		}
 
-		repos := &repository.Repositories{Product: mockRepo}
+		mockProductSKURepo := &mockProductSKURepo{}
+
+		repos := &repository.Repositories{
+			Product:    mockRepo,
+			ProductSKU: mockProductSKURepo,
+		}
 		svc := NewService(repos)
 
 		result, err := svc.SearchProducts(ctx, "Coffee", "", 1, 10)
@@ -423,19 +485,22 @@ func TestProductService_UpdateProduct(t *testing.T) {
 			},
 		}
 
-		repos := &repository.Repositories{Product: mockRepo}
+		mockProductSKURepo := &mockProductSKURepo{}
+
+		repos := &repository.Repositories{
+			Product:    mockRepo,
+			ProductSKU: mockProductSKURepo,
+		}
 		svc := NewService(repos)
 
 		product, err := svc.UpdateProduct(ctx, UpdateProductRequest{
 			ID:           validID,
-			SKU:          "SKU001-UPDATED",
 			Name:         "Updated Product",
 			SellingPrice: 15000,
 			IsActive:     true,
 		})
 
 		require.NoError(t, err)
-		assert.Equal(t, "SKU001-UPDATED", product.SKU)
 		assert.Equal(t, "Updated Product", product.Name)
 	})
 
@@ -446,7 +511,12 @@ func TestProductService_UpdateProduct(t *testing.T) {
 			},
 		}
 
-		repos := &repository.Repositories{Product: mockRepo}
+		mockProductSKURepo := &mockProductSKURepo{}
+
+		repos := &repository.Repositories{
+			Product:    mockRepo,
+			ProductSKU: mockProductSKURepo,
+		}
 		svc := NewService(repos)
 
 		_, err := svc.UpdateProduct(ctx, UpdateProductRequest{
@@ -472,7 +542,12 @@ func TestProductService_DeleteProduct(t *testing.T) {
 			},
 		}
 
-		repos := &repository.Repositories{Product: mockRepo}
+		mockProductSKURepo := &mockProductSKURepo{}
+
+		repos := &repository.Repositories{
+			Product:    mockRepo,
+			ProductSKU: mockProductSKURepo,
+		}
 		svc := NewService(repos)
 
 		err := svc.DeleteProduct(ctx, validID)
@@ -486,7 +561,12 @@ func TestProductService_DeleteProduct(t *testing.T) {
 			},
 		}
 
-		repos := &repository.Repositories{Product: mockRepo}
+		mockProductSKURepo := &mockProductSKURepo{}
+
+		repos := &repository.Repositories{
+			Product:    mockRepo,
+			ProductSKU: mockProductSKURepo,
+		}
 		svc := NewService(repos)
 
 		err := svc.DeleteProduct(ctx, validID)
@@ -511,7 +591,12 @@ func TestProductService_ActivateDeactivateProduct(t *testing.T) {
 			},
 		}
 
-		repos := &repository.Repositories{Product: mockRepo}
+		mockProductSKURepo := &mockProductSKURepo{}
+
+		repos := &repository.Repositories{
+			Product:    mockRepo,
+			ProductSKU: mockProductSKURepo,
+		}
 		svc := NewService(repos)
 
 		err := svc.ActivateProduct(ctx, validID)
@@ -528,7 +613,12 @@ func TestProductService_ActivateDeactivateProduct(t *testing.T) {
 			},
 		}
 
-		repos := &repository.Repositories{Product: mockRepo}
+		mockProductSKURepo := &mockProductSKURepo{}
+
+		repos := &repository.Repositories{
+			Product:    mockRepo,
+			ProductSKU: mockProductSKURepo,
+		}
 		svc := NewService(repos)
 
 		err := svc.DeactivateProduct(ctx, validID)
@@ -542,7 +632,12 @@ func TestProductService_ActivateDeactivateProduct(t *testing.T) {
 			},
 		}
 
-		repos := &repository.Repositories{Product: mockRepo}
+		mockProductSKURepo := &mockProductSKURepo{}
+
+		repos := &repository.Repositories{
+			Product:    mockRepo,
+			ProductSKU: mockProductSKURepo,
+		}
 		svc := NewService(repos)
 
 		err := svc.DeactivateProduct(ctx, validID)
@@ -558,12 +653,17 @@ func TestProductService_GetLowStockProducts(t *testing.T) {
 		mockRepo := &mockProductRepo{
 			getLowStockFunc: func(ctx context.Context, params repository.PaginationParams) ([]gormdb.Product, int64, error) {
 				return []gormdb.Product{
-					{ID: uuid.New(), SKU: "LOW001", Name: "Low Stock Product", Stock: 5, MinimumStock: 10},
+					{ID: uuid.New(), Name: "Low Stock Product", Stock: 5, MinimumStock: 10},
 				}, 1, nil
 			},
 		}
 
-		repos := &repository.Repositories{Product: mockRepo}
+		mockProductSKURepo := &mockProductSKURepo{}
+
+		repos := &repository.Repositories{
+			Product:    mockRepo,
+			ProductSKU: mockProductSKURepo,
+		}
 		svc := NewService(repos)
 
 		result, err := svc.GetLowStockProducts(ctx, 1, 10)
@@ -584,7 +684,12 @@ func TestProductService_CountProducts(t *testing.T) {
 			},
 		}
 
-		repos := &repository.Repositories{Product: mockRepo}
+		mockProductSKURepo := &mockProductSKURepo{}
+
+		repos := &repository.Repositories{
+			Product:    mockRepo,
+			ProductSKU: mockProductSKURepo,
+		}
 		svc := NewService(repos)
 
 		result, err := svc.ListProducts(ctx, "", "", 1, 10)
@@ -599,7 +704,12 @@ func TestProductService_CountProducts(t *testing.T) {
 			},
 		}
 
-		repos := &repository.Repositories{Product: mockRepo}
+		mockProductSKURepo := &mockProductSKURepo{}
+
+		repos := &repository.Repositories{
+			Product:    mockRepo,
+			ProductSKU: mockProductSKURepo,
+		}
 		svc := NewService(repos)
 
 		_, err := svc.ListProducts(ctx, "", "", 1, 10)

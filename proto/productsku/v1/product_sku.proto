@@ -1,0 +1,186 @@
+syntax = "proto3";
+
+package productsku.v1;
+
+option go_package = "apiPos/gen/productsku/v1;productskuv1";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/field_mask.proto";
+import "google/api/annotations.proto";
+
+// ProductSKU represents a product variant/SKU item
+message ProductSKU {
+  string id = 1;
+  string product_id = 2;
+  string sku = 3;
+  string barcode = 4;
+  string variant = 5;
+  string color = 6;
+  string size = 7;
+  string unit = 8;
+  double cost_price = 9;
+  double selling_price = 10;
+  int32 stock = 11;
+  int32 minimum_stock = 12;
+  double weight = 13;
+  double volume = 14;
+  google.protobuf.Timestamp expiry_date = 15;
+  string batch_number = 16;
+  string location = 17;
+  string image_url = 18;
+  bool is_active = 19;
+  map<string, string> metadata = 20;
+  google.protobuf.Timestamp created_at = 21;
+  google.protobuf.Timestamp updated_at = 22;
+}
+
+// CreateProductSKURequest is the request for creating a product SKU
+message CreateProductSKURequest {
+  string product_id = 1;
+  string sku = 2;
+  string barcode = 3;
+  string variant = 4;
+  string color = 5;
+  string size = 6;
+  string unit = 7;
+  double cost_price = 8;
+  double selling_price = 9;
+  int32 stock = 10;
+  int32 minimum_stock = 11;
+  double weight = 12;
+  double volume = 13;
+  google.protobuf.Timestamp expiry_date = 14;
+  string batch_number = 15;
+  string location = 16;
+  string image_url = 17;
+  bool is_active = 18;
+  map<string, string> metadata = 19;
+}
+
+// GetProductSKURequest is the request for getting a product SKU
+message GetProductSKURequest {
+  string id = 1;
+}
+
+// GetProductSKUByBarcodeRequest is the request for getting a product SKU by barcode
+message GetProductSKUByBarcodeRequest {
+  string barcode = 1;
+}
+
+// GetProductSKUBySKUCodeRequest is the request for getting a product SKU by SKU code
+message GetProductSKUBySKUCodeRequest {
+  string sku = 1;
+}
+
+// ListProductSKUsRequest is the request for listing product SKUs
+message ListProductSKUsRequest {
+  string product_id = 1;
+  string search = 2;
+  string variant = 3;
+  string color = 4;
+  string size = 5;
+  bool is_active = 6;
+  int32 page = 7;
+  int32 per_page = 8;
+}
+
+// ListProductSKUsResponse is the response for listing product SKUs
+message ListProductSKUsResponse {
+  repeated ProductSKU product_skus = 1;
+  int64 total_count = 2;
+  int32 page = 3;
+  int32 per_page = 4;
+}
+
+// UpdateProductSKURequest is the request for updating a product SKU
+message UpdateProductSKURequest {
+  string id = 1;
+  google.protobuf.FieldMask update_mask = 2;
+  string sku = 3;
+  string barcode = 4;
+  string variant = 5;
+  string color = 6;
+  string size = 7;
+  string unit = 8;
+  double cost_price = 9;
+  double selling_price = 10;
+  int32 stock = 11;
+  int32 minimum_stock = 12;
+  double weight = 13;
+  double volume = 14;
+  google.protobuf.Timestamp expiry_date = 15;
+  string batch_number = 16;
+  string location = 17;
+  string image_url = 18;
+  bool is_active = 19;
+  map<string, string> metadata = 20;
+}
+
+// DeleteProductSKURequest is the request for deleting a product SKU
+message DeleteProductSKURequest {
+  string id = 1;
+}
+
+// DeleteProductSKUResponse is the response for deleting a product SKU
+message DeleteProductSKUResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// ProductSKUResponse is the response for single product SKU operations
+message ProductSKUResponse {
+  ProductSKU product_sku = 1;
+}
+
+// ProductServiceSKUService is the service for managing product SKUs
+service ProductServiceSKUService {
+  rpc CreateProductSKU(CreateProductSKURequest) returns (ProductSKUResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/products/{product_id}/skus"
+      body: "*"
+    };
+  }
+
+  rpc GetProductSKU(GetProductSKURequest) returns (ProductSKUResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/product-skus/{id}"
+    };
+  }
+
+  rpc GetProductSKUByBarcode(GetProductSKUByBarcodeRequest) returns (ProductSKUResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/product-skus/barcode/{barcode}"
+    };
+  }
+
+  rpc GetProductSKUBySKUCode(GetProductSKUBySKUCodeRequest) returns (ProductSKUResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/product-skus/sku/{sku}"
+    };
+  }
+
+  rpc ListProductSKUs(ListProductSKUsRequest) returns (ListProductSKUsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/products/{product_id}/skus"
+    };
+  }
+
+  rpc ListAllProductSKUs(ListProductSKUsRequest) returns (ListProductSKUsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/product-skus"
+    };
+  }
+
+  rpc UpdateProductSKU(UpdateProductSKURequest) returns (ProductSKUResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/product-skus/{id}"
+      body: "*"
+    };
+  }
+
+  rpc DeleteProductSKU(DeleteProductSKURequest) returns (DeleteProductSKUResponse) {
+    option (google.api.http) = {
+      delete: "/api/v1/product-skus/{id}"
+    };
+  }
+}

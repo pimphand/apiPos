@@ -78,8 +78,6 @@ func (Category) TableName() string {
 // Product represents the products table
 type Product struct {
 	ID           uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	SKU          string     `gorm:"type:varchar(50);uniqueIndex;not null" json:"sku"`
-	Barcode      string     `gorm:"type:varchar(100);uniqueIndex" json:"barcode"`
 	Name         string     `gorm:"type:varchar(200);not null" json:"name"`
 	Description  string     `gorm:"type:text" json:"description"`
 	CategoryID   uuid.UUID  `gorm:"type:uuid" json:"category_id"`
@@ -92,12 +90,47 @@ type Product struct {
 	UpdatedAt    time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
 
 	// Relations
-	Category Category `gorm:"foreignKey:CategoryID" json:"category,omitempty"`
+	Category   Category     `gorm:"foreignKey:CategoryID" json:"category,omitempty"`
+	ProductSKUs []ProductSKU `gorm:"foreignKey:ProductID" json:"product_skus,omitempty"`
 }
 
 // TableName returns the table name for Product
 func (Product) TableName() string {
 	return "products"
+}
+
+// ProductSKU represents the product_skus table
+type ProductSKU struct {
+	ID           uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	ProductID    uuid.UUID      `gorm:"type:uuid;not null" json:"product_id"`
+	SKU          string         `gorm:"type:varchar(100);not null" json:"sku"`
+	Barcode      string         `gorm:"type:varchar(100)" json:"barcode"`
+	Variant      string         `gorm:"type:varchar(255)" json:"variant"`
+	Color        string         `gorm:"type:varchar(100)" json:"color"`
+	Size         string         `gorm:"type:varchar(50)" json:"size"`
+	Unit         string         `gorm:"type:varchar(50);default:'pcs'" json:"unit"`
+	CostPrice    float64        `gorm:"type:numeric(15,2);default:0" json:"cost_price"`
+	SellingPrice float64        `gorm:"type:numeric(15,2);default:0" json:"selling_price"`
+	Stock        int32          `gorm:"default:0" json:"stock"`
+	MinimumStock int32          `gorm:"default:0" json:"minimum_stock"`
+	Weight       float64        `gorm:"type:numeric(10,2)" json:"weight"`
+	Volume       float64        `gorm:"type:numeric(10,2)" json:"volume"`
+	ExpiryDate   *time.Time     `gorm:"type:timestamptz" json:"expiry_date"`
+	BatchNumber  string         `gorm:"type:varchar(100)" json:"batch_number"`
+	Location     string         `gorm:"type:varchar(100)" json:"location"`
+	ImageURL     string         `gorm:"type:varchar(500)" json:"image_url"`
+	IsActive     bool           `gorm:"default:true" json:"is_active"`
+	Metadata     map[string]any `gorm:"type:jsonb" json:"metadata"`
+	CreatedAt    time.Time      `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt    time.Time      `gorm:"autoUpdateTime" json:"updated_at"`
+
+	// Relations
+	Product Product `gorm:"foreignKey:ProductID" json:"product,omitempty"`
+}
+
+// TableName returns the table name for ProductSKU
+func (ProductSKU) TableName() string {
+	return "product_skus"
 }
 
 // Customer represents the customers table

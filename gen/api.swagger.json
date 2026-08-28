@@ -25,6 +25,10 @@
       "name": "ProductService"
     },
     {
+      "name": "ProductServiceSKUService",
+      "description": "ProductServiceSKUService is the service for managing product SKUs"
+    },
+    {
       "name": "RoleService"
     },
     {
@@ -791,6 +795,234 @@
         ]
       }
     },
+    "/api/v1/product-skus": {
+      "get": {
+        "operationId": "ProductServiceSKUService_ListAllProductSKUs",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListProductSKUsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "variant",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "color",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "isActive",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "perPage",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "tags": [
+          "ProductServiceSKUService"
+        ]
+      }
+    },
+    "/api/v1/product-skus/barcode/{barcode}": {
+      "get": {
+        "operationId": "ProductServiceSKUService_GetProductSKUByBarcode",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ProductSKUResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "barcode",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ProductServiceSKUService"
+        ]
+      }
+    },
+    "/api/v1/product-skus/sku/{sku}": {
+      "get": {
+        "operationId": "ProductServiceSKUService_GetProductSKUBySKUCode",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ProductSKUResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sku",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ProductServiceSKUService"
+        ]
+      }
+    },
+    "/api/v1/product-skus/{id}": {
+      "get": {
+        "operationId": "ProductServiceSKUService_GetProductSKU",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ProductSKUResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ProductServiceSKUService"
+        ]
+      },
+      "delete": {
+        "operationId": "ProductServiceSKUService_DeleteProductSKU",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1DeleteProductSKUResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ProductServiceSKUService"
+        ]
+      },
+      "put": {
+        "operationId": "ProductServiceSKUService_UpdateProductSKU",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ProductSKUResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ProductServiceSKUServiceUpdateProductSKUBody"
+            }
+          }
+        ],
+        "tags": [
+          "ProductServiceSKUService"
+        ]
+      }
+    },
     "/api/v1/products": {
       "get": {
         "summary": "ListProducts lists products with filters",
@@ -836,6 +1068,13 @@
             "required": false,
             "type": "integer",
             "format": "int32"
+          },
+          {
+            "name": "getSku",
+            "description": "If true, include SKUs in response (default false for performance)",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -867,37 +1106,6 @@
             "schema": {
               "$ref": "#/definitions/v1CreateProductRequest"
             }
-          }
-        ],
-        "tags": [
-          "ProductService"
-        ]
-      }
-    },
-    "/api/v1/products/barcode/{barcode}": {
-      "get": {
-        "summary": "GetProductByBarcode looks up a product by barcode",
-        "operationId": "ProductService_GetProductByBarcode",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1ProductResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "barcode",
-            "in": "path",
-            "required": true,
-            "type": "string"
           }
         ],
         "tags": [
@@ -937,6 +1145,13 @@
             "required": false,
             "type": "integer",
             "format": "int32"
+          },
+          {
+            "name": "getSku",
+            "description": "If true, include SKUs in response (default false for performance)",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -989,37 +1204,13 @@
             "required": false,
             "type": "integer",
             "format": "int32"
-          }
-        ],
-        "tags": [
-          "ProductService"
-        ]
-      }
-    },
-    "/api/v1/products/sku/{sku}": {
-      "get": {
-        "summary": "GetProductBySKU looks up a product by SKU",
-        "operationId": "ProductService_GetProductBySKU",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1ProductResponse"
-            }
           },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
           {
-            "name": "sku",
-            "in": "path",
-            "required": true,
-            "type": "string"
+            "name": "getSku",
+            "description": "If true, include SKUs in response (default false for performance)",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -1051,6 +1242,13 @@
             "in": "path",
             "required": true,
             "type": "string"
+          },
+          {
+            "name": "getSku",
+            "description": "If true, include SKUs in response",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -1199,6 +1397,116 @@
         ],
         "tags": [
           "ProductService"
+        ]
+      }
+    },
+    "/api/v1/products/{productId}/skus": {
+      "get": {
+        "operationId": "ProductServiceSKUService_ListProductSKUs",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListProductSKUsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "variant",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "color",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "isActive",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "perPage",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "tags": [
+          "ProductServiceSKUService"
+        ]
+      },
+      "post": {
+        "operationId": "ProductServiceSKUService_CreateProductSKU",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ProductSKUResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ProductServiceSKUServiceCreateProductSKUBody"
+            }
+          }
+        ],
+        "tags": [
+          "ProductServiceSKUService"
         ]
       }
     },
@@ -1735,7 +2043,7 @@
     "ProductServiceDeactivateProductBody": {
       "type": "object"
     },
-    "ProductServiceUpdateProductBody": {
+    "ProductServiceSKUServiceCreateProductSKUBody": {
       "type": "object",
       "properties": {
         "sku": {
@@ -1744,6 +2052,143 @@
         "barcode": {
           "type": "string"
         },
+        "variant": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string"
+        },
+        "size": {
+          "type": "string"
+        },
+        "unit": {
+          "type": "string"
+        },
+        "costPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "sellingPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "stock": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "minimumStock": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "weight": {
+          "type": "number",
+          "format": "double"
+        },
+        "volume": {
+          "type": "number",
+          "format": "double"
+        },
+        "expiryDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "batchNumber": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "imageUrl": {
+          "type": "string"
+        },
+        "isActive": {
+          "type": "boolean"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "title": "CreateProductSKURequest is the request for creating a product SKU"
+    },
+    "ProductServiceSKUServiceUpdateProductSKUBody": {
+      "type": "object",
+      "properties": {
+        "updateMask": {
+          "type": "string"
+        },
+        "sku": {
+          "type": "string"
+        },
+        "barcode": {
+          "type": "string"
+        },
+        "variant": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string"
+        },
+        "size": {
+          "type": "string"
+        },
+        "unit": {
+          "type": "string"
+        },
+        "costPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "sellingPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "stock": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "minimumStock": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "weight": {
+          "type": "number",
+          "format": "double"
+        },
+        "volume": {
+          "type": "number",
+          "format": "double"
+        },
+        "expiryDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "batchNumber": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "imageUrl": {
+          "type": "string"
+        },
+        "isActive": {
+          "type": "boolean"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "title": "UpdateProductSKURequest is the request for updating a product SKU"
+    },
+    "ProductServiceUpdateProductBody": {
+      "type": "object",
+      "properties": {
         "name": {
           "type": "string"
         },
@@ -1767,6 +2212,21 @@
         },
         "isActive": {
           "type": "boolean"
+        },
+        "skuUpdates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1ProductSKUUpdate"
+          },
+          "title": "SKU updates - if id is empty, a new SKU will be created"
+        },
+        "skuIdsToDelete": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "SKU IDs to delete"
         }
       }
     },
@@ -1874,6 +2334,171 @@
           "type": "string"
         }
       }
+    },
+    "productV1ProductSKU": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "productId": {
+          "type": "string"
+        },
+        "sku": {
+          "type": "string"
+        },
+        "barcode": {
+          "type": "string"
+        },
+        "variant": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string"
+        },
+        "size": {
+          "type": "string"
+        },
+        "unit": {
+          "type": "string"
+        },
+        "costPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "sellingPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "stock": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "minimumStock": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "weight": {
+          "type": "number",
+          "format": "double"
+        },
+        "volume": {
+          "type": "number",
+          "format": "double"
+        },
+        "expiryDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "batchNumber": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "imageUrl": {
+          "type": "string"
+        },
+        "isActive": {
+          "type": "boolean"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      }
+    },
+    "productskuV1ProductSKU": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "productId": {
+          "type": "string"
+        },
+        "sku": {
+          "type": "string"
+        },
+        "barcode": {
+          "type": "string"
+        },
+        "variant": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string"
+        },
+        "size": {
+          "type": "string"
+        },
+        "unit": {
+          "type": "string"
+        },
+        "costPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "sellingPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "stock": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "minimumStock": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "weight": {
+          "type": "number",
+          "format": "double"
+        },
+        "volume": {
+          "type": "number",
+          "format": "double"
+        },
+        "expiryDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "batchNumber": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "imageUrl": {
+          "type": "string"
+        },
+        "isActive": {
+          "type": "boolean"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "title": "ProductSKU represents a product variant/SKU item"
     },
     "protobufAny": {
       "type": "object",
@@ -2101,12 +2726,6 @@
     "v1CreateProductRequest": {
       "type": "object",
       "properties": {
-        "sku": {
-          "type": "string"
-        },
-        "barcode": {
-          "type": "string"
-        },
         "name": {
           "type": "string"
         },
@@ -2131,6 +2750,39 @@
         "minimumStock": {
           "type": "integer",
           "format": "int32"
+        },
+        "sku": {
+          "type": "string",
+          "title": "Default SKU fields - a product must have at least one SKU"
+        },
+        "barcode": {
+          "type": "string"
+        },
+        "variant": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string"
+        },
+        "size": {
+          "type": "string"
+        },
+        "unit": {
+          "type": "string"
+        },
+        "weight": {
+          "type": "number",
+          "format": "double"
+        },
+        "volume": {
+          "type": "number",
+          "format": "double"
+        },
+        "batchNumber": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
         }
       }
     },
@@ -2200,6 +2852,18 @@
           "type": "string"
         }
       }
+    },
+    "v1DeleteProductSKUResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "title": "DeleteProductSKUResponse is the response for deleting a product SKU"
     },
     "v1DeleteRoleResponse": {
       "type": "object",
@@ -2290,6 +2954,31 @@
           "format": "int64"
         }
       }
+    },
+    "v1ListProductSKUsResponse": {
+      "type": "object",
+      "properties": {
+        "productSkus": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/productskuV1ProductSKU"
+          }
+        },
+        "totalCount": {
+          "type": "string",
+          "format": "int64"
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "perPage": {
+          "type": "integer",
+          "format": "int32"
+        }
+      },
+      "title": "ListProductSKUsResponse is the response for listing product SKUs"
     },
     "v1ListProductsResponse": {
       "type": "object",
@@ -2417,12 +3106,6 @@
         "id": {
           "type": "string"
         },
-        "sku": {
-          "type": "string"
-        },
-        "barcode": {
-          "type": "string"
-        },
         "name": {
           "type": "string"
         },
@@ -2456,6 +3139,20 @@
         },
         "updatedAt": {
           "type": "string"
+        },
+        "skus": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/productV1ProductSKU"
+          }
+        },
+        "skuCount": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "categoryName": {
+          "type": "string"
         }
       }
     },
@@ -2464,6 +3161,88 @@
       "properties": {
         "product": {
           "$ref": "#/definitions/v1Product"
+        }
+      }
+    },
+    "v1ProductSKUResponse": {
+      "type": "object",
+      "properties": {
+        "productSku": {
+          "$ref": "#/definitions/productskuV1ProductSKU"
+        }
+      },
+      "title": "ProductSKUResponse is the response for single product SKU operations"
+    },
+    "v1ProductSKUUpdate": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "If empty, a new SKU will be created. If provided, the existing SKU will be updated."
+        },
+        "sku": {
+          "type": "string"
+        },
+        "barcode": {
+          "type": "string"
+        },
+        "variant": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string"
+        },
+        "size": {
+          "type": "string"
+        },
+        "unit": {
+          "type": "string"
+        },
+        "costPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "sellingPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "stock": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "minimumStock": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "weight": {
+          "type": "number",
+          "format": "double"
+        },
+        "volume": {
+          "type": "number",
+          "format": "double"
+        },
+        "expiryDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "batchNumber": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "imageUrl": {
+          "type": "string"
+        },
+        "isActive": {
+          "type": "boolean"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       }
     },

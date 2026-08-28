@@ -5,6 +5,7 @@ package product.v1;
 option go_package = "apiPos/gen/product/v1;productv1";
 
 import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
 
 service ProductService {
   // CreateProduct creates a new product
@@ -19,20 +20,6 @@ service ProductService {
   rpc GetProduct(GetProductRequest) returns (ProductResponse) {
     option (google.api.http) = {
       get: "/api/v1/products/{id}"
-    };
-  }
-
-  // GetProductByBarcode looks up a product by barcode
-  rpc GetProductByBarcode(GetProductByBarcodeRequest) returns (ProductResponse) {
-    option (google.api.http) = {
-      get: "/api/v1/products/barcode/{barcode}"
-    };
-  }
-
-  // GetProductBySKU looks up a product by SKU
-  rpc GetProductBySKU(GetProductBySKURequest) returns (ProductResponse) {
-    option (google.api.http) = {
-      get: "/api/v1/products/sku/{sku}"
     };
   }
 
@@ -90,27 +77,31 @@ service ProductService {
 }
 
 message CreateProductRequest {
-  string sku = 1;
-  string barcode = 2;
-  string name = 3;
-  string description = 4;
-  string category_id = 5;
-  double cost_price = 6;
-  double selling_price = 7;
-  int32 stock = 8;
-  int32 minimum_stock = 9;
+  string name = 1;
+  string description = 2;
+  string category_id = 3;
+  double cost_price = 4;
+  double selling_price = 5;
+  int32 stock = 6;
+  int32 minimum_stock = 7;
+
+  // Default SKU fields - a product must have at least one SKU
+  string sku = 10;
+  string barcode = 11;
+  string variant = 12;
+  string color = 13;
+  string size = 14;
+  string unit = 15;
+  double weight = 16;
+  double volume = 17;
+  string batch_number = 18;
+  string location = 19;
 }
 
 message GetProductRequest {
   string id = 1;
-}
-
-message GetProductByBarcodeRequest {
-  string barcode = 1;
-}
-
-message GetProductBySKURequest {
-  string sku = 1;
+  // If true, include SKUs in response
+  bool get_sku = 2;
 }
 
 message ListProductsRequest {
@@ -119,6 +110,8 @@ message ListProductsRequest {
   string category_id = 2;
   int32 page = 3;
   int32 per_page = 4;
+  // If true, include SKUs in response (default false for performance)
+  bool get_sku = 5;
 }
 
 message ListProductsResponse {
@@ -134,19 +127,47 @@ message SearchProductsRequest {
   string is_active = 2;
   int32 page = 3;
   int32 per_page = 4;
+  // If true, include SKUs in response (default false for performance)
+  bool get_sku = 5;
 }
 
 message UpdateProductRequest {
   string id = 1;
+  string name = 2;
+  string description = 3;
+  string category_id = 4;
+  double cost_price = 5;
+  double selling_price = 6;
+  int32 minimum_stock = 7;
+  bool is_active = 8;
+
+  // SKU updates - if id is empty, a new SKU will be created
+  repeated ProductSKUUpdate sku_updates = 10;
+  // SKU IDs to delete
+  repeated string sku_ids_to_delete = 11;
+}
+
+message ProductSKUUpdate {
+  // If empty, a new SKU will be created. If provided, the existing SKU will be updated.
+  string id = 1;
   string sku = 2;
   string barcode = 3;
-  string name = 4;
-  string description = 5;
-  string category_id = 6;
-  double cost_price = 7;
-  double selling_price = 8;
-  int32 minimum_stock = 9;
-  bool is_active = 10;
+  string variant = 4;
+  string color = 5;
+  string size = 6;
+  string unit = 7;
+  double cost_price = 8;
+  double selling_price = 9;
+  int32 stock = 10;
+  int32 minimum_stock = 11;
+  double weight = 12;
+  double volume = 13;
+  google.protobuf.Timestamp expiry_date = 14;
+  string batch_number = 15;
+  string location = 16;
+  string image_url = 17;
+  bool is_active = 18;
+  map<string, string> metadata = 19;
 }
 
 message DeleteProductRequest {
@@ -169,6 +190,8 @@ message DeactivateProductRequest {
 message LowStockProductsRequest {
   int32 page = 1;
   int32 per_page = 2;
+  // If true, include SKUs in response (default false for performance)
+  bool get_sku = 3;
 }
 
 message ProductResponse {
@@ -177,16 +200,42 @@ message ProductResponse {
 
 message Product {
   string id = 1;
-  string sku = 2;
-  string barcode = 3;
-  string name = 4;
-  string description = 5;
-  string category_id = 6;
-  double cost_price = 7;
-  double selling_price = 8;
-  int32 stock = 9;
-  int32 minimum_stock = 10;
-  bool is_active = 11;
-  string created_at = 12;
-  string updated_at = 13;
+  string name = 2;
+  string description = 3;
+  string category_id = 4;
+  double cost_price = 5;
+  double selling_price = 6;
+  int32 stock = 7;
+  int32 minimum_stock = 8;
+  bool is_active = 9;
+  string created_at = 10;
+  string updated_at = 11;
+  repeated ProductSKU skus = 12;
+  int32 sku_count = 13;
+  string category_name = 14;
+}
+
+message ProductSKU {
+  string id = 1;
+  string product_id = 2;
+  string sku = 3;
+  string barcode = 4;
+  string variant = 5;
+  string color = 6;
+  string size = 7;
+  string unit = 8;
+  double cost_price = 9;
+  double selling_price = 10;
+  int32 stock = 11;
+  int32 minimum_stock = 12;
+  double weight = 13;
+  double volume = 14;
+  google.protobuf.Timestamp expiry_date = 15;
+  string batch_number = 16;
+  string location = 17;
+  string image_url = 18;
+  bool is_active = 19;
+  map<string, string> metadata = 20;
+  string created_at = 21;
+  string updated_at = 22;
 }

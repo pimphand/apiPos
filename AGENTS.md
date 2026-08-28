@@ -108,18 +108,18 @@ Features:
 
 ### Products
 
+Product represents the main product entity. SKU, barcode, and variants are managed separately in the `product_skus` table.
+
 Product fields:
 
 ```text
 id
-sku
-barcode
 name
 description
 category_id
 cost_price
 selling_price
-stock
+stock (total stock across all SKUs)
 minimum_stock
 is_active
 created_at
@@ -133,9 +133,56 @@ Features:
 * Get product
 * List products
 * Search by name
-* Search by SKU
-* Search by barcode
 * Activate/deactivate product
+
+### Product SKU (Variants)
+
+Each product can have multiple SKUs/variants. This allows for:
+- Different sizes, colors, flavors
+- Different prices per variant
+- Different stock levels per variant
+- Expiry date tracking
+- Batch number tracking
+
+ProductSKU fields:
+
+```text
+id
+product_id (FK to products)
+sku (unique within product)
+barcode (unique, for POS scanning)
+variant (e.g., "Large", "Small", "Spicy")
+color (e.g., "Red", "Blue")
+size (e.g., "XL", "M", "S")
+unit (e.g., "pcs", "kg", "ml")
+cost_price
+selling_price
+stock
+minimum_stock
+weight
+volume
+expiry_date
+batch_number
+location (shelf/bin location)
+image_url
+is_active
+metadata (JSONB for additional data)
+created_at
+updated_at
+```
+
+Features:
+
+* Create product SKU
+* Update product SKU
+* Get product SKU by ID
+* Get product SKU by barcode (POS lookup)
+* Get product SKU by SKU code
+* List product SKUs by product
+* List all product SKUs
+* Search product SKUs
+* Delete product SKU
+* Activate/deactivate product SKU
 
 Barcode lookup must be optimized because it will be frequently used by the POS cashier.
 

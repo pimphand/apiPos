@@ -8,11 +8,11 @@ services:
       - .env
     ports:
       - "50051:50051"
-      - "8080:8080"
+      - "8990:8990"
     environment:
       APP_ENV: ${APP_ENV:-development}
       GRPC_PORT: 50051
-      HTTP_PORT: 8080
+      HTTP_PORT: 8990
       DATABASE_HOST: postgres
       DATABASE_PORT: 5432
       DATABASE_NAME: ${DATABASE_NAME:-pos}
@@ -21,6 +21,9 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change-me}
       JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
       JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-720h}
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     depends_on:
       postgres:
         condition: service_healthy

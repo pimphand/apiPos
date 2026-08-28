@@ -11,6 +11,7 @@ type Repositories struct {
 	Permission       PermissionRepository
 	RolePermission   RolePermissionRepository
 	Product          ProductRepository
+	ProductSKU       ProductSKURepository
 	Category         CategoryRepository
 	Customer         CustomerRepository
 	Sale             SaleRepository
@@ -29,6 +30,7 @@ func New(db *gorm.DB) *Repositories {
 		Permission:     NewPermissionRepository(db),
 		RolePermission: NewRolePermissionRepository(db),
 		Product:        NewProductRepository(db),
+		ProductSKU:     NewProductSKURepository(db),
 		Category:       NewCategoryRepository(db),
 		Customer:       NewCustomerRepository(db),
 		Sale:           NewSaleRepository(db),

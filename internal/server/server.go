@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -20,6 +21,7 @@ import (
 	categoryv1 "apiPos/gen/category/v1"
 	permissionv1 "apiPos/gen/permission/v1"
 	productv1 "apiPos/gen/product/v1"
+	productskuv1 "apiPos/gen/productsku/v1"
 	rolev1 "apiPos/gen/role/v1"
 	userv1 "apiPos/gen/user/v1"
 	"apiPos/internal/activitylog"
@@ -30,6 +32,7 @@ import (
 	"apiPos/internal/handler"
 	"apiPos/internal/permission"
 	"apiPos/internal/product"
+	"apiPos/internal/productsku"
 	"apiPos/internal/repository"
 	"apiPos/internal/role"
 	"apiPos/internal/user"
@@ -38,17 +41,18 @@ import (
 
 // Server holds the gRPC server and its dependencies
 type Server struct {
-	grpcServer         *grpc.Server
-	config             *config.Config
-	db                 *gormdb.DB
-	repositories       *repository.Repositories
-	authService        *auth.AuthService
-	userService        *user.Service
-	categoryService    *category.Service
-	productService     *product.Service
-	roleService        *role.Service
-	permissionService  *permission.Service
-	activityLogService *activitylog.Service
+	grpcServer          *grpc.Server
+	config              *config.Config
+	db                  *gormdb.DB
+	repositories        *repository.Repositories
+	authService         *auth.AuthService
+	userService         *user.Service
+	categoryService     *category.Service
+	productService      *product.Service
+	productSKUService   *productsku.Service
+	roleService         *role.Service
+	permissionService   *permission.Service
+	activityLogService  *activitylog.Service
 }
 
 // New creates a new gRPC server
@@ -58,6 +62,7 @@ func New(cfg *config.Config, db *gormdb.DB) *Server {
 	userService := user.NewService(repos, authService)
 	categoryService := category.NewService(repos)
 	productService := product.NewService(repos)
+	productSKUService := productsku.NewService(repos.ProductSKU)
 	roleService := role.NewService(repos)
 	permissionService := permission.NewService(repos)
 	activityLogService := activitylog.NewService(repos)
@@ -70,6 +75,7 @@ func New(cfg *config.Config, db *gormdb.DB) *Server {
 		userService:        userService,
 		categoryService:    categoryService,
 		productService:     productService,
+		productSKUService:  productSKUService,
 		roleService:        roleService,
 		permissionService:  permissionService,
 		activityLogService: activityLogService,
@@ -157,6 +163,11 @@ func (s *Server) startHTTP() error {
 		return fmt.Errorf("failed to register product gateway: %w", err)
 	}
 
+	// Register ProductSKUService
+	if err := productskuv1.RegisterProductServiceSKUServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", s.config.GRPC.Port), opts); err != nil {
+		return fmt.Errorf("failed to register product SKU gateway: %w", err)
+	}
+
 	// Register RoleService
 	if err := rolev1.RegisterRoleServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", s.config.GRPC.Port), opts); err != nil {
 		return fmt.Errorf("failed to register role gateway: %w", err)
@@ -204,6 +215,13 @@ func (s *Server) handleSwaggerJSON(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+
+	var spec map[string]interface{}
+	if err := json.Unmarshal(data, &spec); err == nil {
+		spec["host"] = r.Host
+		data, _ = json.Marshal(spec)
+	}
+
 	w.Write(data)
 }
 
@@ -228,6 +246,7 @@ func (s *Server) registerServices() {
 	healthServer.SetServingStatus("user.v1.UserService", healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus("category.v1.CategoryService", healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus("product.v1.ProductService", healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus("productsku.v1.ProductServiceSKUService", healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus("role.v1.RoleService", healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus("permission.v1.PermissionService", healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus("activitylog.v1.ActivityLogService", healthpb.HealthCheckResponse_SERVING)
@@ -241,8 +260,11 @@ func (s *Server) registerServices() {
 	categoryHandler := handler.NewCategoryHandler(s.categoryService)
 	categoryv1.RegisterCategoryServiceServer(s.grpcServer, categoryHandler)
 
-	productHandler := handler.NewProductHandler(s.productService)
+	productHandler := handler.NewProductHandler(s.productService, s.repositories)
 	productv1.RegisterProductServiceServer(s.grpcServer, productHandler)
+
+	productSKUHandler := handler.NewProductSKUHandler(s.productSKUService)
+	productskuv1.RegisterProductServiceSKUServiceServer(s.grpcServer, productSKUHandler)
 
 	roleHandler := handler.NewRoleHandler(s.roleService)
 	rolev1.RegisterRoleServiceServer(s.grpcServer, roleHandler)
@@ -309,12 +331,17 @@ func getSwaggerUIHTML() string {
     .nav a.adminer { background: #00695c; color: #fff; padding: 6px 14px; border-radius: 6px; font-weight: 600; }
     .nav a.adminer:hover { background: #004d40; text-decoration: none; }
     .nav-right { margin-left: auto; }
+    .token-status { font-size: 12px; padding: 4px 8px; border-radius: 4px; margin-left: 8px; }
+    .token-valid { background: #4caf50; color: white; }
+    .token-expired { background: #f44336; color: white; }
+    .token-none { background: #9e9e9e; color: white; }
   </style>
 </head>
 <body>
   <div class="nav">
     <a href="/">Swagger UI</a>
     <a href="/swagger.json">Raw Spec</a>
+    <span id="token-status" class="token-status token-none">No Token</span>
     <span class="nav-right"></span>
     <a href="http://localhost:8081" target="_blank" class="adminer">🗄️ Adminer</a>
   </div>
@@ -322,21 +349,113 @@ func getSwaggerUIHTML() string {
   <script src="https://unpkg.com/swagger-ui-dist@5.10.3/swagger-ui-bundle.js"></script>
   <script src="https://unpkg.com/swagger-ui-dist@5.10.3/swagger-ui-standalone-preset.js"></script>
   <script>
-    SwaggerUIBundle({
+    // Token Management with localStorage
+    var TokenManager = {
+      ACCESS_TOKEN_KEY: 'pos_access_token',
+      REFRESH_TOKEN_KEY: 'pos_refresh_token',
+      TOKEN_EXPIRY_KEY: 'pos_token_expiry',
+
+      setTokens: function(accessToken, refreshToken, expiresIn) {
+        localStorage.setItem(this.ACCESS_TOKEN_KEY, accessToken);
+        if (refreshToken) {
+          localStorage.setItem(this.REFRESH_TOKEN_KEY, refreshToken);
+        }
+        if (expiresIn) {
+          var expiry = new Date().getTime() + (expiresIn * 1000);
+          localStorage.setItem(this.TOKEN_EXPIRY_KEY, expiry.toString());
+        }
+        this.updateStatus();
+      },
+
+      getAccessToken: function() {
+        return localStorage.getItem(this.ACCESS_TOKEN_KEY);
+      },
+
+      getRefreshToken: function() {
+        return localStorage.getItem(this.REFRESH_TOKEN_KEY);
+      },
+
+      isExpired: function() {
+        var expiry = localStorage.getItem(this.TOKEN_EXPIRY_KEY);
+        if (!expiry) return true;
+        return new Date().getTime() > parseInt(expiry);
+      },
+
+      clearTokens: function() {
+        localStorage.removeItem(this.ACCESS_TOKEN_KEY);
+        localStorage.removeItem(this.REFRESH_TOKEN_KEY);
+        localStorage.removeItem(this.TOKEN_EXPIRY_KEY);
+        this.updateStatus();
+      },
+
+      updateStatus: function() {
+        var statusEl = document.getElementById('token-status');
+        var token = this.getAccessToken();
+        if (!token) {
+          statusEl.textContent = 'No Token';
+          statusEl.className = 'token-status token-none';
+        } else if (this.isExpired()) {
+          statusEl.textContent = 'Token Expired';
+          statusEl.className = 'token-status token-expired';
+        } else {
+          statusEl.textContent = 'Token Active';
+          statusEl.className = 'token-status token-valid';
+        }
+      }
+    };
+
+    // Initialize Swagger UI with token support
+    var ui = SwaggerUIBundle({
       url: "/swagger.json",
       dom_id: '#swagger-ui',
       deepLinking: true,
       presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
       layout: "StandaloneLayout",
-      requestInterceptor: function(req) {
-        // Force requests to go to the correct API host
-        var apiHost = window.location.hostname + ':8080';
-        if (req.url.startsWith('/')) {
-          req.url = 'http://' + apiHost + req.url;
+      onComplete: function() {
+        // Load saved token into Authorization header
+        var savedToken = TokenManager.getAccessToken();
+        if (savedToken && !TokenManager.isExpired()) {
+          ui.preauthorizeApiKey('BearerAuth', 'Bearer ' + savedToken);
         }
+        TokenManager.updateStatus();
+      },
+      requestInterceptor: function(req) {
+        if (req.url === '/swagger.json') return req;
+        var apiHost = window.location.hostname + ':' + window.location.port;
+        if (req.url.startsWith('/')) {
+          req.url = window.location.protocol + '//' + apiHost + req.url;
+        }
+
+        // Auto-add token to requests
+        var token = TokenManager.getAccessToken();
+        if (token && !TokenManager.isExpired() && req.headers) {
+          req.headers['Authorization'] = 'Bearer ' + token;
+        }
+
         return req;
+      },
+      responseInterceptor: function(res) {
+        // Try to extract tokens from login response
+        try {
+          if (res.url && res.url.includes('/auth.v1.AuthService/Login')) {
+            var body = JSON.parse(res.text);
+            if (body.accessToken) {
+              TokenManager.setTokens(body.accessToken, body.refreshToken, body.expiresIn || 900);
+              console.log('Tokens saved to localStorage');
+            }
+          }
+        } catch(e) {}
+        return res;
       }
-    })
+    });
+
+    // Check token status on load
+    TokenManager.updateStatus();
+
+    // Refresh token status every 30 seconds
+    setInterval(function() {
+      TokenManager.updateStatus();
+    }, 30000);
   </script>
 </body>
 </html>`
