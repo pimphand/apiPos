@@ -1,7 +1,8 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
-import type { ApiError, RefreshTokenResponse } from '@/types';
+import type { ApiError } from '@/types';
+import { navigateTo } from '@/lib/navigation';
 
-// Access token stored in memory only (not localStorage for XSS protection)
+// Access token stored in memory (synced with auth store)
 let accessToken: string | null = null;
 let refreshToken: string | null = null;
 
@@ -32,7 +33,7 @@ const http = axios.create({
   },
 });
 
-// Token management
+// Token management (used by auth store)
 export const tokenManager = {
   getAccessToken: () => accessToken,
   getRefreshToken: () => refreshToken,
@@ -71,8 +72,21 @@ http.interceptors.response.use(
       _retry?: boolean;
     };
 
+    // 401 on public auth endpoints means invalid credentials, NOT an expired
+    // token. Let the error bubble up so the UI can show it instead of treating
+    // it as a session expiry and redirecting.
+    const isAuthEndpoint = (url?: string) =>
+      !!url &&
+      (url.includes('/v1/auth/login') ||
+        url.includes('/v1/auth/register') ||
+        url.includes('/v1/auth/refresh'));
+
     // If 401 and not already retrying
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      !isAuthEndpoint(originalRequest.url)
+    ) {
       // If already refreshing, queue this request
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
@@ -94,13 +108,15 @@ http.interceptors.response.use(
       if (!refreshToken) {
         isRefreshing = false;
         tokenManager.clearTokens();
-        window.location.href = '/login';
+        if (typeof window !== 'undefined') {
+          navigateTo('/login');
+        }
         return Promise.reject(error);
       }
 
       try {
         // Try to refresh the token
-        const response = await axios.post<RefreshTokenResponse>(
+        const response = await axios.post(
           `${import.meta.env.PUBLIC_API_BASE_URL || '/api'}/v1/auth/refresh`,
           { refresh_token: refreshToken }
         );
@@ -119,7 +135,9 @@ http.interceptors.response.use(
         // Refresh failed - logout
         processQueue(refreshError as Error, null);
         tokenManager.clearTokens();
-        window.location.href = '/login';
+        if (typeof window !== 'undefined') {
+          navigateTo('/login');
+        }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

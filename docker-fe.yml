@@ -1,0 +1,39 @@
+# Docker Compose for the POS Frontend (Astro + Vue + shadcn/ui)
+# Consumes the Go backend HTTP gateway (pos-app) over the shared network.
+#
+# Usage:
+#   docker compose -f docker-compose.yml up -d          # start backend first (creates shared network)
+#   docker compose -f docker-fe.yml build               # build FE
+#   docker compose -f docker-fe.yml up -d               # run FE on http://localhost:3000
+#
+# NOTE: Astro bakes PUBLIC_* env into the static output at BUILD time, so
+# configuration is passed via --build-arg (not runtime environment).
+
+services:
+  fe-app:
+    build:
+      context: .
+      dockerfile: Dockerfile.fe
+      args:
+        PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL:-/api}
+        PUBLIC_APP_NAME: ${PUBLIC_APP_NAME:-POS}
+        PUBLIC_SESSION_MAX_AGE: ${PUBLIC_SESSION_MAX_AGE:-2592000}
+        PUBLIC_ADMIN_PATH_PREFIX: ${PUBLIC_ADMIN_PATH_PREFIX:-}
+    image: pos-fe:latest
+    container_name: pos-fe
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - pos-network
+
+networks:
+  pos-network:
+    external: true
+    name: pos-network

@@ -1,8 +1,8 @@
 ---
-import BaseLayout from '@/layouts/BaseLayout.astro';
-import DashboardContent from '@/components/layout/DashboardContent.vue';
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+import DashboardPage from '@/components/layout/DashboardPage.vue';
 ---
 
-<BaseLayout title="Dashboard - POS Application">
-  <DashboardContent client:load />
-</BaseLayout>
+<DashboardLayout title="Dashboard - POS Application">
+  <DashboardPage client:only="vue" />
+</DashboardLayout>

@@ -52,6 +52,11 @@ export interface RefreshTokenResponse {
   expires_at: number;
 }
 
+export interface LogoutResponse {
+  success: boolean;
+  message: string;
+}
+
 // Category types
 export interface Category {
   id: string;

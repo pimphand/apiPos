@@ -1,0 +1,55 @@
+# Frontend (Astro) nginx configuration for the POS app
+# Serves the static build and reverse-proxies /api to the Go gateway.
+
+# Upstream = Go grpc-gateway HTTP server (pos-app, port 8080 inside the shared network)
+upstream pos_api {
+    server pos-app:8080;
+}
+
+server {
+    listen 80;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # ---- Security headers (no loopholes) -------------------------------
+    # NOTE: strict CSP w/o unsafe-inline/unsafe-eval is ONLY safe because Astro
+    # emits hashed/static assets. If Vue islands use injected styles in prod,
+    # relax deliberately per-island (see Frontend.md §4.4). Review before enabling.
+    add_header X-Frame-Options "DENY" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+    # add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'" always;
+    # HSTS only over TLS; uncomment when serving HTTPS:
+    # add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+    # ---- API proxy to Go gateway --------------------------------------
+    location /api/ {
+        proxy_pass http://pos_api;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Request-ID $request_id;
+
+        # Allow refresh-token (HttpOnly) cookie to flow through + timeout tune
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 30s;
+        proxy_send_timeout 30s;
+    }
+
+    # ---- Static asset caching ------------------------------------------
+    location /_astro/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+
+    # ---- SPA fallback (Astro static generated paths are real; island routing
+    # relies on real paths, so a broad fallback is only for safety) --------
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

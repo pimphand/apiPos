@@ -1,19 +1,42 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
+import { useUiStore } from '@/stores/ui';
+import Button from '@/components/ui/button/Button.vue';
+import Input from '@/components/ui/input/Input.vue';
+import Label from '@/components/ui/label/Label.vue';
+import Card from '@/components/ui/card/Card.vue';
+import CardHeader from '@/components/ui/card/CardHeader.vue';
+import CardTitle from '@/components/ui/card/CardTitle.vue';
+import CardDescription from '@/components/ui/card/CardDescription.vue';
+import CardContent from '@/components/ui/card/CardContent.vue';
+import CardFooter from '@/components/ui/card/CardFooter.vue';
+import { navigateTo } from '@/lib/navigation';
 
-const router = useRouter();
 const authStore = useAuthStore();
+const uiStore = useUiStore();
 
 const username = ref('');
 const password = ref('');
 const isLoading = ref(false);
 const error = ref('');
+let errorTimer: ReturnType<typeof setTimeout> | null = null;
+
+function showError(message: string) {
+  error.value = '';
+  if (errorTimer) clearTimeout(errorTimer);
+  requestAnimationFrame(() => {
+    error.value = message;
+    errorTimer = setTimeout(() => {
+      error.value = '';
+      errorTimer = null;
+    }, 3000);
+  });
+}
 
 async function handleLogin() {
   if (!username.value || !password.value) {
-    error.value = 'Please enter username and password';
+    showError('Please enter username and password');
     return;
   }
 
@@ -25,10 +48,13 @@ async function handleLogin() {
       username: username.value,
       password: password.value,
     });
-    router.push('/dashboard');
+    uiStore.addToast('success', 'Login successful!');
+    navigateTo('/dashboard');
   } catch (err: unknown) {
-    const apiError = err as { message?: string };
-    error.value = apiError.message || 'Login failed';
+    const apiError = err as { response?: { data?: { message?: string } }; message?: string };
+    const message = apiError.response?.data?.message || apiError.message || 'Login failed';
+    showError(message);
+    uiStore.addToast('error', message, 3000);
   } finally {
     isLoading.value = false;
   }
@@ -36,60 +62,52 @@ async function handleLogin() {
 </script>
 
 <template>
-  <div class="w-full max-w-md p-8 bg-card rounded-xl shadow-lg">
-    <div class="text-center mb-8">
-      <h1 class="text-2xl font-bold">Welcome Back</h1>
-      <p class="text-muted-foreground mt-2">Sign in to your account</p>
-    </div>
+  <Card class="w-full max-w-md">
+    <CardHeader class="text-center">
+      <CardTitle class="text-2xl">Welcome Back</CardTitle>
+      <CardDescription>Sign in to your account</CardDescription>
+    </CardHeader>
+    <CardContent>
+      <form @submit.prevent="handleLogin" class="space-y-4">
+        <div v-if="error" class="p-3 bg-destructive/10 text-destructive rounded-lg text-sm">
+          {{ error }}
+        </div>
 
-    <form @submit.prevent="handleLogin" class="space-y-4">
-      <div v-if="error" class="p-3 bg-destructive/10 text-destructive rounded-lg text-sm">
-        {{ error }}
-      </div>
+        <div class="space-y-2">
+          <Label for="username">Username</Label>
+          <Input
+            id="username"
+            v-model="username"
+            type="text"
+            placeholder="Enter your username"
+            autocomplete="username"
+            :disabled="isLoading"
+          />
+        </div>
 
-      <div>
-        <label for="username" class="block text-sm font-medium mb-1">
-          Username
-        </label>
-        <input
-          id="username"
-          v-model="username"
-          type="text"
-          placeholder="Enter your username"
-          class="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
-          :disabled="isLoading"
-        />
-      </div>
+        <div class="space-y-2">
+          <Label for="password">Password</Label>
+          <Input
+            id="password"
+            v-model="password"
+            type="password"
+            placeholder="Enter your password"
+            autocomplete="current-password"
+            :disabled="isLoading"
+          />
+        </div>
 
-      <div>
-        <label for="password" class="block text-sm font-medium mb-1">
-          Password
-        </label>
-        <input
-          id="password"
-          v-model="password"
-          type="password"
-          placeholder="Enter your password"
-          class="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
-          :disabled="isLoading"
-        />
-      </div>
-
-      <button
-        type="submit"
-        class="w-full py-2 px-4 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
-        :disabled="isLoading"
-      >
-        <span v-if="isLoading">Signing in...</span>
-        <span v-else>Sign In</span>
-      </button>
-    </form>
-
-    <div class="mt-6 text-center text-sm text-muted-foreground">
-      Don't have an account?
-      <a href="/register" class="text-primary hover:underline">
-        Register
-      </a>
-    </div>
-  </div>
+        <Button type="submit" class="w-full" :disabled="isLoading">
+          <span v-if="isLoading">Signing in...</span>
+          <span v-else>Sign In</span>
+        </Button>
+      </form>
+    </CardContent>
+    <CardFooter class="justify-center">
+      <p class="text-sm text-muted-foreground">
+        Don't have an account?
+        <a href="/register" class="text-primary hover:underline">Register</a>
+      </p>
+    </CardFooter>
+  </Card>
 </template>

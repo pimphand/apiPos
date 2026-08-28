@@ -4,7 +4,7 @@ import LoginCard from '@/components/auth/LoginCard.vue';
 ---
 
 <BaseLayout title="Login - POS Application">
-  <div class="min-h-screen flex items-center justify-center bg-muted/50">
-    <LoginCard client:load />
+  <div class="min-h-screen flex items-center justify-center bg-muted/50" transition:animate="fade">
+    <LoginCard client:only="vue" />
   </div>
 </BaseLayout>

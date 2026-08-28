@@ -1,10 +1,20 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
+import { useUiStore } from '@/stores/ui';
+import Button from '@/components/ui/button/Button.vue';
+import Input from '@/components/ui/input/Input.vue';
+import Label from '@/components/ui/label/Label.vue';
+import Card from '@/components/ui/card/Card.vue';
+import CardHeader from '@/components/ui/card/CardHeader.vue';
+import CardTitle from '@/components/ui/card/CardTitle.vue';
+import CardDescription from '@/components/ui/card/CardDescription.vue';
+import CardContent from '@/components/ui/card/CardContent.vue';
+import CardFooter from '@/components/ui/card/CardFooter.vue';
+import { navigateTo } from '@/lib/navigation';
 
-const router = useRouter();
 const authStore = useAuthStore();
+const uiStore = useUiStore();
 
 const username = ref('');
 const email = ref('');
@@ -13,20 +23,33 @@ const confirmPassword = ref('');
 const fullName = ref('');
 const isLoading = ref(false);
 const error = ref('');
+let errorTimer: ReturnType<typeof setTimeout> | null = null;
+
+function showError(message: string) {
+  error.value = '';
+  if (errorTimer) clearTimeout(errorTimer);
+  requestAnimationFrame(() => {
+    error.value = message;
+    errorTimer = setTimeout(() => {
+      error.value = '';
+      errorTimer = null;
+    }, 3000);
+  });
+}
 
 async function handleRegister() {
   if (!username.value || !email.value || !password.value || !fullName.value) {
-    error.value = 'Please fill in all fields';
+    showError('Please fill in all fields');
     return;
   }
 
   if (password.value !== confirmPassword.value) {
-    error.value = 'Passwords do not match';
+    showError('Passwords do not match');
     return;
   }
 
   if (password.value.length < 6) {
-    error.value = 'Password must be at least 6 characters';
+    showError('Password must be at least 6 characters');
     return;
   }
 
@@ -40,10 +63,13 @@ async function handleRegister() {
       password: password.value,
       full_name: fullName.value,
     });
-    router.push('/dashboard');
+    uiStore.addToast('success', 'Registration successful!');
+    navigateTo('/dashboard');
   } catch (err: unknown) {
-    const apiError = err as { message?: string };
-    error.value = apiError.message || 'Registration failed';
+    const apiError = err as { response?: { data?: { message?: string } }; message?: string };
+    const message = apiError.response?.data?.message || apiError.message || 'Registration failed';
+    showError(message);
+    uiStore.addToast('error', message, 3000);
   } finally {
     isLoading.value = false;
   }
@@ -51,102 +77,88 @@ async function handleRegister() {
 </script>
 
 <template>
-  <div class="w-full max-w-md p-8 bg-card rounded-xl shadow-lg">
-    <div class="text-center mb-8">
-      <h1 class="text-2xl font-bold">Create Account</h1>
-      <p class="text-muted-foreground mt-2">Sign up for a new account</p>
-    </div>
+  <Card class="w-full max-w-md">
+    <CardHeader class="text-center">
+      <CardTitle class="text-2xl">Create Account</CardTitle>
+      <CardDescription>Sign up for a new account</CardDescription>
+    </CardHeader>
+    <CardContent>
+      <form @submit.prevent="handleRegister" class="space-y-4">
+        <div v-if="error" class="p-3 bg-destructive/10 text-destructive rounded-lg text-sm">
+          {{ error }}
+        </div>
 
-    <form @submit.prevent="handleRegister" class="space-y-4">
-      <div v-if="error" class="p-3 bg-destructive/10 text-destructive rounded-lg text-sm">
-        {{ error }}
-      </div>
+        <div class="space-y-2">
+          <Label for="fullName">Full Name</Label>
+          <Input
+            id="fullName"
+            v-model="fullName"
+            type="text"
+            placeholder="Enter your full name"
+            autocomplete="name"
+            :disabled="isLoading"
+          />
+        </div>
 
-      <div>
-        <label for="fullName" class="block text-sm font-medium mb-1">
-          Full Name
-        </label>
-        <input
-          id="fullName"
-          v-model="fullName"
-          type="text"
-          placeholder="Enter your full name"
-          class="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
-          :disabled="isLoading"
-        />
-      </div>
+        <div class="space-y-2">
+          <Label for="username">Username</Label>
+          <Input
+            id="username"
+            v-model="username"
+            type="text"
+            placeholder="Choose a username"
+            autocomplete="username"
+            :disabled="isLoading"
+          />
+        </div>
 
-      <div>
-        <label for="username" class="block text-sm font-medium mb-1">
-          Username
-        </label>
-        <input
-          id="username"
-          v-model="username"
-          type="text"
-          placeholder="Choose a username"
-          class="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
-          :disabled="isLoading"
-        />
-      </div>
+        <div class="space-y-2">
+          <Label for="email">Email</Label>
+          <Input
+            id="email"
+            v-model="email"
+            type="email"
+            placeholder="Enter your email"
+            autocomplete="email"
+            :disabled="isLoading"
+          />
+        </div>
 
-      <div>
-        <label for="email" class="block text-sm font-medium mb-1">
-          Email
-        </label>
-        <input
-          id="email"
-          v-model="email"
-          type="email"
-          placeholder="Enter your email"
-          class="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
-          :disabled="isLoading"
-        />
-      </div>
+        <div class="space-y-2">
+          <Label for="password">Password</Label>
+          <Input
+            id="password"
+            v-model="password"
+            type="password"
+            placeholder="Create a password"
+            autocomplete="new-password"
+            :disabled="isLoading"
+          />
+        </div>
 
-      <div>
-        <label for="password" class="block text-sm font-medium mb-1">
-          Password
-        </label>
-        <input
-          id="password"
-          v-model="password"
-          type="password"
-          placeholder="Create a password"
-          class="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
-          :disabled="isLoading"
-        />
-      </div>
+        <div class="space-y-2">
+          <Label for="confirmPassword">Confirm Password</Label>
+          <Input
+            id="confirmPassword"
+            v-model="confirmPassword"
+            type="password"
+            placeholder="Confirm your password"
+            autocomplete="new-password"
+            :disabled="isLoading"
+          />
+        </div>
 
-      <div>
-        <label for="confirmPassword" class="block text-sm font-medium mb-1">
-          Confirm Password
-        </label>
-        <input
-          id="confirmPassword"
-          v-model="confirmPassword"
-          type="password"
-          placeholder="Confirm your password"
-          class="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
-          :disabled="isLoading"
-        />
-      </div>
-
-      <button
-        type="submit"
-        class="w-full py-2 px-4 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
-        :disabled="isLoading"
-      >
-        <span v-if="isLoading">Creating account...</span>
-        <span v-else>Create Account</span>
-      </button>
-    </form>
-
-    <div class="mt-6 text-center text-sm text-muted-foreground">
-      Already have an account?
-      <a href="/login" class="text-primary hover:underline">
-        Sign in
-      </a>
-    </div>
-  </div>
+        <Button type="submit" class="w-full" :disabled="isLoading">
+          <span v-if="isLoading">Creating account...</span>
+          <span v-else>Create Account</span>
+        </Button>
+      </form>
+    </CardContent>
+    <CardFooter class="justify-center">
+      <p class="text-sm text-muted-foreground">
+        Already have an account?
+        <a href="/login" class="text-primary hover:underline">Sign in</a>
+      </p>
+    </CardFooter>
+  </Card>
 </template>

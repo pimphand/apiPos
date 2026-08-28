@@ -4,7 +4,7 @@ import RegisterCard from '@/components/auth/RegisterCard.vue';
 ---
 
 <BaseLayout title="Register - POS Application">
-  <div class="min-h-screen flex items-center justify-center bg-muted/50">
-    <RegisterCard client:load />
+  <div class="min-h-screen flex items-center justify-center bg-muted/50" transition:animate="fade">
+    <RegisterCard client:only="vue" />
   </div>
 </BaseLayout>
