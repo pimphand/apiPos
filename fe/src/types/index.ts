@@ -17,6 +17,7 @@ export interface User {
   email: string;
   full_name: string;
   role_id: string;
+  role_name?: string;
   store_id: string;
   is_active: boolean;
   created_at?: string;

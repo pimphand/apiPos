@@ -121,7 +121,9 @@ http.interceptors.response.use(
           { refresh_token: refreshToken }
         );
 
-        const { access_token, refresh_token: newRefreshToken } = response.data;
+        const resData = response.data ?? {};
+        const access_token = resData.access_token ?? resData.accessToken;
+        const newRefreshToken = resData.refresh_token ?? resData.refreshToken;
         tokenManager.setTokens(access_token, newRefreshToken);
 
         // Retry original request

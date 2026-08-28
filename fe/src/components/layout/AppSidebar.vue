@@ -1,52 +1,113 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { can, type Permission } from '@/lib/rbac';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
+  SidebarRail,
+  SidebarSeparator,
+} from '@/components/ui/sidebar';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import {
+  LayoutDashboard,
+  ShoppingCart,
+  Package,
+  Tag,
+  ClipboardList,
+  Users,
+  DollarSign,
+  CreditCard,
+  Clock,
+  BarChart3,
+  UserCog,
+  Shield,
+  FileText,
+  Store,
+} from '@lucide/vue';
 
 const authStore = useAuthStore();
-const isCollapsed = ref(false);
+
+interface SubMenuItem {
+  label: string;
+  href: string;
+  icon?: any;
+}
 
 interface MenuItem {
   label: string;
-  icon: string;
-  href: string;
+  icon: any;
+  href?: string;
   permission?: Permission;
-  divider?: boolean;
+  children?: SubMenuItem[];
 }
 
-const menuItems = computed<MenuItem[]>(() => [
-  { label: 'Dashboard', icon: '📊', href: '/dashboard' },
-  { label: 'POS Checkout', icon: '🛒', href: '/pos', permission: 'sales.create' },
-  { divider: true, label: '', icon: '', href: '' },
-  { label: 'Products', icon: '📦', href: '/admin/products', permission: 'products.read' },
-  { label: 'Categories', icon: '🏷️', href: '/admin/categories', permission: 'categories.read' },
-  { label: 'Inventory', icon: '📋', href: '/admin/inventory', permission: 'inventory.read' },
-  { divider: true, label: '', icon: '', href: '' },
-  { label: 'Customers', icon: '👥', href: '/admin/customers', permission: 'customers.read' },
-  { label: 'Sales', icon: '💰', href: '/admin/sales', permission: 'sales.read' },
-  { label: 'Payments', icon: '💳', href: '/admin/payments', permission: 'payments.read' },
-  { divider: true, label: '', icon: '', href: '' },
-  { label: 'Cashier Shifts', icon: '🕐', href: '/admin/cashier', permission: 'cashier.view_shift' },
-  { label: 'Reports', icon: '📈', href: '/reports', permission: 'reports.read' },
-  { divider: true, label: '', icon: '', href: '' },
-  { label: 'Users', icon: '👤', href: '/admin/users', permission: 'users.read' },
-  { label: 'Roles', icon: '🔐', href: '/admin/roles', permission: 'roles.read' },
-  { label: 'Activity Logs', icon: '📝', href: '/admin/activity-logs', permission: 'activity_logs.read' },
-]);
+const menuGroups = computed(() => {
+  const groups: { label: string; items: MenuItem[] }[] = [
+    {
+      label: 'Main',
+      items: [
+        { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
+        { label: 'POS Checkout', icon: ShoppingCart, href: '/pos', permission: 'sales.create' },
+      ],
+    },
+    {
+      label: 'Catalog',
+      items: [
+        { label: 'Products', icon: Package, href: '/admin/products', permission: 'products.read' },
+        { label: 'Categories', icon: Tag, href: '/admin/categories', permission: 'categories.read' },
+        { label: 'Inventory', icon: ClipboardList, href: '/admin/inventory', permission: 'inventory.read' },
+      ],
+    },
+    {
+      label: 'Transactions',
+      items: [
+        { label: 'Customers', icon: Users, href: '/admin/customers', permission: 'customers.read' },
+        { label: 'Sales', icon: DollarSign, href: '/admin/sales', permission: 'sales.read' },
+        { label: 'Payments', icon: CreditCard, href: '/admin/payments', permission: 'payments.read' },
+      ],
+    },
+    {
+      label: 'Operations',
+      items: [
+        { label: 'Cashier Shifts', icon: Clock, href: '/admin/cashier', permission: 'cashier.view_shift' },
+        { label: 'Reports', icon: BarChart3, href: '/reports', permission: 'reports.read' },
+      ],
+    },
+    {
+      label: 'Administration',
+      items: [
+        { label: 'Users', icon: UserCog, href: '/admin/users', permission: 'users.read' },
+        { label: 'Roles', icon: Shield, href: '/admin/roles', permission: 'roles.read' },
+        { label: 'Activity Logs', icon: FileText, href: '/admin/activity-logs', permission: 'activity_logs.read' },
+      ],
+    },
+  ];
 
-const filteredMenuItems = computed(() => {
-  return menuItems.value.filter(item => {
-    if (item.divider) return true;
-    if (!item.permission) return true;
-    return can(authStore.currentUser, item.permission);
-  });
+  return groups.map(group => ({
+    ...group,
+    items: group.items.filter(item => {
+      if (!item.permission) return true;
+      return can(authStore.currentUser, item.permission);
+    }),
+  })).filter(group => group.items.length > 0);
 });
 
-function toggleSidebar() {
-  isCollapsed.value = !isCollapsed.value;
-}
-
-// Check if current page matches menu item
 function isActive(href: string): boolean {
   if (typeof window === 'undefined') return false;
   return window.location.pathname === href || window.location.pathname.startsWith(href + '/');
@@ -54,58 +115,57 @@ function isActive(href: string): boolean {
 </script>
 
 <template>
-  <aside
-    :class="[
-      'h-screen bg-card border-r transition-all duration-300 flex flex-col',
-      isCollapsed ? 'w-16' : 'w-64'
-    ]"
-  >
-    <!-- Logo -->
-    <div class="h-16 flex items-center justify-between px-4 border-b">
-      <span v-if="!isCollapsed" class="font-bold text-lg">POS App</span>
-      <button
-        @click="toggleSidebar"
-        class="p-2 rounded-lg hover:bg-muted transition-colors"
-      >
-        <span v-if="isCollapsed">→</span>
-        <span v-else>←</span>
-      </button>
-    </div>
+  <Sidebar collapsible="icon" variant="inset">
+    <SidebarHeader>
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton size="lg" as="a" href="/dashboard">
+            <div class="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
+              <Store class="size-4" />
+            </div>
+            <div class="grid flex-1 text-left text-sm leading-tight">
+              <span class="truncate font-semibold">POS App</span>
+              <span class="truncate text-xs">Point of Sale</span>
+            </div>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    </SidebarHeader>
 
-    <!-- Navigation -->
-    <nav class="flex-1 overflow-y-auto py-4">
-      <template v-for="item in filteredMenuItems" :key="item.href">
-        <!-- Divider -->
-        <div v-if="item.divider" class="my-2 border-t" />
-        
-        <!-- Menu Item -->
-        <a
-          v-else
-          :href="item.href"
-          :class="[
-            'flex items-center gap-3 px-4 py-2 mx-2 rounded-lg transition-colors',
-            isActive(item.href)
-              ? 'bg-primary text-primary-foreground'
-              : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-          ]"
-        >
-          <span class="text-lg">{{ item.icon }}</span>
-          <span v-if="!isCollapsed" class="text-sm font-medium">{{ item.label }}</span>
-        </a>
-      </template>
-    </nav>
+    <SidebarSeparator />
 
-    <!-- User Info -->
-    <div class="p-4 border-t">
-      <div class="flex items-center gap-3">
-        <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium">
-          {{ authStore.userName.charAt(0).toUpperCase() }}
-        </div>
-        <div v-if="!isCollapsed" class="flex-1 min-w-0">
-          <p class="text-sm font-medium truncate">{{ authStore.userName }}</p>
-          <p class="text-xs text-muted-foreground truncate">{{ (authStore.currentUser as any)?.role_name || 'User' }}</p>
-        </div>
-      </div>
-    </div>
-  </aside>
+    <SidebarContent>
+      <SidebarGroup v-for="group in menuGroups" :key="group.label">
+        <SidebarGroupLabel>{{ group.label }}</SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            <SidebarMenuItem v-for="item in group.items" :key="item.label">
+              <SidebarMenuButton as="a" :href="item.href" :tooltip="item.label" :is-active="isActive(item.href!)">
+                <component :is="item.icon" />
+                <span>{{ item.label }}</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    </SidebarContent>
+
+    <SidebarFooter>
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton size="lg">
+            <div class="bg-primary text-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
+              {{ authStore.userName.charAt(0).toUpperCase() }}
+            </div>
+            <div class="grid flex-1 text-left text-sm leading-tight">
+              <span class="truncate font-semibold">{{ authStore.userName }}</span>
+              <span class="truncate text-xs">{{ (authStore.currentUser as any)?.role_name || 'User' }}</span>
+            </div>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    </SidebarFooter>
+
+    <SidebarRail />
+  </Sidebar>
 </template>
