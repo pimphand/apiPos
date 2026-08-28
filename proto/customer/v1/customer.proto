@@ -1,0 +1,168 @@
+syntax = "proto3";
+
+package customer.v1;
+
+option go_package = "apiPos/gen/customer/v1;customerv1";
+
+import "google/api/annotations.proto";
+
+service CustomerService {
+  // CreateCustomer creates a new customer
+  rpc CreateCustomer(CreateCustomerRequest) returns (CustomerResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/customers"
+      body: "*"
+    };
+  }
+
+  // GetCustomer gets a customer by ID
+  rpc GetCustomer(GetCustomerRequest) returns (CustomerResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/customers/{id}"
+    };
+  }
+
+  // ListCustomers lists customers with filters
+  rpc ListCustomers(ListCustomersRequest) returns (ListCustomersResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/customers"
+    };
+  }
+
+  // SearchCustomers searches customers by name, code, email, or phone
+  rpc SearchCustomers(SearchCustomersRequest) returns (ListCustomersResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/customers/search"
+    };
+  }
+
+  // UpdateCustomer updates a customer
+  rpc UpdateCustomer(UpdateCustomerRequest) returns (CustomerResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/customers/{id}"
+      body: "*"
+    };
+  }
+
+  // DeleteCustomer deletes a customer
+  rpc DeleteCustomer(DeleteCustomerRequest) returns (DeleteCustomerResponse) {
+    option (google.api.http) = {
+      delete: "/api/v1/customers/{id}"
+    };
+  }
+
+  // DeactivateCustomer deactivates a customer
+  rpc DeactivateCustomer(DeactivateCustomerRequest) returns (DeleteCustomerResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/customers/{id}/deactivate"
+      body: "*"
+    };
+  }
+
+  // GetPurchaseHistory gets a customer's purchase history
+  rpc GetPurchaseHistory(GetPurchaseHistoryRequest) returns (PurchaseHistoryResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/customers/{id}/purchases"
+    };
+  }
+}
+
+message CreateCustomerRequest {
+  string code = 1;
+  string name = 2;
+  string email = 3;
+  string phone = 4;
+  string address = 5;
+}
+
+message GetCustomerRequest {
+  string id = 1;
+}
+
+message ListCustomersRequest {
+  string is_active = 1;
+  int32 page = 2;
+  int32 per_page = 3;
+}
+
+message ListCustomersResponse {
+  repeated Customer customers = 1;
+  int64 total_count = 2;
+  int32 page = 3;
+  int32 per_page = 4;
+}
+
+message SearchCustomersRequest {
+  string query = 1;
+  int32 page = 2;
+  int32 per_page = 3;
+}
+
+message UpdateCustomerRequest {
+  string id = 1;
+  string code = 2;
+  string name = 3;
+  string email = 4;
+  string phone = 5;
+  string address = 6;
+  bool is_active = 7;
+}
+
+message DeleteCustomerRequest {
+  string id = 1;
+}
+
+message DeleteCustomerResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message DeactivateCustomerRequest {
+  string id = 1;
+}
+
+message GetPurchaseHistoryRequest {
+  string id = 1;
+  int32 page = 2;
+  int32 per_page = 3;
+}
+
+message PurchaseHistoryResponse {
+  repeated Sale purchases = 1;
+  int64 total_count = 2;
+  int32 page = 3;
+  int32 per_page = 4;
+}
+
+message Customer {
+  string id = 1;
+  string code = 2;
+  string name = 3;
+  string email = 4;
+  string phone = 5;
+  string address = 6;
+  bool is_active = 7;
+  string created_at = 8;
+  string updated_at = 9;
+}
+
+message CustomerResponse {
+  Customer customer = 1;
+}
+
+message Sale {
+  string id = 1;
+  string invoice_number = 2;
+  string store_id = 3;
+  string store_name = 4;
+  string cashier_id = 5;
+  string cashier_name = 6;
+  string customer_id = 7;
+  double subtotal = 8;
+  double discount = 9;
+  double tax = 10;
+  double grand_total = 11;
+  string status = 12;
+  int32 item_count = 13;
+  string created_at = 14;
+}

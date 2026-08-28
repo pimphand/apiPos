@@ -1069,7 +1069,7 @@ Cashier shifts
 ### Phase 8
 
 ```text
-Reports
+Reports (export pdf, excel)
 ```
 
 ### Phase 9

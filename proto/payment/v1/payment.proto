@@ -1,0 +1,119 @@
+syntax = "proto3";
+
+package payment.v1;
+
+option go_package = "apiPos/gen/payment/v1;paymentv1";
+
+import "google/api/annotations.proto";
+
+service PaymentService {
+  // CreatePayment creates a new payment for a sale
+  rpc CreatePayment(CreatePaymentRequest) returns (PaymentResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/payments"
+      body: "*"
+    };
+  }
+
+  // GetPayment gets a payment by ID
+  rpc GetPayment(GetPaymentRequest) returns (PaymentResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/payments/{id}"
+    };
+  }
+
+  // GetPaymentsBySale gets all payments for a sale
+  rpc GetPaymentsBySale(GetPaymentsBySaleRequest) returns (ListPaymentsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/sales/{sale_id}/payments"
+    };
+  }
+
+  // ListPayments lists payments with filters
+  rpc ListPayments(ListPaymentsRequest) returns (ListPaymentsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/payments"
+    };
+  }
+
+  // DeletePayment deletes a payment
+  rpc DeletePayment(DeletePaymentRequest) returns (DeletePaymentResponse) {
+    option (google.api.http) = {
+      delete: "/api/v1/payments/{id}"
+    };
+  }
+
+  // GetPaymentSummary gets payment summary for a sale
+  rpc GetPaymentSummary(GetPaymentSummaryRequest) returns (PaymentSummaryResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/sales/{sale_id}/payment-summary"
+    };
+  }
+}
+
+message CreatePaymentRequest {
+  string sale_id = 1;
+  // CASH, CARD, BANK_TRANSFER, EWALLET, OTHER
+  string payment_method = 2;
+  double amount = 3;
+  string reference = 4;
+}
+
+message GetPaymentRequest {
+  string id = 1;
+}
+
+message GetPaymentsBySaleRequest {
+  string sale_id = 1;
+}
+
+message ListPaymentsRequest {
+  string sale_id = 1;
+  string payment_method = 2;
+  int32 page = 3;
+  int32 per_page = 4;
+}
+
+message ListPaymentsResponse {
+  repeated Payment payments = 1;
+  int64 total_count = 2;
+  int32 page = 3;
+  int32 per_page = 4;
+}
+
+message DeletePaymentRequest {
+  string id = 1;
+}
+
+message DeletePaymentResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GetPaymentSummaryRequest {
+  string sale_id = 1;
+}
+
+message PaymentSummaryResponse {
+  string sale_id = 1;
+  double grand_total = 2;
+  double total_paid = 3;
+  double remaining = 4;
+  double change = 5;
+  string status = 6;
+  repeated Payment payments = 7;
+}
+
+message PaymentResponse {
+  Payment payment = 1;
+}
+
+message Payment {
+  string id = 1;
+  string sale_id = 2;
+  string payment_method = 3;
+  double amount = 4;
+  string reference = 5;
+  string paid_at = 6;
+  string created_at = 7;
+}

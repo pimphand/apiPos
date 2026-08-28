@@ -1,0 +1,140 @@
+syntax = "proto3";
+
+package cashier.v1;
+
+option go_package = "apiPos/gen/cashier/v1;cashierpb";
+
+import "google/api/annotations.proto";
+
+service CashierService {
+  // OpenShift opens a new cashier shift
+  rpc OpenShift(OpenShiftRequest) returns (ShiftResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/cashier/shifts/open"
+      body: "*"
+    };
+  }
+
+  // CloseShift closes the current shift
+  rpc CloseShift(CloseShiftRequest) returns (ShiftResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/cashier/shifts/close"
+      body: "*"
+    };
+  }
+
+  // GetCurrentShift gets the current open shift for a user
+  rpc GetCurrentShift(GetCurrentShiftRequest) returns (ShiftResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/cashier/shifts/current"
+    };
+  }
+
+  // GetShift gets a shift by ID
+  rpc GetShift(GetShiftRequest) returns (ShiftResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/cashier/shifts/{id}"
+    };
+  }
+
+  // ListShifts lists shifts with filters
+  rpc ListShifts(ListShiftsRequest) returns (ListShiftsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/cashier/shifts"
+    };
+  }
+
+  // GetShiftSummary gets shift summary with sales and cash info
+  rpc GetShiftSummary(GetShiftSummaryRequest) returns (ShiftSummaryResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/cashier/shifts/{id}/summary"
+    };
+  }
+}
+
+message OpenShiftRequest {
+  string store_id = 1;
+  double opening_cash = 2;
+}
+
+message CloseShiftRequest {
+  string shift_id = 1;
+  double closing_cash = 2;
+  double actual_cash = 3;
+}
+
+message GetCurrentShiftRequest {
+  // User ID is extracted from JWT token
+}
+
+message GetShiftRequest {
+  string id = 1;
+}
+
+message ListShiftsRequest {
+  string user_id = 1;
+  string store_id = 2;
+  string status = 3;
+  int32 page = 4;
+  int32 per_page = 5;
+}
+
+message ListShiftsResponse {
+  repeated CashierShift shifts = 1;
+  int64 total_count = 2;
+  int32 page = 3;
+  int32 per_page = 4;
+}
+
+message GetShiftSummaryRequest {
+  string id = 1;
+}
+
+message ShiftSummaryResponse {
+  string shift_id = 1;
+  string cashier_name = 2;
+  string store_name = 3;
+  double opening_cash = 4;
+  double cash_sales = 5;
+  double cash_refund = 6;
+  double expected_cash = 7;
+  double actual_cash = 8;
+  double cash_difference = 9;
+  int32 total_transactions = 10;
+  double total_sales_amount = 11;
+  string status = 12;
+  string opened_at = 13;
+  string closed_at = 14;
+  repeated SaleSummary sales = 15;
+}
+
+message SaleSummary {
+  string id = 1;
+  string invoice_number = 2;
+  double grand_total = 3;
+  string payment_method = 4;
+  string created_at = 5;
+}
+
+message ShiftResponse {
+  CashierShift shift = 1;
+}
+
+message CashierShift {
+  string id = 1;
+  string user_id = 2;
+  string user_name = 3;
+  string store_id = 4;
+  string store_name = 5;
+  double opening_cash = 6;
+  double closing_cash = 7;
+  double cash_sales = 8;
+  double cash_refund = 9;
+  double expected_cash = 10;
+  double actual_cash = 11;
+  double cash_difference = 12;
+  string status = 13;
+  string opened_at = 14;
+  string closed_at = 15;
+  string created_at = 16;
+}

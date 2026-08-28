@@ -12,7 +12,13 @@
       "name": "AuthService"
     },
     {
+      "name": "CashierService"
+    },
+    {
       "name": "CategoryService"
+    },
+    {
+      "name": "CustomerService"
     },
     {
       "name": "HealthService",
@@ -20,6 +26,9 @@
     },
     {
       "name": "InventoryService"
+    },
+    {
+      "name": "PaymentService"
     },
     {
       "name": "PermissionService"
@@ -33,6 +42,9 @@
     },
     {
       "name": "RoleService"
+    },
+    {
+      "name": "SaleService"
     },
     {
       "name": "UserService"
@@ -373,6 +385,214 @@
         ]
       }
     },
+    "/api/v1/cashier/shifts": {
+      "get": {
+        "summary": "ListShifts lists shifts with filters",
+        "operationId": "CashierService_ListShifts",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListShiftsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "storeId",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "perPage",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "tags": [
+          "CashierService"
+        ]
+      }
+    },
+    "/api/v1/cashier/shifts/close": {
+      "post": {
+        "summary": "CloseShift closes the current shift",
+        "operationId": "CashierService_CloseShift",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ShiftResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CloseShiftRequest"
+            }
+          }
+        ],
+        "tags": [
+          "CashierService"
+        ]
+      }
+    },
+    "/api/v1/cashier/shifts/current": {
+      "get": {
+        "summary": "GetCurrentShift gets the current open shift for a user",
+        "operationId": "CashierService_GetCurrentShift",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ShiftResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "CashierService"
+        ]
+      }
+    },
+    "/api/v1/cashier/shifts/open": {
+      "post": {
+        "summary": "OpenShift opens a new cashier shift",
+        "operationId": "CashierService_OpenShift",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ShiftResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1OpenShiftRequest"
+            }
+          }
+        ],
+        "tags": [
+          "CashierService"
+        ]
+      }
+    },
+    "/api/v1/cashier/shifts/{id}": {
+      "get": {
+        "summary": "GetShift gets a shift by ID",
+        "operationId": "CashierService_GetShift",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ShiftResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "CashierService"
+        ]
+      }
+    },
+    "/api/v1/cashier/shifts/{id}/summary": {
+      "get": {
+        "summary": "GetShiftSummary gets shift summary with sales and cash info",
+        "operationId": "CashierService_GetShiftSummary",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ShiftSummaryResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "CashierService"
+        ]
+      }
+    },
     "/api/v1/categories": {
       "get": {
         "summary": "ListCategories lists all categories",
@@ -583,6 +803,308 @@
         ],
         "tags": [
           "CategoryService"
+        ]
+      }
+    },
+    "/api/v1/customers": {
+      "get": {
+        "summary": "ListCustomers lists customers with filters",
+        "operationId": "CustomerService_ListCustomers",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListCustomersResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "isActive",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "perPage",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "tags": [
+          "CustomerService"
+        ]
+      },
+      "post": {
+        "summary": "CreateCustomer creates a new customer",
+        "operationId": "CustomerService_CreateCustomer",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1CustomerResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreateCustomerRequest"
+            }
+          }
+        ],
+        "tags": [
+          "CustomerService"
+        ]
+      }
+    },
+    "/api/v1/customers/search": {
+      "get": {
+        "summary": "SearchCustomers searches customers by name, code, email, or phone",
+        "operationId": "CustomerService_SearchCustomers",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListCustomersResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "perPage",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "tags": [
+          "CustomerService"
+        ]
+      }
+    },
+    "/api/v1/customers/{id}": {
+      "get": {
+        "summary": "GetCustomer gets a customer by ID",
+        "operationId": "CustomerService_GetCustomer",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1CustomerResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "CustomerService"
+        ]
+      },
+      "delete": {
+        "summary": "DeleteCustomer deletes a customer",
+        "operationId": "CustomerService_DeleteCustomer",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1DeleteCustomerResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "CustomerService"
+        ]
+      },
+      "put": {
+        "summary": "UpdateCustomer updates a customer",
+        "operationId": "CustomerService_UpdateCustomer",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1CustomerResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CustomerServiceUpdateCustomerBody"
+            }
+          }
+        ],
+        "tags": [
+          "CustomerService"
+        ]
+      }
+    },
+    "/api/v1/customers/{id}/deactivate": {
+      "post": {
+        "summary": "DeactivateCustomer deactivates a customer",
+        "operationId": "CustomerService_DeactivateCustomer",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1DeleteCustomerResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CustomerServiceDeactivateCustomerBody"
+            }
+          }
+        ],
+        "tags": [
+          "CustomerService"
+        ]
+      }
+    },
+    "/api/v1/customers/{id}/purchases": {
+      "get": {
+        "summary": "GetPurchaseHistory gets a customer's purchase history",
+        "operationId": "CustomerService_GetPurchaseHistory",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1PurchaseHistoryResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "perPage",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "tags": [
+          "CustomerService"
         ]
       }
     },
@@ -812,6 +1334,148 @@
         ],
         "tags": [
           "InventoryService"
+        ]
+      }
+    },
+    "/api/v1/payments": {
+      "get": {
+        "summary": "ListPayments lists payments with filters",
+        "operationId": "PaymentService_ListPayments",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListPaymentsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "saleId",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "paymentMethod",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "perPage",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "tags": [
+          "PaymentService"
+        ]
+      },
+      "post": {
+        "summary": "CreatePayment creates a new payment for a sale",
+        "operationId": "PaymentService_CreatePayment",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1PaymentResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreatePaymentRequest"
+            }
+          }
+        ],
+        "tags": [
+          "PaymentService"
+        ]
+      }
+    },
+    "/api/v1/payments/{id}": {
+      "get": {
+        "summary": "GetPayment gets a payment by ID",
+        "operationId": "PaymentService_GetPayment",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1PaymentResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "PaymentService"
+        ]
+      },
+      "delete": {
+        "summary": "DeletePayment deletes a payment",
+        "operationId": "PaymentService_DeletePayment",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1DeletePaymentResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "PaymentService"
         ]
       }
     },
@@ -2014,6 +2678,314 @@
         ]
       }
     },
+    "/api/v1/sales": {
+      "get": {
+        "summary": "ListSales lists sales with filters",
+        "operationId": "SaleService_ListSales",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListSalesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "storeId",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "cashierId",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "customerId",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "perPage",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "tags": [
+          "SaleService"
+        ]
+      },
+      "post": {
+        "summary": "CreateSale creates a new sale (checkout)",
+        "operationId": "SaleService_CreateSale",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1SaleResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreateSaleRequest"
+            }
+          }
+        ],
+        "tags": [
+          "SaleService"
+        ]
+      }
+    },
+    "/api/v1/sales/invoice/{invoiceNumber}": {
+      "get": {
+        "summary": "GetSaleByInvoice gets a sale by invoice number",
+        "operationId": "SaleService_GetSaleByInvoice",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1SaleDetailResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "invoiceNumber",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "SaleService"
+        ]
+      }
+    },
+    "/api/v1/sales/{id}": {
+      "get": {
+        "summary": "GetSale gets a sale by ID with items",
+        "operationId": "SaleService_GetSale",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1SaleDetailResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "SaleService"
+        ]
+      }
+    },
+    "/api/v1/sales/{id}/cancel": {
+      "post": {
+        "summary": "CancelSale cancels a sale",
+        "operationId": "SaleService_CancelSale",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1SaleResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/SaleServiceCancelSaleBody"
+            }
+          }
+        ],
+        "tags": [
+          "SaleService"
+        ]
+      }
+    },
+    "/api/v1/sales/{id}/refund": {
+      "post": {
+        "summary": "RefundSale refunds a sale",
+        "operationId": "SaleService_RefundSale",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1SaleResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/SaleServiceRefundSaleBody"
+            }
+          }
+        ],
+        "tags": [
+          "SaleService"
+        ]
+      }
+    },
+    "/api/v1/sales/{saleId}/payment-summary": {
+      "get": {
+        "summary": "GetPaymentSummary gets payment summary for a sale",
+        "operationId": "PaymentService_GetPaymentSummary",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1PaymentSummaryResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "saleId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "PaymentService"
+        ]
+      }
+    },
+    "/api/v1/sales/{saleId}/payments": {
+      "get": {
+        "summary": "GetPaymentsBySale gets all payments for a sale",
+        "operationId": "PaymentService_GetPaymentsBySale",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListPaymentsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "saleId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "PaymentService"
+        ]
+      }
+    },
     "/api/v1/users": {
       "get": {
         "summary": "ListUsers lists users with filters",
@@ -2245,6 +3217,32 @@
           "type": "string"
         },
         "description": {
+          "type": "string"
+        },
+        "isActive": {
+          "type": "boolean"
+        }
+      }
+    },
+    "CustomerServiceDeactivateCustomerBody": {
+      "type": "object"
+    },
+    "CustomerServiceUpdateCustomerBody": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "address": {
           "type": "string"
         },
         "isActive": {
@@ -2484,6 +3482,22 @@
         }
       }
     },
+    "SaleServiceCancelSaleBody": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string"
+        }
+      }
+    },
+    "SaleServiceRefundSaleBody": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string"
+        }
+      }
+    },
     "UserServiceUpdateUserBody": {
       "type": "object",
       "properties": {
@@ -2538,6 +3552,85 @@
         },
         "isActive": {
           "type": "boolean"
+        }
+      }
+    },
+    "customerV1Sale": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "invoiceNumber": {
+          "type": "string"
+        },
+        "storeId": {
+          "type": "string"
+        },
+        "storeName": {
+          "type": "string"
+        },
+        "cashierId": {
+          "type": "string"
+        },
+        "cashierName": {
+          "type": "string"
+        },
+        "customerId": {
+          "type": "string"
+        },
+        "subtotal": {
+          "type": "number",
+          "format": "double"
+        },
+        "discount": {
+          "type": "number",
+          "format": "double"
+        },
+        "tax": {
+          "type": "number",
+          "format": "double"
+        },
+        "grandTotal": {
+          "type": "number",
+          "format": "double"
+        },
+        "status": {
+          "type": "string"
+        },
+        "itemCount": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      }
+    },
+    "paymentV1Payment": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "saleId": {
+          "type": "string"
+        },
+        "paymentMethod": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "number",
+          "format": "double"
+        },
+        "reference": {
+          "type": "string"
+        },
+        "paidAt": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
         }
       }
     },
@@ -2800,6 +3893,88 @@
         }
       }
     },
+    "saleV1Payment": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "saleId": {
+          "type": "string"
+        },
+        "paymentMethod": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "number",
+          "format": "double"
+        },
+        "reference": {
+          "type": "string"
+        },
+        "paidAt": {
+          "type": "string"
+        }
+      }
+    },
+    "saleV1Sale": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "invoiceNumber": {
+          "type": "string"
+        },
+        "storeId": {
+          "type": "string"
+        },
+        "storeName": {
+          "type": "string"
+        },
+        "cashierId": {
+          "type": "string"
+        },
+        "cashierName": {
+          "type": "string"
+        },
+        "customerId": {
+          "type": "string"
+        },
+        "customerName": {
+          "type": "string"
+        },
+        "subtotal": {
+          "type": "number",
+          "format": "double"
+        },
+        "discount": {
+          "type": "number",
+          "format": "double"
+        },
+        "tax": {
+          "type": "number",
+          "format": "double"
+        },
+        "grandTotal": {
+          "type": "number",
+          "format": "double"
+        },
+        "status": {
+          "type": "string"
+        },
+        "itemCount": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      }
+    },
     "userV1User": {
       "type": "object",
       "properties": {
@@ -2921,6 +4096,66 @@
         }
       }
     },
+    "v1CashierShift": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "userId": {
+          "type": "string"
+        },
+        "userName": {
+          "type": "string"
+        },
+        "storeId": {
+          "type": "string"
+        },
+        "storeName": {
+          "type": "string"
+        },
+        "openingCash": {
+          "type": "number",
+          "format": "double"
+        },
+        "closingCash": {
+          "type": "number",
+          "format": "double"
+        },
+        "cashSales": {
+          "type": "number",
+          "format": "double"
+        },
+        "cashRefund": {
+          "type": "number",
+          "format": "double"
+        },
+        "expectedCash": {
+          "type": "number",
+          "format": "double"
+        },
+        "actualCash": {
+          "type": "number",
+          "format": "double"
+        },
+        "cashDifference": {
+          "type": "number",
+          "format": "double"
+        },
+        "status": {
+          "type": "string"
+        },
+        "openedAt": {
+          "type": "string"
+        },
+        "closedAt": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      }
+    },
     "v1Category": {
       "type": "object",
       "properties": {
@@ -2952,6 +4187,22 @@
         }
       }
     },
+    "v1CloseShiftRequest": {
+      "type": "object",
+      "properties": {
+        "shiftId": {
+          "type": "string"
+        },
+        "closingCash": {
+          "type": "number",
+          "format": "double"
+        },
+        "actualCash": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
     "v1CreateCategoryRequest": {
       "type": "object",
       "properties": {
@@ -2959,6 +4210,45 @@
           "type": "string"
         },
         "description": {
+          "type": "string"
+        }
+      }
+    },
+    "v1CreateCustomerRequest": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        }
+      }
+    },
+    "v1CreatePaymentRequest": {
+      "type": "object",
+      "properties": {
+        "saleId": {
+          "type": "string"
+        },
+        "paymentMethod": {
+          "type": "string",
+          "title": "CASH, CARD, BANK_TRANSFER, EWALLET, OTHER"
+        },
+        "amount": {
+          "type": "number",
+          "format": "double"
+        },
+        "reference": {
           "type": "string"
         }
       }
@@ -3054,6 +4344,43 @@
         }
       }
     },
+    "v1CreateSaleRequest": {
+      "type": "object",
+      "properties": {
+        "storeId": {
+          "type": "string"
+        },
+        "customerId": {
+          "type": "string"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1SaleItemInput"
+          }
+        },
+        "discount": {
+          "type": "number",
+          "format": "double"
+        },
+        "taxRate": {
+          "type": "number",
+          "format": "double"
+        },
+        "paymentMethod": {
+          "type": "string",
+          "title": "Payment info"
+        },
+        "amountPaid": {
+          "type": "number",
+          "format": "double"
+        },
+        "paymentReference": {
+          "type": "string"
+        }
+      }
+    },
     "v1CreateTransactionRequest": {
       "type": "object",
       "properties": {
@@ -3106,7 +4433,69 @@
         }
       }
     },
+    "v1Customer": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "code": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "isActive": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      }
+    },
+    "v1CustomerResponse": {
+      "type": "object",
+      "properties": {
+        "customer": {
+          "$ref": "#/definitions/v1Customer"
+        }
+      }
+    },
     "v1DeleteCategoryResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "v1DeleteCustomerResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "v1DeletePaymentResponse": {
       "type": "object",
       "properties": {
         "success": {
@@ -3278,6 +4667,54 @@
         }
       }
     },
+    "v1ListCustomersResponse": {
+      "type": "object",
+      "properties": {
+        "customers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Customer"
+          }
+        },
+        "totalCount": {
+          "type": "string",
+          "format": "int64"
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "perPage": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "v1ListPaymentsResponse": {
+      "type": "object",
+      "properties": {
+        "payments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/paymentV1Payment"
+          }
+        },
+        "totalCount": {
+          "type": "string",
+          "format": "int64"
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "perPage": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
     "v1ListPermissionsResponse": {
       "type": "object",
       "properties": {
@@ -3356,6 +4793,54 @@
         "totalCount": {
           "type": "string",
           "format": "int64"
+        }
+      }
+    },
+    "v1ListSalesResponse": {
+      "type": "object",
+      "properties": {
+        "sales": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/saleV1Sale"
+          }
+        },
+        "totalCount": {
+          "type": "string",
+          "format": "int64"
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "perPage": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "v1ListShiftsResponse": {
+      "type": "object",
+      "properties": {
+        "shifts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1CashierShift"
+          }
+        },
+        "totalCount": {
+          "type": "string",
+          "format": "int64"
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "perPage": {
+          "type": "integer",
+          "format": "int32"
         }
       }
     },
@@ -3502,6 +4987,60 @@
         "deficit": {
           "type": "integer",
           "format": "int32"
+        }
+      }
+    },
+    "v1OpenShiftRequest": {
+      "type": "object",
+      "properties": {
+        "storeId": {
+          "type": "string"
+        },
+        "openingCash": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
+    "v1PaymentResponse": {
+      "type": "object",
+      "properties": {
+        "payment": {
+          "$ref": "#/definitions/paymentV1Payment"
+        }
+      }
+    },
+    "v1PaymentSummaryResponse": {
+      "type": "object",
+      "properties": {
+        "saleId": {
+          "type": "string"
+        },
+        "grandTotal": {
+          "type": "number",
+          "format": "double"
+        },
+        "totalPaid": {
+          "type": "number",
+          "format": "double"
+        },
+        "remaining": {
+          "type": "number",
+          "format": "double"
+        },
+        "change": {
+          "type": "number",
+          "format": "double"
+        },
+        "status": {
+          "type": "string"
+        },
+        "payments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/paymentV1Payment"
+          }
         }
       }
     },
@@ -3659,6 +5198,30 @@
         }
       }
     },
+    "v1PurchaseHistoryResponse": {
+      "type": "object",
+      "properties": {
+        "purchases": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/customerV1Sale"
+          }
+        },
+        "totalCount": {
+          "type": "string",
+          "format": "int64"
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "perPage": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
     "v1RefreshTokenRequest": {
       "type": "object",
       "properties": {
@@ -3761,6 +5324,200 @@
         },
         "isLowStock": {
           "type": "boolean"
+        }
+      }
+    },
+    "v1SaleDetailResponse": {
+      "type": "object",
+      "properties": {
+        "sale": {
+          "$ref": "#/definitions/saleV1Sale"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1SaleItem"
+          }
+        },
+        "payments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/saleV1Payment"
+          }
+        },
+        "amountPaid": {
+          "type": "number",
+          "format": "double"
+        },
+        "change": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
+    "v1SaleItem": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "saleId": {
+          "type": "string"
+        },
+        "productId": {
+          "type": "string"
+        },
+        "productName": {
+          "type": "string"
+        },
+        "skuId": {
+          "type": "string"
+        },
+        "skuCode": {
+          "type": "string"
+        },
+        "quantity": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "unitPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "discount": {
+          "type": "number",
+          "format": "double"
+        },
+        "subtotal": {
+          "type": "number",
+          "format": "double"
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      }
+    },
+    "v1SaleItemInput": {
+      "type": "object",
+      "properties": {
+        "productId": {
+          "type": "string"
+        },
+        "skuId": {
+          "type": "string"
+        },
+        "quantity": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "unitPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "discount": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
+    "v1SaleResponse": {
+      "type": "object",
+      "properties": {
+        "sale": {
+          "$ref": "#/definitions/saleV1Sale"
+        }
+      }
+    },
+    "v1SaleSummary": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "invoiceNumber": {
+          "type": "string"
+        },
+        "grandTotal": {
+          "type": "number",
+          "format": "double"
+        },
+        "paymentMethod": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      }
+    },
+    "v1ShiftResponse": {
+      "type": "object",
+      "properties": {
+        "shift": {
+          "$ref": "#/definitions/v1CashierShift"
+        }
+      }
+    },
+    "v1ShiftSummaryResponse": {
+      "type": "object",
+      "properties": {
+        "shiftId": {
+          "type": "string"
+        },
+        "cashierName": {
+          "type": "string"
+        },
+        "storeName": {
+          "type": "string"
+        },
+        "openingCash": {
+          "type": "number",
+          "format": "double"
+        },
+        "cashSales": {
+          "type": "number",
+          "format": "double"
+        },
+        "cashRefund": {
+          "type": "number",
+          "format": "double"
+        },
+        "expectedCash": {
+          "type": "number",
+          "format": "double"
+        },
+        "actualCash": {
+          "type": "number",
+          "format": "double"
+        },
+        "cashDifference": {
+          "type": "number",
+          "format": "double"
+        },
+        "totalTransactions": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalSalesAmount": {
+          "type": "number",
+          "format": "double"
+        },
+        "status": {
+          "type": "string"
+        },
+        "openedAt": {
+          "type": "string"
+        },
+        "closedAt": {
+          "type": "string"
+        },
+        "sales": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1SaleSummary"
+          }
         }
       }
     },
