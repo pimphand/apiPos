@@ -1,0 +1,160 @@
+syntax = "proto3";
+
+package inventory.v1;
+
+option go_package = "apiPos/gen/inventory/v1;inventoryv1";
+
+import "google/api/annotations.proto";
+
+service InventoryService {
+  // CreateTransaction creates a new inventory transaction and updates stock atomically
+  rpc CreateTransaction(CreateTransactionRequest) returns (TransactionResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/inventory/transactions"
+      body: "*"
+    };
+  }
+
+  // GetTransaction gets an inventory transaction by ID
+  rpc GetTransaction(GetTransactionRequest) returns (TransactionResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/inventory/transactions/{id}"
+    };
+  }
+
+  // ListTransactions lists inventory transactions with filters
+  rpc ListTransactions(ListTransactionsRequest) returns (ListTransactionsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/inventory/transactions"
+    };
+  }
+
+  // AdjustStock adjusts stock for a product (atomic)
+  rpc AdjustStock(AdjustStockRequest) returns (TransactionResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/inventory/adjust"
+      body: "*"
+    };
+  }
+
+  // GetStockSummary gets stock summary for a product across all SKUs
+  rpc GetStockSummary(GetStockSummaryRequest) returns (StockSummaryResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/inventory/stock/{product_id}"
+    };
+  }
+
+  // GetLowStockAlert gets products with stock below minimum
+  rpc GetLowStockAlert(LowStockAlertRequest) returns (LowStockAlertResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/inventory/low-stock"
+    };
+  }
+}
+
+message CreateTransactionRequest {
+  string product_id = 1;
+  string store_id = 2;
+  // PURCHASE, SALE, RETURN, ADJUSTMENT, DAMAGE, TRANSFER
+  string type = 3;
+  int32 quantity = 4;
+  string reference_type = 5;
+  string reference_id = 6;
+  // Optional: custom description
+  string description = 7;
+}
+
+message AdjustStockRequest {
+  string product_id = 1;
+  string store_id = 2;
+  // INCREASE or DECREASE
+  string direction = 3;
+  int32 quantity = 4;
+  string reason = 5;
+  string description = 6;
+}
+
+message GetTransactionRequest {
+  string id = 1;
+}
+
+message ListTransactionsRequest {
+  string product_id = 1;
+  string store_id = 2;
+  // Filter: PURCHASE, SALE, RETURN, ADJUSTMENT, DAMAGE, TRANSFER
+  string type = 3;
+  int32 page = 4;
+  int32 per_page = 5;
+}
+
+message ListTransactionsResponse {
+  repeated InventoryTransaction transactions = 1;
+  int64 total_count = 2;
+  int32 page = 3;
+  int32 per_page = 4;
+}
+
+message GetStockSummaryRequest {
+  string product_id = 1;
+}
+
+message StockSummaryResponse {
+  string product_id = 1;
+  string product_name = 2;
+  int32 total_stock = 3;
+  repeated SKUStock skus = 4;
+}
+
+message SKUStock {
+  string sku_id = 1;
+  string sku_code = 2;
+  string variant = 3;
+  string barcode = 4;
+  int32 stock = 5;
+  int32 minimum_stock = 6;
+  bool is_low_stock = 7;
+}
+
+message LowStockAlertRequest {
+  string store_id = 1;
+  int32 page = 2;
+  int32 per_page = 3;
+}
+
+message LowStockAlertResponse {
+  repeated LowStockProduct products = 1;
+  int64 total_count = 2;
+  int32 page = 3;
+  int32 per_page = 4;
+}
+
+message LowStockProduct {
+  string product_id = 1;
+  string product_name = 2;
+  string category_name = 3;
+  int32 total_stock = 4;
+  int32 minimum_stock = 5;
+  int32 deficit = 6;
+}
+
+message TransactionResponse {
+  InventoryTransaction transaction = 1;
+}
+
+message InventoryTransaction {
+  string id = 1;
+  string product_id = 2;
+  string product_name = 3;
+  string store_id = 4;
+  string store_name = 5;
+  string type = 6;
+  int32 quantity = 7;
+  string reference_type = 8;
+  string reference_id = 9;
+  int32 before_stock = 10;
+  int32 after_stock = 11;
+  string description = 12;
+  string created_by = 13;
+  string creator_name = 14;
+  string created_at = 15;
+}

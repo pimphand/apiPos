@@ -6,6 +6,7 @@ import (
 
 // Repositories holds all repository instances
 type Repositories struct {
+	db               *gorm.DB
 	User             UserRepository
 	Role             *RoleRepo
 	Permission       PermissionRepository
@@ -22,9 +23,15 @@ type Repositories struct {
 	ActivityLog      ActivityLogRepository
 }
 
+// DB returns the underlying GORM DB instance
+func (r *Repositories) DB() *gorm.DB {
+	return r.db
+}
+
 // New creates a new Repositories instance with GORM
 func New(db *gorm.DB) *Repositories {
 	return &Repositories{
+		db:             db,
 		User:           NewUserRepository(db),
 		Role:           NewRoleRepository(db),
 		Permission:     NewPermissionRepository(db),

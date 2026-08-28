@@ -19,6 +19,7 @@ import (
 	activitylogv1 "apiPos/gen/activitylog/v1"
 	authv1 "apiPos/gen/auth/v1"
 	categoryv1 "apiPos/gen/category/v1"
+	inventoryv1 "apiPos/gen/inventory/v1"
 	permissionv1 "apiPos/gen/permission/v1"
 	productv1 "apiPos/gen/product/v1"
 	productskuv1 "apiPos/gen/productsku/v1"
@@ -30,6 +31,7 @@ import (
 	"apiPos/internal/config"
 	gormdb "apiPos/internal/database/gorm"
 	"apiPos/internal/handler"
+	"apiPos/internal/inventory"
 	"apiPos/internal/permission"
 	"apiPos/internal/product"
 	"apiPos/internal/productsku"
@@ -50,6 +52,7 @@ type Server struct {
 	categoryService     *category.Service
 	productService      *product.Service
 	productSKUService   *productsku.Service
+	inventoryService    *inventory.Service
 	roleService         *role.Service
 	permissionService   *permission.Service
 	activityLogService  *activitylog.Service
@@ -63,6 +66,7 @@ func New(cfg *config.Config, db *gormdb.DB) *Server {
 	categoryService := category.NewService(repos)
 	productService := product.NewService(repos)
 	productSKUService := productsku.NewService(repos.ProductSKU)
+	inventoryService := inventory.NewService(repos)
 	roleService := role.NewService(repos)
 	permissionService := permission.NewService(repos)
 	activityLogService := activitylog.NewService(repos)
@@ -76,6 +80,7 @@ func New(cfg *config.Config, db *gormdb.DB) *Server {
 		categoryService:    categoryService,
 		productService:     productService,
 		productSKUService:  productSKUService,
+		inventoryService:   inventoryService,
 		roleService:        roleService,
 		permissionService:  permissionService,
 		activityLogService: activityLogService,
@@ -178,6 +183,11 @@ func (s *Server) startHTTP() error {
 		return fmt.Errorf("failed to register permission gateway: %w", err)
 	}
 
+	// Register InventoryService
+	if err := inventoryv1.RegisterInventoryServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", s.config.GRPC.Port), opts); err != nil {
+		return fmt.Errorf("failed to register inventory gateway: %w", err)
+	}
+
 	// Register ActivityLogService
 	if err := activitylogv1.RegisterActivityLogServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", s.config.GRPC.Port), opts); err != nil {
 		return fmt.Errorf("failed to register activity log gateway: %w", err)
@@ -247,6 +257,7 @@ func (s *Server) registerServices() {
 	healthServer.SetServingStatus("category.v1.CategoryService", healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus("product.v1.ProductService", healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus("productsku.v1.ProductServiceSKUService", healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus("inventory.v1.InventoryService", healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus("role.v1.RoleService", healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus("permission.v1.PermissionService", healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus("activitylog.v1.ActivityLogService", healthpb.HealthCheckResponse_SERVING)
@@ -265,6 +276,9 @@ func (s *Server) registerServices() {
 
 	productSKUHandler := handler.NewProductSKUHandler(s.productSKUService)
 	productskuv1.RegisterProductServiceSKUServiceServer(s.grpcServer, productSKUHandler)
+
+	inventoryHandler := handler.NewInventoryHandler(s.inventoryService)
+	inventoryv1.RegisterInventoryServiceServer(s.grpcServer, inventoryHandler)
 
 	roleHandler := handler.NewRoleHandler(s.roleService)
 	rolev1.RegisterRoleServiceServer(s.grpcServer, roleHandler)
