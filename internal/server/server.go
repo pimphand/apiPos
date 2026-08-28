@@ -26,6 +26,7 @@ import (
 	permissionv1 "apiPos/gen/permission/v1"
 	productv1 "apiPos/gen/product/v1"
 	productskuv1 "apiPos/gen/productsku/v1"
+	reportv1 "apiPos/gen/report/v1"
 	rolev1 "apiPos/gen/role/v1"
 	salev1 "apiPos/gen/sale/v1"
 	userv1 "apiPos/gen/user/v1"
@@ -42,6 +43,7 @@ import (
 	"apiPos/internal/permission"
 	"apiPos/internal/product"
 	"apiPos/internal/productsku"
+	"apiPos/internal/report"
 	"apiPos/internal/repository"
 	"apiPos/internal/role"
 	"apiPos/internal/sale"
@@ -65,6 +67,7 @@ type Server struct {
 	saleService         *sale.Service
 	paymentService      *payment.Service
 	cashierService      *cashier.Service
+	reportService       *report.Service
 	roleService         *role.Service
 	permissionService   *permission.Service
 	activityLogService  *activitylog.Service
@@ -83,6 +86,7 @@ func New(cfg *config.Config, db *gormdb.DB) *Server {
 	saleService := sale.NewService(repos)
 	paymentService := payment.NewService(repos)
 	cashierService := cashier.NewService(repos)
+	reportService := report.NewService(repos)
 	roleService := role.NewService(repos)
 	permissionService := permission.NewService(repos)
 	activityLogService := activitylog.NewService(repos)
@@ -101,6 +105,7 @@ func New(cfg *config.Config, db *gormdb.DB) *Server {
 		saleService:        saleService,
 		paymentService:     paymentService,
 		cashierService:     cashierService,
+		reportService:      reportService,
 		roleService:        roleService,
 		permissionService:  permissionService,
 		activityLogService: activityLogService,
@@ -228,6 +233,11 @@ func (s *Server) startHTTP() error {
 		return fmt.Errorf("failed to register cashier gateway: %w", err)
 	}
 
+	// Register ReportService
+	if err := reportv1.RegisterReportServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", s.config.GRPC.Port), opts); err != nil {
+		return fmt.Errorf("failed to register report gateway: %w", err)
+	}
+
 	// Register ActivityLogService
 	if err := activitylogv1.RegisterActivityLogServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", s.config.GRPC.Port), opts); err != nil {
 		return fmt.Errorf("failed to register activity log gateway: %w", err)
@@ -302,6 +312,7 @@ func (s *Server) registerServices() {
 	healthServer.SetServingStatus("sale.v1.SaleService", healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus("payment.v1.PaymentService", healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus("cashier.v1.CashierService", healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus("report.v1.ReportService", healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus("role.v1.RoleService", healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus("permission.v1.PermissionService", healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus("activitylog.v1.ActivityLogService", healthpb.HealthCheckResponse_SERVING)
@@ -335,6 +346,9 @@ func (s *Server) registerServices() {
 
 	cashierHandler := handler.NewCashierHandler(s.cashierService, s.repositories)
 	cashierpb.RegisterCashierServiceServer(s.grpcServer, cashierHandler)
+
+	reportHandler := handler.NewReportHandler(s.reportService)
+	reportv1.RegisterReportServiceServer(s.grpcServer, reportHandler)
 
 	roleHandler := handler.NewRoleHandler(s.roleService)
 	rolev1.RegisterRoleServiceServer(s.grpcServer, roleHandler)

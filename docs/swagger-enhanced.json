@@ -61,6 +61,10 @@
     {
       "name": "Cashier",
       "description": "Cashier shift management"
+    },
+    {
+      "name": "Reports",
+      "description": "Sales and inventory reports"
     }
   ],
   "host": "localhost:8080",
@@ -2513,6 +2517,134 @@
           "200": { "description": "Shift summary", "schema": { "$ref": "#/definitions/ShiftSummaryResponse" } }
         }
       }
+    },
+    "/api/v1/reports/daily-sales": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "Daily Sales Report",
+        "description": "Get daily sales report.",
+        "operationId": "report_daily_sales",
+        "security": [{"BearerAuth": []}],
+        "parameters": [
+          { "name": "start_date", "in": "query", "type": "string", "description": "Start date (YYYY-MM-DD)" },
+          { "name": "end_date", "in": "query", "type": "string", "description": "End date (YYYY-MM-DD)" },
+          { "name": "store_id", "in": "query", "type": "string" }
+        ],
+        "responses": {
+          "200": { "description": "Daily sales report", "schema": { "$ref": "#/definitions/DailySalesReportResponse" } }
+        }
+      }
+    },
+    "/api/v1/reports/sales-by-date": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "Sales by Date Range",
+        "description": "Get sales by date range.",
+        "operationId": "report_sales_by_date",
+        "security": [{"BearerAuth": []}],
+        "parameters": [
+          { "name": "start_date", "in": "query", "type": "string" },
+          { "name": "end_date", "in": "query", "type": "string" },
+          { "name": "store_id", "in": "query", "type": "string" },
+          { "name": "cashier_id", "in": "query", "type": "string" }
+        ],
+        "responses": {
+          "200": { "description": "Sales report", "schema": { "$ref": "#/definitions/SalesByDateRangeResponse" } }
+        }
+      }
+    },
+    "/api/v1/reports/sales-by-cashier": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "Sales by Cashier",
+        "description": "Get sales grouped by cashier.",
+        "operationId": "report_sales_by_cashier",
+        "security": [{"BearerAuth": []}],
+        "parameters": [
+          { "name": "start_date", "in": "query", "type": "string" },
+          { "name": "end_date", "in": "query", "type": "string" },
+          { "name": "store_id", "in": "query", "type": "string" }
+        ],
+        "responses": {
+          "200": { "description": "Sales by cashier", "schema": { "$ref": "#/definitions/SalesByCashierResponse" } }
+        }
+      }
+    },
+    "/api/v1/reports/sales-by-product": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "Sales by Product",
+        "description": "Get top selling products.",
+        "operationId": "report_sales_by_product",
+        "security": [{"BearerAuth": []}],
+        "parameters": [
+          { "name": "start_date", "in": "query", "type": "string" },
+          { "name": "end_date", "in": "query", "type": "string" },
+          { "name": "limit", "in": "query", "type": "integer", "default": 10 }
+        ],
+        "responses": {
+          "200": { "description": "Sales by product", "schema": { "$ref": "#/definitions/SalesByProductResponse" } }
+        }
+      }
+    },
+    "/api/v1/reports/sales-by-category": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "Sales by Category",
+        "description": "Get sales grouped by category.",
+        "operationId": "report_sales_by_category",
+        "security": [{"BearerAuth": []}],
+        "parameters": [
+          { "name": "start_date", "in": "query", "type": "string" },
+          { "name": "end_date", "in": "query", "type": "string" }
+        ],
+        "responses": {
+          "200": { "description": "Sales by category", "schema": { "$ref": "#/definitions/SalesByCategoryResponse" } }
+        }
+      }
+    },
+    "/api/v1/reports/payment-summary": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "Payment Method Summary",
+        "description": "Get payment method summary.",
+        "operationId": "report_payment_summary",
+        "security": [{"BearerAuth": []}],
+        "parameters": [
+          { "name": "start_date", "in": "query", "type": "string" },
+          { "name": "end_date", "in": "query", "type": "string" }
+        ],
+        "responses": {
+          "200": { "description": "Payment summary", "schema": { "$ref": "#/definitions/PaymentMethodSummaryResponse" } }
+        }
+      }
+    },
+    "/api/v1/reports/inventory-summary": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "Inventory Summary",
+        "description": "Get inventory summary by category.",
+        "operationId": "report_inventory_summary",
+        "security": [{"BearerAuth": []}],
+        "responses": {
+          "200": { "description": "Inventory summary", "schema": { "$ref": "#/definitions/InventorySummaryResponse" } }
+        }
+      }
+    },
+    "/api/v1/reports/low-stock": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "Low Stock Products",
+        "description": "Get products with low stock.",
+        "operationId": "report_low_stock",
+        "security": [{"BearerAuth": []}],
+        "parameters": [
+          { "name": "limit", "in": "query", "type": "integer", "default": 20 }
+        ],
+        "responses": {
+          "200": { "description": "Low stock products", "schema": { "$ref": "#/definitions/LowStockProductsResponse" } }
+        }
+      }
     }
   },
   "definitions": {
@@ -4332,6 +4464,142 @@
         "grand_total": { "type": "number" },
         "payment_method": { "type": "string" },
         "created_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "DailySalesReportResponse": {
+      "type": "object",
+      "properties": {
+        "reports": { "type": "array", "items": { "$ref": "#/definitions/DailySalesReport" } },
+        "total_sales": { "type": "number" },
+        "total_amount": { "type": "number" }
+      }
+    },
+    "DailySalesReport": {
+      "type": "object",
+      "properties": {
+        "date": { "type": "string" },
+        "total_sales": { "type": "integer" },
+        "total_amount": { "type": "number" }
+      }
+    },
+    "SalesByDateRangeResponse": {
+      "type": "object",
+      "properties": {
+        "sales": { "type": "array", "items": { "$ref": "#/definitions/SaleReport" } },
+        "total_count": { "type": "integer" },
+        "total_amount": { "type": "number" }
+      }
+    },
+    "SaleReport": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "invoice_number": { "type": "string" },
+        "store_name": { "type": "string" },
+        "cashier_name": { "type": "string" },
+        "customer_name": { "type": "string" },
+        "subtotal": { "type": "number" },
+        "discount": { "type": "number" },
+        "tax": { "type": "number" },
+        "grand_total": { "type": "number" },
+        "status": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "SalesByCashierResponse": {
+      "type": "object",
+      "properties": {
+        "reports": { "type": "array", "items": { "$ref": "#/definitions/CashierSalesReport" } }
+      }
+    },
+    "CashierSalesReport": {
+      "type": "object",
+      "properties": {
+        "cashier_id": { "type": "string" },
+        "cashier_name": { "type": "string" },
+        "total_transactions": { "type": "integer" },
+        "total_amount": { "type": "number" }
+      }
+    },
+    "SalesByProductResponse": {
+      "type": "object",
+      "properties": {
+        "reports": { "type": "array", "items": { "$ref": "#/definitions/ProductSalesReport" } }
+      }
+    },
+    "ProductSalesReport": {
+      "type": "object",
+      "properties": {
+        "product_id": { "type": "string" },
+        "product_name": { "type": "string" },
+        "quantity_sold": { "type": "integer" },
+        "total_amount": { "type": "number" }
+      }
+    },
+    "SalesByCategoryResponse": {
+      "type": "object",
+      "properties": {
+        "reports": { "type": "array", "items": { "$ref": "#/definitions/CategorySalesReport" } }
+      }
+    },
+    "CategorySalesReport": {
+      "type": "object",
+      "properties": {
+        "category_id": { "type": "string" },
+        "category_name": { "type": "string" },
+        "product_count": { "type": "integer" },
+        "quantity_sold": { "type": "integer" },
+        "total_amount": { "type": "number" }
+      }
+    },
+    "PaymentMethodSummaryResponse": {
+      "type": "object",
+      "properties": {
+        "reports": { "type": "array", "items": { "$ref": "#/definitions/PaymentMethodReport" } },
+        "total_amount": { "type": "number" }
+      }
+    },
+    "PaymentMethodReport": {
+      "type": "object",
+      "properties": {
+        "payment_method": { "type": "string" },
+        "count": { "type": "integer" },
+        "total_amount": { "type": "number" }
+      }
+    },
+    "InventorySummaryResponse": {
+      "type": "object",
+      "properties": {
+        "reports": { "type": "array", "items": { "$ref": "#/definitions/InventoryReport" } },
+        "total_products": { "type": "integer" },
+        "total_stock": { "type": "integer" },
+        "total_value": { "type": "number" }
+      }
+    },
+    "InventoryReport": {
+      "type": "object",
+      "properties": {
+        "category_name": { "type": "string" },
+        "product_count": { "type": "integer" },
+        "total_stock": { "type": "integer" },
+        "total_value": { "type": "number" }
+      }
+    },
+    "LowStockProductsResponse": {
+      "type": "object",
+      "properties": {
+        "products": { "type": "array", "items": { "$ref": "#/definitions/LowStockReport" } }
+      }
+    },
+    "LowStockReport": {
+      "type": "object",
+      "properties": {
+        "product_id": { "type": "string" },
+        "product_name": { "type": "string" },
+        "category_name": { "type": "string" },
+        "current_stock": { "type": "integer", "format": "int32" },
+        "minimum_stock": { "type": "integer", "format": "int32" },
+        "deficit": { "type": "integer", "format": "int32" }
       }
     }
   },

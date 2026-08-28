@@ -117,7 +117,7 @@ make watch
 
 ## Development Phases
 
-### Phase 1 (Current) ✅
+### Phase 1 ✅
 
 - [x] Project setup
 - [x] PostgreSQL configuration
@@ -127,51 +127,60 @@ make watch
 - [x] Health check service
 - [x] Configuration system
 
-### Phase 2 (Next)
+### Phase 2 ✅
 
-- [ ] Database migrations
-- [ ] sqlc queries
-- [ ] Repository layer
+- [x] Database migrations
+- [x] GORM models
+- [x] Repository layer
 
-### Phase 3
+### Phase 3 ✅
 
-- [ ] Authentication
-- [ ] Users & Roles
-- [ ] JWT
-- [ ] Middleware
+- [x] Authentication
+- [x] Users & Roles
+- [x] JWT
+- [x] Middleware
 
-### Phase 4
+### Phase 4 ✅
 
-- [ ] Categories
-- [ ] Products
+- [x] Categories
+- [x] Products
+- [x] Product SKUs
 
-### Phase 5
+### Phase 5 ✅
 
-- [ ] Inventory
-- [ ] Stock transactions
+- [x] Inventory
+- [x] Stock transactions
+- [x] Atomic stock updates
 
-### Phase 6
+### Phase 6 ✅
 
-- [ ] Customers
-- [ ] Sales
-- [ ] Sale items
+- [x] Customers
+- [x] Sales
+- [x] Sale items
+- [x] Atomic checkout
 
-### Phase 7
+### Phase 7 ✅
 
-- [ ] Payments
-- [ ] Cashier shifts
+- [x] Payments
+- [x] Cashier shifts
+- [x] Cash reconciliation
 
-### Phase 8
+### Phase 8 ✅
 
-- [ ] Reports
+- [x] Reports
+- [x] Daily sales
+- [x] Sales by date/cashier/product/category
+- [x] Payment method summary
+- [x] Inventory summary
+- [x] Low stock alert
 
-### Phase 9
+### Phase 9 ✅
 
-- [ ] Testing
-- [ ] Logging
-- [ ] Error handling
-- [ ] Performance optimization
-- [ ] Documentation
+- [x] Testing - Unit tests for all services
+- [x] Logging - Structured logging with slog
+- [x] Error handling - Comprehensive apperror package
+- [x] Performance optimization - Row locking, batch queries
+- [x] Documentation - Swagger, README, grpcurl examples
 
 ## API Testing
 
@@ -191,7 +200,33 @@ grpcurl \
 grpcurl -plaintext localhost:50051 list
 
 # List methods for a service
-grpcurl -plaintext localhost:50051 list health.v1.HealthService
+grpcurl -plaintext localhost:50051 list product.v1.ProductService
+```
+
+### gRPC Examples
+
+```bash
+# Login
+grpcurl -plaintext -d '{"username":"admin","password":"admin123"}' \
+  localhost:50051 auth.v1.AuthService/Login
+
+# Create Product
+grpcurl -plaintext -H "Authorization: Bearer TOKEN" \
+  -d '{"name":"Coffee","selling_price":25000,"sku":"COF001"}' \
+  localhost:50051 product.v1.ProductService/CreateProduct
+
+# List Products
+grpcurl -plaintext -H "Authorization: Bearer TOKEN" \
+  localhost:50051 product.v1.ProductService/ListProducts
+
+# Create Sale (Checkout)
+grpcurl -plaintext -H "Authorization: Bearer TOKEN" \
+  -d '{"store_id":"uuid","items":[{"product_id":"uuid","quantity":2,"unit_price":25000}],"payment_method":"CASH","amount_paid":60000}' \
+  localhost:50051 sale.v1.SaleService/CreateSale
+
+# Get Daily Sales Report
+grpcurl -plaintext -H "Authorization: Bearer TOKEN" \
+  'localhost:50051/report.v1.ReportService/GetDailySalesReport?start_date=2026-01-01&end_date=2026-12-31'
 ```
 
 ## Make Commands

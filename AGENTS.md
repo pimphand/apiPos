@@ -376,16 +376,39 @@ Difference         -2.00
 
 ### Reports
 
-Implement basic reports:
+Implement comprehensive reports:
 
-* Daily sales
+* Daily sales report
 * Sales by date range
 * Sales by cashier
-* Sales by product
+* Sales by product (top selling)
 * Sales by category
 * Payment method summary
-* Inventory summary
+* Inventory summary by category
 * Low stock products
+
+#### Report API Endpoints
+
+```text
+GET /api/v1/reports/daily-sales         - Daily sales report
+GET /api/v1/reports/sales-by-date       - Sales by date range
+GET /api/v1/reports/sales-by-cashier    - Sales by cashier
+GET /api/v1/reports/sales-by-product    - Top selling products
+GET /api/v1/reports/sales-by-category   - Sales by category
+GET /api/v1/reports/payment-summary     - Payment method summary
+GET /api/v1/reports/inventory-summary   - Inventory summary
+GET /api/v1/reports/low-stock           - Low stock products
+```
+
+#### Report Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| start_date | string | Start date (YYYY-MM-DD) |
+| end_date | string | End date (YYYY-MM-DD) |
+| store_id | string | Filter by store |
+| cashier_id | string | Filter by cashier |
+| limit | integer | Limit results (default: 10) |
 
 ## 4. Database
 

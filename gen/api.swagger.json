@@ -41,6 +41,9 @@
       "description": "ProductServiceSKUService is the service for managing product SKUs"
     },
     {
+      "name": "ReportService"
+    },
+    {
       "name": "RoleService"
     },
     {
@@ -2406,6 +2409,314 @@
         ]
       }
     },
+    "/api/v1/reports/daily-sales": {
+      "get": {
+        "summary": "GetDailySalesReport gets daily sales report",
+        "operationId": "ReportService_GetDailySalesReport",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1DailySalesReportResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "storeId",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ReportService"
+        ]
+      }
+    },
+    "/api/v1/reports/inventory-summary": {
+      "get": {
+        "summary": "GetInventorySummary gets inventory summary",
+        "operationId": "ReportService_GetInventorySummary",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1InventorySummaryResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "ReportService"
+        ]
+      }
+    },
+    "/api/v1/reports/low-stock": {
+      "get": {
+        "summary": "GetLowStockProducts gets low stock products",
+        "operationId": "ReportService_GetLowStockProducts",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1LowStockProductsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "tags": [
+          "ReportService"
+        ]
+      }
+    },
+    "/api/v1/reports/payment-summary": {
+      "get": {
+        "summary": "GetPaymentMethodSummary gets payment method summary",
+        "operationId": "ReportService_GetPaymentMethodSummary",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1PaymentMethodSummaryResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ReportService"
+        ]
+      }
+    },
+    "/api/v1/reports/sales-by-cashier": {
+      "get": {
+        "summary": "GetSalesByCashier gets sales by cashier",
+        "operationId": "ReportService_GetSalesByCashier",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1SalesByCashierResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "storeId",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ReportService"
+        ]
+      }
+    },
+    "/api/v1/reports/sales-by-category": {
+      "get": {
+        "summary": "GetSalesByCategory gets sales by category",
+        "operationId": "ReportService_GetSalesByCategory",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1SalesByCategoryResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ReportService"
+        ]
+      }
+    },
+    "/api/v1/reports/sales-by-date": {
+      "get": {
+        "summary": "GetSalesByDateRange gets sales by date range",
+        "operationId": "ReportService_GetSalesByDateRange",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1SalesByDateRangeResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "storeId",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "cashierId",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ReportService"
+        ]
+      }
+    },
+    "/api/v1/reports/sales-by-product": {
+      "get": {
+        "summary": "GetSalesByProduct gets sales by product",
+        "operationId": "ReportService_GetSalesByProduct",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1SalesByProductResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "tags": [
+          "ReportService"
+        ]
+      }
+    },
     "/api/v1/roles": {
       "get": {
         "summary": "ListRoles lists all roles",
@@ -4096,6 +4407,25 @@
         }
       }
     },
+    "v1CashierSalesReport": {
+      "type": "object",
+      "properties": {
+        "cashierId": {
+          "type": "string"
+        },
+        "cashierName": {
+          "type": "string"
+        },
+        "totalTransactions": {
+          "type": "string",
+          "format": "int64"
+        },
+        "totalAmount": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
     "v1CashierShift": {
       "type": "object",
       "properties": {
@@ -4184,6 +4514,29 @@
       "properties": {
         "category": {
           "$ref": "#/definitions/v1Category"
+        }
+      }
+    },
+    "v1CategorySalesReport": {
+      "type": "object",
+      "properties": {
+        "categoryId": {
+          "type": "string"
+        },
+        "categoryName": {
+          "type": "string"
+        },
+        "productCount": {
+          "type": "string",
+          "format": "int64"
+        },
+        "quantitySold": {
+          "type": "string",
+          "format": "int64"
+        },
+        "totalAmount": {
+          "type": "number",
+          "format": "double"
         }
       }
     },
@@ -4473,6 +4826,42 @@
         }
       }
     },
+    "v1DailySalesReport": {
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string"
+        },
+        "totalSales": {
+          "type": "string",
+          "format": "int64"
+        },
+        "totalAmount": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
+    "v1DailySalesReportResponse": {
+      "type": "object",
+      "properties": {
+        "reports": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1DailySalesReport"
+          }
+        },
+        "totalSales": {
+          "type": "number",
+          "format": "double"
+        },
+        "totalAmount": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
     "v1DeleteCategoryResponse": {
       "type": "object",
       "properties": {
@@ -4571,6 +4960,50 @@
             "type": "object",
             "$ref": "#/definitions/roleV1Permission"
           }
+        }
+      }
+    },
+    "v1InventoryReport": {
+      "type": "object",
+      "properties": {
+        "categoryName": {
+          "type": "string"
+        },
+        "productCount": {
+          "type": "string",
+          "format": "int64"
+        },
+        "totalStock": {
+          "type": "string",
+          "format": "int64"
+        },
+        "totalValue": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
+    "v1InventorySummaryResponse": {
+      "type": "object",
+      "properties": {
+        "reports": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1InventoryReport"
+          }
+        },
+        "totalProducts": {
+          "type": "string",
+          "format": "int64"
+        },
+        "totalStock": {
+          "type": "string",
+          "format": "int64"
+        },
+        "totalValue": {
+          "type": "number",
+          "format": "double"
         }
       }
     },
@@ -4990,6 +5423,44 @@
         }
       }
     },
+    "v1LowStockProductsResponse": {
+      "type": "object",
+      "properties": {
+        "products": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1LowStockReport"
+          }
+        }
+      }
+    },
+    "v1LowStockReport": {
+      "type": "object",
+      "properties": {
+        "productId": {
+          "type": "string"
+        },
+        "productName": {
+          "type": "string"
+        },
+        "categoryName": {
+          "type": "string"
+        },
+        "currentStock": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "minimumStock": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "deficit": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
     "v1OpenShiftRequest": {
       "type": "object",
       "properties": {
@@ -4997,6 +5468,38 @@
           "type": "string"
         },
         "openingCash": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
+    "v1PaymentMethodReport": {
+      "type": "object",
+      "properties": {
+        "paymentMethod": {
+          "type": "string"
+        },
+        "count": {
+          "type": "string",
+          "format": "int64"
+        },
+        "totalAmount": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
+    "v1PaymentMethodSummaryResponse": {
+      "type": "object",
+      "properties": {
+        "reports": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1PaymentMethodReport"
+          }
+        },
+        "totalAmount": {
           "type": "number",
           "format": "double"
         }
@@ -5195,6 +5698,25 @@
           "additionalProperties": {
             "type": "string"
           }
+        }
+      }
+    },
+    "v1ProductSalesReport": {
+      "type": "object",
+      "properties": {
+        "productId": {
+          "type": "string"
+        },
+        "productName": {
+          "type": "string"
+        },
+        "quantitySold": {
+          "type": "string",
+          "format": "int64"
+        },
+        "totalAmount": {
+          "type": "number",
+          "format": "double"
         }
       }
     },
@@ -5422,6 +5944,48 @@
         }
       }
     },
+    "v1SaleReport": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "invoiceNumber": {
+          "type": "string"
+        },
+        "storeName": {
+          "type": "string"
+        },
+        "cashierName": {
+          "type": "string"
+        },
+        "customerName": {
+          "type": "string"
+        },
+        "subtotal": {
+          "type": "number",
+          "format": "double"
+        },
+        "discount": {
+          "type": "number",
+          "format": "double"
+        },
+        "tax": {
+          "type": "number",
+          "format": "double"
+        },
+        "grandTotal": {
+          "type": "number",
+          "format": "double"
+        },
+        "status": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      }
+    },
     "v1SaleResponse": {
       "type": "object",
       "properties": {
@@ -5448,6 +6012,62 @@
         },
         "createdAt": {
           "type": "string"
+        }
+      }
+    },
+    "v1SalesByCashierResponse": {
+      "type": "object",
+      "properties": {
+        "reports": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1CashierSalesReport"
+          }
+        }
+      }
+    },
+    "v1SalesByCategoryResponse": {
+      "type": "object",
+      "properties": {
+        "reports": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1CategorySalesReport"
+          }
+        }
+      }
+    },
+    "v1SalesByDateRangeResponse": {
+      "type": "object",
+      "properties": {
+        "sales": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1SaleReport"
+          }
+        },
+        "totalCount": {
+          "type": "string",
+          "format": "int64"
+        },
+        "totalAmount": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
+    "v1SalesByProductResponse": {
+      "type": "object",
+      "properties": {
+        "reports": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1ProductSalesReport"
+          }
         }
       }
     },

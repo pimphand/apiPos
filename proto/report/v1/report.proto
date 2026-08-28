@@ -1,0 +1,211 @@
+syntax = "proto3";
+
+package report.v1;
+
+option go_package = "apiPos/gen/report/v1;reportv1";
+
+import "google/api/annotations.proto";
+
+service ReportService {
+  // GetDailySalesReport gets daily sales report
+  rpc GetDailySalesReport(DailySalesReportRequest) returns (DailySalesReportResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/reports/daily-sales"
+    };
+  }
+
+  // GetSalesByDateRange gets sales by date range
+  rpc GetSalesByDateRange(SalesByDateRangeRequest) returns (SalesByDateRangeResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/reports/sales-by-date"
+    };
+  }
+
+  // GetSalesByCashier gets sales by cashier
+  rpc GetSalesByCashier(SalesByCashierRequest) returns (SalesByCashierResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/reports/sales-by-cashier"
+    };
+  }
+
+  // GetSalesByProduct gets sales by product
+  rpc GetSalesByProduct(SalesByProductRequest) returns (SalesByProductResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/reports/sales-by-product"
+    };
+  }
+
+  // GetSalesByCategory gets sales by category
+  rpc GetSalesByCategory(SalesByCategoryRequest) returns (SalesByCategoryResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/reports/sales-by-category"
+    };
+  }
+
+  // GetPaymentMethodSummary gets payment method summary
+  rpc GetPaymentMethodSummary(PaymentMethodSummaryRequest) returns (PaymentMethodSummaryResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/reports/payment-summary"
+    };
+  }
+
+  // GetInventorySummary gets inventory summary
+  rpc GetInventorySummary(InventorySummaryRequest) returns (InventorySummaryResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/reports/inventory-summary"
+    };
+  }
+
+  // GetLowStockProducts gets low stock products
+  rpc GetLowStockProducts(LowStockProductsRequest) returns (LowStockProductsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/reports/low-stock"
+    };
+  }
+}
+
+message DailySalesReportRequest {
+  string start_date = 1;
+  string end_date = 2;
+  string store_id = 3;
+}
+
+message DailySalesReportResponse {
+  repeated DailySalesReport reports = 1;
+  double total_sales = 2;
+  double total_amount = 3;
+}
+
+message DailySalesReport {
+  string date = 1;
+  int64 total_sales = 2;
+  double total_amount = 3;
+}
+
+message SalesByDateRangeRequest {
+  string start_date = 1;
+  string end_date = 2;
+  string store_id = 3;
+  string cashier_id = 4;
+}
+
+message SalesByDateRangeResponse {
+  repeated SaleReport sales = 1;
+  int64 total_count = 2;
+  double total_amount = 3;
+}
+
+message SaleReport {
+  string id = 1;
+  string invoice_number = 2;
+  string store_name = 3;
+  string cashier_name = 4;
+  string customer_name = 5;
+  double subtotal = 6;
+  double discount = 7;
+  double tax = 8;
+  double grand_total = 9;
+  string status = 10;
+  string created_at = 11;
+}
+
+message SalesByCashierRequest {
+  string start_date = 1;
+  string end_date = 2;
+  string store_id = 3;
+}
+
+message SalesByCashierResponse {
+  repeated CashierSalesReport reports = 1;
+}
+
+message CashierSalesReport {
+  string cashier_id = 1;
+  string cashier_name = 2;
+  int64 total_transactions = 3;
+  double total_amount = 4;
+}
+
+message SalesByProductRequest {
+  string start_date = 1;
+  string end_date = 2;
+  int32 limit = 3;
+}
+
+message SalesByProductResponse {
+  repeated ProductSalesReport reports = 1;
+}
+
+message ProductSalesReport {
+  string product_id = 1;
+  string product_name = 2;
+  int64 quantity_sold = 3;
+  double total_amount = 4;
+}
+
+message SalesByCategoryRequest {
+  string start_date = 1;
+  string end_date = 2;
+}
+
+message SalesByCategoryResponse {
+  repeated CategorySalesReport reports = 1;
+}
+
+message CategorySalesReport {
+  string category_id = 1;
+  string category_name = 2;
+  int64 product_count = 3;
+  int64 quantity_sold = 4;
+  double total_amount = 5;
+}
+
+message PaymentMethodSummaryRequest {
+  string start_date = 1;
+  string end_date = 2;
+}
+
+message PaymentMethodSummaryResponse {
+  repeated PaymentMethodReport reports = 1;
+  double total_amount = 3;
+}
+
+message PaymentMethodReport {
+  string payment_method = 1;
+  int64 count = 2;
+  double total_amount = 3;
+}
+
+message InventorySummaryRequest {
+}
+
+message InventorySummaryResponse {
+  repeated InventoryReport reports = 1;
+  int64 total_products = 2;
+  int64 total_stock = 3;
+  double total_value = 4;
+}
+
+message InventoryReport {
+  string category_name = 1;
+  int64 product_count = 2;
+  int64 total_stock = 3;
+  double total_value = 4;
+}
+
+message LowStockProductsRequest {
+  int32 limit = 1;
+}
+
+message LowStockProductsResponse {
+  repeated LowStockReport products = 1;
+}
+
+message LowStockReport {
+  string product_id = 1;
+  string product_name = 2;
+  string category_name = 3;
+  int32 current_stock = 4;
+  int32 minimum_stock = 5;
+  int32 deficit = 6;
+}
