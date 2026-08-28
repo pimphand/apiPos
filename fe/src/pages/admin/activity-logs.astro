@@ -1,0 +1,15 @@
+---
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+import ModulePlaceholder from '@/components/layout/ModulePlaceholder.vue';
+---
+
+<DashboardLayout title="Activity Logs - POS Application">
+  <ModulePlaceholder
+    client:only="vue"
+    title="Activity Logs"
+    description="Audit trail of all user actions across the system."
+    icon="📄"
+    permission="activity_logs.read"
+    hint="Full audit trail of login, CRUD, financial, and permission-change activities will be listed here in a later phase."
+  />
+</DashboardLayout>

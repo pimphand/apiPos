@@ -1,0 +1,15 @@
+---
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+import ModulePlaceholder from '@/components/layout/ModulePlaceholder.vue';
+---
+
+<DashboardLayout title="Cashier Shifts - POS Application">
+  <ModulePlaceholder
+    client:only="vue"
+    title="Cashier Shifts"
+    description="Open and close shifts, track opening cash, and reconcile cash differences."
+    icon="🕐"
+    permission="cashier.view_shift"
+    hint="Shift management (open/close), expected vs actual cash, and cash difference reconciliation will be implemented here in a later phase."
+  />
+</DashboardLayout>

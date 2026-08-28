@@ -1,6 +1,7 @@
 ---
 import '../styles/globals.css';
 import { ClientRouter } from 'astro:transitions';
+import ThemeScript from '@/components/layout/ThemeScript.astro';
 
 interface Props {
   title?: string;
@@ -21,6 +22,7 @@ const {
   <meta name="description" content={description}>
   <title>{title}</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <ThemeScript />
   <ClientRouter />
 </head>
 <body class="min-h-screen bg-background font-sans antialiased">

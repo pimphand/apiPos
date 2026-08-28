@@ -1,0 +1,15 @@
+---
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+import ModulePlaceholder from '@/components/layout/ModulePlaceholder.vue';
+---
+
+<DashboardLayout title="Products - POS Application">
+  <ModulePlaceholder
+    client:only="vue"
+    title="Products"
+    description="Manage your product catalog, variants (SKUs), pricing, and stock."
+    icon="📦"
+    permission="products.read"
+    hint="Product CRUD, SKU/variant management, barcode lookup, and stock tracking will be implemented here in a later phase."
+  />
+</DashboardLayout>

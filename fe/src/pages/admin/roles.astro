@@ -1,0 +1,15 @@
+---
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+import ModulePlaceholder from '@/components/layout/ModulePlaceholder.vue';
+---
+
+<DashboardLayout title="Roles & Permissions - POS Application">
+  <ModulePlaceholder
+    client:only="vue"
+    title="Roles & Permissions"
+    description="Manage roles and assign granular permissions per resource."
+    icon="🛡️"
+    permission="roles.read"
+    hint="Role CRUD and role-permission assignment will be implemented here in a later phase."
+  />
+</DashboardLayout>

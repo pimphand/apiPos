@@ -1,0 +1,14 @@
+---
+// Applies the saved/system theme before first paint to prevent a flash of
+// the wrong theme (FOUC). Inline script must run in <head> before body render.
+---
+<script is:inline>
+  (function () {
+    try {
+      var saved = localStorage.getItem('theme');
+      var dark = saved === 'dark' ||
+        (saved !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      if (dark) document.documentElement.classList.add('dark');
+    } catch (e) {}
+  })();
+</script>

@@ -1,0 +1,14 @@
+---
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+import ModulePlaceholder from '@/components/layout/ModulePlaceholder.vue';
+---
+
+<DashboardLayout title="My Profile - POS Application">
+  <ModulePlaceholder
+    client:only="vue"
+    title="My Profile"
+    description="View and manage your account information."
+    icon="👤"
+    hint="Your profile details include username, email, full name, role, and store membership. Edit capability will be implemented here in a later phase."
+  />
+</DashboardLayout>

@@ -1,0 +1,15 @@
+---
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+import ModulePlaceholder from '@/components/layout/ModulePlaceholder.vue';
+---
+
+<DashboardLayout title="Reports - POS Application">
+  <ModulePlaceholder
+    client:only="vue"
+    title="Reports"
+    description="Analyze sales, payments, and inventory performance."
+    icon="📊"
+    permission="reports.read"
+    hint="Daily sales, sales by cashier/product/category, payment summaries, and inventory reports will be implemented here in a later phase."
+  />
+</DashboardLayout>

@@ -1,0 +1,15 @@
+---
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+import ModulePlaceholder from '@/components/layout/ModulePlaceholder.vue';
+---
+
+<DashboardLayout title="Categories - POS Application">
+  <ModulePlaceholder
+    client:only="vue"
+    title="Categories"
+    description="Organize your products into categories for easier management and reporting."
+    icon="🏷️"
+    permission="categories.read"
+    hint="Category CRUD and deactivation will be implemented here in a later phase."
+  />
+</DashboardLayout>
