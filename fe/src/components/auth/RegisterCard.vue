@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useUiStore } from '@/stores/ui';
+import { registerSchema } from '@/lib/validators';
 import Button from '@/components/ui/button/Button.vue';
 import Input from '@/components/ui/input/Input.vue';
 import Label from '@/components/ui/label/Label.vue';
@@ -38,18 +39,17 @@ function showError(message: string) {
 }
 
 async function handleRegister() {
-  if (!username.value || !email.value || !password.value || !fullName.value) {
-    showError('Please fill in all fields');
-    return;
-  }
+  const parsed = registerSchema.safeParse({
+    full_name: fullName.value,
+    username: username.value,
+    email: email.value,
+    password: password.value,
+    confirm_password: confirmPassword.value,
+  });
 
-  if (password.value !== confirmPassword.value) {
-    showError('Passwords do not match');
-    return;
-  }
-
-  if (password.value.length < 6) {
-    showError('Password must be at least 6 characters');
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    showError(issue?.message ?? 'Please check your details');
     return;
   }
 
@@ -57,11 +57,12 @@ async function handleRegister() {
   error.value = '';
 
   try {
+    const { full_name, username, email, password } = parsed.data;
     await authStore.register({
-      username: username.value,
-      email: email.value,
-      password: password.value,
-      full_name: fullName.value,
+      full_name,
+      username,
+      email,
+      password,
     });
     uiStore.addToast('success', 'Registration successful!');
     navigateTo('/dashboard');

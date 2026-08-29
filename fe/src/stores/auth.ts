@@ -5,10 +5,11 @@ import { authStorage } from '@/lib/auth';
 import type { User, LoginRequest, RegisterRequest } from '@/types';
 
 export const useAuthStore = defineStore('auth', () => {
-  // State - initialize from storage if available
-  const user = ref<User | null>(authStorage.getUser());
-  const accessToken = ref<string | null>(authStorage.getAccessToken());
-  const refreshToken = ref<string | null>(authStorage.getRefreshToken());
+  // State - memory only (no persistence). On page reload the session is lost
+  // and the user must re-authenticate (see lib/auth.ts security note).
+  const user = ref<User | null>(null);
+  const accessToken = ref<string | null>(null);
+  const refreshToken = ref<string | null>(null);
   const isLoading = ref(false);
   const error = ref<string | null>(null);
 
@@ -131,6 +132,10 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function logout() {
+    // Revoke the refresh token server-side BEFORE clearing local state so the
+    // request still carries the Bearer access token (backend requires auth).
+    http.post('/v1/auth/logout', {}).catch(() => {});
+
     // Clear state
     user.value = null;
     accessToken.value = null;
@@ -138,11 +143,8 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null;
     tokenManager.clearTokens();
 
-    // Clear storage
+    // Clear memory storage
     authStorage.clear();
-
-    // Call logout endpoint (fire and forget)
-    http.post('/v1/auth/logout', {}).catch(() => {});
   }
 
   function setUser(userData: User) {
@@ -161,23 +163,6 @@ export const useAuthStore = defineStore('auth', () => {
   function clearError() {
     error.value = null;
   }
-
-  // Initialize from storage on store creation
-  function init() {
-    const storedUser = authStorage.getUser();
-    const storedAccessToken = authStorage.getAccessToken();
-    const storedRefreshToken = authStorage.getRefreshToken();
-
-    if (storedUser) user.value = storedUser;
-    if (storedAccessToken && storedRefreshToken) {
-      accessToken.value = storedAccessToken;
-      refreshToken.value = storedRefreshToken;
-      tokenManager.setTokens(storedAccessToken, storedRefreshToken);
-    }
-  }
-
-  // Run init
-  init();
 
   return {
     // State

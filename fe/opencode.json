@@ -9,6 +9,11 @@
         "shadcn-vue@latest",
         "mcp"
       ]
+    },
+    "astro": {
+      "type": "remote",
+      "enabled": true,
+      "url": "https://mcp.docs.astro.build/mcp"
     }
   }
 }

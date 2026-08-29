@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useUiStore } from '@/stores/ui';
+import { loginSchema } from '@/lib/validators';
 import Button from '@/components/ui/button/Button.vue';
 import Input from '@/components/ui/input/Input.vue';
 import Label from '@/components/ui/label/Label.vue';
@@ -35,8 +36,14 @@ function showError(message: string) {
 }
 
 async function handleLogin() {
-  if (!username.value || !password.value) {
-    showError('Please enter username and password');
+  const parsed = loginSchema.safeParse({
+    username: username.value,
+    password: password.value,
+  });
+
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    showError(issue?.message ?? 'Please enter valid credentials');
     return;
   }
 
@@ -44,10 +51,7 @@ async function handleLogin() {
   error.value = '';
 
   try {
-    await authStore.login({
-      username: username.value,
-      password: password.value,
-    });
+    await authStore.login(parsed.data);
     uiStore.addToast('success', 'Login successful!');
     navigateTo('/dashboard');
   } catch (err: unknown) {

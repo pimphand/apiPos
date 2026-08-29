@@ -1,95 +1,69 @@
 /**
  * Auth helper utilities
- * 
- * Token Strategy (from Frontend.md):
- * - Access token (15m): Memory only (Pinia + module variable)
- * - Refresh token (30d): localStorage for persistence across page reloads
- * 
- * Security Note: 
- * - Access token is never persisted (XSS protection)
- * - Refresh token is persisted but only sent to /auth/refresh endpoint
- * - On page reload, user must re-authenticate if access token is lost
+ *
+ * Token Strategy (from Frontend.md §2.2 / §5.1):
+ * - Access token (15m): Memory only (Pinia + module variable). Never persisted.
+ * - Refresh token (30d): Memory only.
+ *
+ * Security Note:
+ * The backend grpc-gateway returns tokens in the JSON body (no HttpOnly cookie),
+ * so to avoid XSS token theft we keep BOTH tokens in JS memory only. Nothing is
+ * written to localStorage/sessionStorage. Consequence: a page reload clears the
+ * session and the user must re-authenticate — an accepted trade-off documented
+ * in Frontend.md.
  */
 
 import type { User } from '@/types';
 
-const ACCESS_TOKEN_KEY = 'pos_access_token';
-const REFRESH_TOKEN_KEY = 'pos_refresh_token';
-const USER_KEY = 'pos_user';
-
 /**
- * Token manager for auth state
+ * In-memory auth state. Scope is the page session; cleared on reload.
  */
 export const authStorage = {
-  /**
-   * Get access token (memory only in production)
-   */
+  /** Memory-backed access token (never persisted). */
+  _accessToken: null as string | null,
+  /** Memory-backed refresh token (never persisted). */
+  _refreshToken: null as string | null,
+  /** Memory-backed current user (never persisted). */
+  _user: null as User | null,
+
   getAccessToken(): string | null {
-    if (typeof window === 'undefined') return null;
-    return sessionStorage.getItem(ACCESS_TOKEN_KEY);
+    return authStorage._accessToken;
   },
 
-  /**
-   * Set access token (session storage for page refresh survival)
-   */
   setAccessToken(token: string): void {
-    if (typeof window === 'undefined') return;
-    sessionStorage.setItem(ACCESS_TOKEN_KEY, token);
+    authStorage._accessToken = token;
   },
 
-  /**
-   * Get refresh token (localStorage for long-term persistence)
-   */
   getRefreshToken(): string | null {
-    if (typeof window === 'undefined') return null;
-    return localStorage.getItem(REFRESH_TOKEN_KEY);
+    return authStorage._refreshToken;
   },
 
-  /**
-   * Set refresh token (localStorage)
-   */
   setRefreshToken(token: string): void {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(REFRESH_TOKEN_KEY, token);
+    authStorage._refreshToken = token;
   },
 
-  /**
-   * Get stored user data
-   */
   getUser(): User | null {
-    if (typeof window === 'undefined') return null;
-    const data = localStorage.getItem(USER_KEY);
-    if (!data) return null;
-    try {
-      return JSON.parse(data) as User;
-    } catch {
-      return null;
-    }
+    return authStorage._user;
   },
 
-  /**
-   * Set user data
-   */
   setUser(user: User): void {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(USER_KEY, JSON.stringify(user));
+    authStorage._user = user;
   },
 
   /**
-   * Clear all auth data
+   * Clear all auth state (both tokens and cached user).
    */
   clear(): void {
-    if (typeof window === 'undefined') return;
-    sessionStorage.removeItem(ACCESS_TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
+    authStorage._accessToken = null;
+    authStorage._refreshToken = null;
+    authStorage._user = null;
   },
 
   /**
-   * Check if user is authenticated (has tokens)
+   * Check if user is authenticated (has tokens).
    */
   isAuthenticated(): boolean {
-    return !!this.getAccessToken() || !!this.getRefreshToken();
+    return !!authStorage.getAccessToken() || !!authStorage.getRefreshToken();
   },
 };
 
