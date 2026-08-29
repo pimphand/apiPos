@@ -2,6 +2,10 @@ package auth
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -55,23 +59,28 @@ func (s *AuthService) CheckPassword(hashedPassword, password string) bool {
 	return err == nil
 }
 
-// GenerateTokenPair generates access and refresh tokens
-func (s *AuthService) GenerateTokenPair(userID, username, email, roleID, roleName, storeID string) (*TokenPair, error) {
-	accessToken, expiresAt, err := s.generateAccessToken(userID, username, email, roleID, roleName, storeID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate access token: %w", err)
-	}
+// GenerateAccessToken issues a JWT access token and its expiry time.
+func (s *AuthService) GenerateAccessToken(userID, username, email, roleID, roleName, storeID string) (string, time.Time, error) {
+	return s.generateAccessToken(userID, username, email, roleID, roleName, storeID)
+}
 
-	refreshToken, err := s.generateRefreshToken(userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate refresh token: %w", err)
+// GenerateRefreshToken generates a new opaque refresh token together with its
+// SHA-256 hash. Only the hash is persisted; the raw token is returned to the
+// client and must never be stored server-side.
+func (s *AuthService) GenerateRefreshToken() (raw, hash string, expiresAt time.Time, err error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", "", time.Time{}, err
 	}
+	raw = base64.RawURLEncoding.EncodeToString(b)
+	expiresAt = time.Now().Add(s.config.JWT.RefreshTTL)
+	return raw, s.HashToken(raw), expiresAt, nil
+}
 
-	return &TokenPair{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		ExpiresAt:    expiresAt,
-	}, nil
+// HashToken returns the hex-encoded SHA-256 digest of a raw token.
+func (s *AuthService) HashToken(raw string) string {
+	sum := sha256.Sum256([]byte(raw))
+	return hex.EncodeToString(sum[:])
 }
 
 func (s *AuthService) generateAccessToken(userID, username, email, roleID, roleName, storeID string) (string, time.Time, error) {
@@ -100,24 +109,7 @@ func (s *AuthService) generateAccessToken(userID, username, email, roleID, roleN
 	return tokenString, expiresAt, nil
 }
 
-func (s *AuthService) generateRefreshToken(userID string) (string, error) {
-	claims := jwt.RegisteredClaims{
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(s.config.JWT.RefreshTTL)),
-		IssuedAt:  jwt.NewNumericDate(time.Now()),
-		Issuer:    "pos-app",
-		Subject:   userID,
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte(s.config.JWT.Secret))
-	if err != nil {
-		return "", err
-	}
-
-	return tokenString, nil
-}
-
-// ValidateToken validates a JWT token and returns claims
+// ValidateToken validates a JWT access token and returns claims
 func (s *AuthService) ValidateToken(tokenString string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -138,26 +130,6 @@ func (s *AuthService) ValidateToken(tokenString string) (*Claims, error) {
 	}
 
 	return nil, apperror.ErrInvalidToken
-}
-
-// ValidateRefreshToken validates a refresh token
-func (s *AuthService) ValidateRefreshToken(tokenString string) (string, error) {
-	token, err := jwt.ParseWithClaims(tokenString, &jwt.RegisteredClaims{}, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return []byte(s.config.JWT.Secret), nil
-	})
-
-	if err != nil {
-		return "", apperror.ErrInvalidToken
-	}
-
-	if claims, ok := token.Claims.(*jwt.RegisteredClaims); ok && token.Valid {
-		return claims.Subject, nil
-	}
-
-	return "", apperror.ErrInvalidToken
 }
 
 // Context key for claims

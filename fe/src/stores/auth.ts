@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import http, { tokenManager } from '@/lib/http';
 import { authStorage } from '@/lib/auth';
+import { getDeviceId } from '@/lib/device';
 import type { User, LoginRequest, RegisterRequest } from '@/types';
 
 export const useAuthStore = defineStore('auth', () => {
@@ -43,22 +44,25 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null;
 
     try {
-      const response = await http.post('/v1/auth/login', credentials);
+      const response = await http.post('/v1/auth/login', {
+        ...credentials,
+        device_id: getDeviceId(),
+      });
       const data = response.data ?? {};
       const access_token = data.access_token ?? data.accessToken;
       const refresh_token = data.refresh_token ?? data.refreshToken;
       const userData = normalizeUser(data.user ?? {});
 
-      // Store tokens
+      // Store tokens (refresh persisted encrypted)
       accessToken.value = access_token;
       refreshToken.value = refresh_token;
       tokenManager.setTokens(access_token, refresh_token);
       authStorage.setAccessToken(access_token);
-      authStorage.setRefreshToken(refresh_token);
+      await authStorage.setRefreshToken(refresh_token);
 
       // Store user data
       user.value = userData;
-      authStorage.setUser(userData);
+      await authStorage.setUser(userData);
 
       return userData;
     } catch (err: unknown) {
@@ -75,7 +79,10 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null;
 
     try {
-      const response = await http.post('/v1/auth/register', data);
+      const response = await http.post('/v1/auth/register', {
+        ...data,
+        device_id: getDeviceId(),
+      });
       const resData = response.data ?? {};
       const access_token = resData.access_token ?? resData.accessToken;
       const refresh_token = resData.refresh_token ?? resData.refreshToken;
@@ -86,11 +93,11 @@ export const useAuthStore = defineStore('auth', () => {
       refreshToken.value = refresh_token;
       tokenManager.setTokens(access_token, refresh_token);
       authStorage.setAccessToken(access_token);
-      authStorage.setRefreshToken(refresh_token);
+      await authStorage.setRefreshToken(refresh_token);
 
       // Store user data
       user.value = userData;
-      authStorage.setUser(userData);
+      await authStorage.setUser(userData);
 
       return userData;
     } catch (err: unknown) {
@@ -110,18 +117,19 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const response = await http.post('/v1/auth/refresh', {
         refresh_token: refreshToken.value,
+        device_id: getDeviceId(),
       });
 
       const resData = response.data ?? {};
       const access_token = resData.access_token ?? resData.accessToken;
       const newRefreshToken = resData.refresh_token ?? resData.refreshToken;
 
-      // Update tokens
+      // Update tokens (mirrors the rotated refresh token to localStorage)
       accessToken.value = access_token;
       refreshToken.value = newRefreshToken;
       tokenManager.setTokens(access_token, newRefreshToken);
       authStorage.setAccessToken(access_token);
-      authStorage.setRefreshToken(newRefreshToken);
+      await authStorage.setRefreshToken(newRefreshToken);
 
       return access_token;
     } catch (err) {
@@ -131,10 +139,51 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  /**
+   * Restore a persisted session on page reload.
+   *
+   * Only the refresh token is persisted (see lib/auth.ts). This reads it back,
+   * stages the cached user profile, then calls /auth/refresh to mint a fresh
+   * in-memory access token. Idempotent — safe to call on every guarded page.
+   */
+  async function restoreSession(): Promise<User | null> {
+    // Already have a live session in memory; nothing to restore.
+    if (isAuthenticated.value && !!accessToken.value) {
+      return user.value;
+    }
+
+    const persistedRefresh = await authStorage.getRefreshToken();
+    const cachedUser = await authStorage.getUser();
+
+    if (!persistedRefresh) {
+      return null;
+    }
+
+    // Stage the refresh token + cached profile so refreshAccessToken can run
+    // and the guard has a user while the access token is being minted.
+    refreshToken.value = persistedRefresh;
+    if (cachedUser) {
+      user.value = cachedUser;
+    }
+
+    try {
+      await refreshAccessToken();
+      return user.value;
+    } catch {
+      // refreshAccessToken already clears local state on failure.
+      return null;
+    }
+  }
+
   function logout() {
     // Revoke the refresh token server-side BEFORE clearing local state so the
     // request still carries the Bearer access token (backend requires auth).
-    http.post('/v1/auth/logout', {}).catch(() => {});
+    http
+      .post('/v1/auth/logout', {
+        refresh_token: refreshToken.value,
+        device_id: getDeviceId(),
+      })
+      .catch(() => {});
 
     // Clear state
     user.value = null;
@@ -147,17 +196,17 @@ export const useAuthStore = defineStore('auth', () => {
     authStorage.clear();
   }
 
-  function setUser(userData: User) {
+  async function setUser(userData: User) {
     user.value = normalizeUser(userData as any);
-    authStorage.setUser(user.value);
+    await authStorage.setUser(user.value);
   }
 
-  function setTokens(access: string, refresh: string) {
+  async function setTokens(access: string, refresh: string) {
     accessToken.value = access;
     refreshToken.value = refresh;
     tokenManager.setTokens(access, refresh);
     authStorage.setAccessToken(access);
-    authStorage.setRefreshToken(refresh);
+    await authStorage.setRefreshToken(refresh);
   }
 
   function clearError() {
@@ -180,6 +229,7 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     register,
     refreshAccessToken,
+    restoreSession,
     logout,
     setUser,
     setTokens,

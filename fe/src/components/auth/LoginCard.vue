@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
+import { Eye, EyeOff } from '@lucide/vue';
 import { useAuthStore } from '@/stores/auth';
 import { useUiStore } from '@/stores/ui';
 import { loginSchema } from '@/lib/validators';
@@ -19,6 +20,7 @@ const uiStore = useUiStore();
 
 const username = ref('');
 const password = ref('');
+const showPassword = ref(false);
 const isLoading = ref(false);
 const error = ref('');
 let errorTimer: ReturnType<typeof setTimeout> | null = null;
@@ -91,14 +93,26 @@ async function handleLogin() {
 
         <div class="space-y-2">
           <Label for="password">Password</Label>
-          <Input
-            id="password"
-            v-model="password"
-            type="password"
-            placeholder="Enter your password"
-            autocomplete="current-password"
-            :disabled="isLoading"
-          />
+          <div class="relative">
+            <Input
+              id="password"
+              v-model="password"
+              :type="showPassword ? 'text' : 'password'"
+              placeholder="Enter your password"
+              autocomplete="current-password"
+              :disabled="isLoading"
+              class="pr-10"
+            />
+            <button
+              type="button"
+              aria-label="Toggle password visibility"
+              class="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground"
+              @click="showPassword = !showPassword"
+            >
+              <Eye v-if="!showPassword" class="h-4 w-4" />
+              <EyeOff v-else class="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         <Button type="submit" class="w-full" :disabled="isLoading">

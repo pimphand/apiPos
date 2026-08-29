@@ -22,7 +22,7 @@ func NewAuthHandler(userService *user.Service) *AuthHandler {
 
 // Register creates a new user account
 func (h *AuthHandler) Register(ctx context.Context, req *authv1.RegisterRequest) (*authv1.RegisterResponse, error) {
-	tokenPair, u, err := h.userService.Register(ctx, req.Username, req.Email, req.Password, req.FullName)
+	tokenPair, u, err := h.userService.Register(ctx, req.Username, req.Email, req.Password, req.FullName, req.DeviceId)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
@@ -37,15 +37,25 @@ func (h *AuthHandler) Register(ctx context.Context, req *authv1.RegisterRequest)
 			Email:    u.Email,
 			FullName: u.FullName,
 			RoleId:   u.RoleID.String(),
+			RoleName: registerRoleName(u.Role.Name),
 			StoreId:  u.StoreID.String(),
 			IsActive: u.IsActive,
 		},
 	}, nil
 }
 
+// registerRoleName returns the role name for a newly registered user.
+// Registration always assigns the cashier role, so fall back if not populated.
+func registerRoleName(name string) string {
+	if name == "" {
+		return "cashier"
+	}
+	return name
+}
+
 // Login authenticates a user and returns tokens
 func (h *AuthHandler) Login(ctx context.Context, req *authv1.LoginRequest) (*authv1.LoginResponse, error) {
-	tokenPair, u, err := h.userService.Login(ctx, req.Username, req.Password)
+	tokenPair, u, err := h.userService.Login(ctx, req.Username, req.Password, req.DeviceId)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
@@ -60,6 +70,7 @@ func (h *AuthHandler) Login(ctx context.Context, req *authv1.LoginRequest) (*aut
 			Email:    u.Email,
 			FullName: u.FullName,
 			RoleId:   u.RoleID.String(),
+			RoleName: u.Role.Name,
 			StoreId:  u.StoreID.String(),
 			IsActive: u.IsActive,
 		},
@@ -68,7 +79,7 @@ func (h *AuthHandler) Login(ctx context.Context, req *authv1.LoginRequest) (*aut
 
 // RefreshToken refreshes an access token
 func (h *AuthHandler) RefreshToken(ctx context.Context, req *authv1.RefreshTokenRequest) (*authv1.RefreshTokenResponse, error) {
-	tokenPair, err := h.userService.RefreshToken(ctx, req.RefreshToken)
+	tokenPair, err := h.userService.RefreshToken(ctx, req.RefreshToken, req.DeviceId)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
@@ -80,8 +91,12 @@ func (h *AuthHandler) RefreshToken(ctx context.Context, req *authv1.RefreshToken
 	}, nil
 }
 
-// Logout logs out a user
+// Logout logs out a user by revoking the presented refresh token
 func (h *AuthHandler) Logout(ctx context.Context, req *authv1.LogoutRequest) (*authv1.LogoutResponse, error) {
+	if err := h.userService.Logout(ctx, req.RefreshToken, req.DeviceId); err != nil {
+		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
 	return &authv1.LogoutResponse{
 		Success: true,
 		Message: response.MsgLogoutSuccess,

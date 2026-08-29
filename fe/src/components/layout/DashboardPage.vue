@@ -20,8 +20,11 @@ const stats = ref([
   { label: 'Low Stock', value: '0', icon: '⚠️', href: '/admin/inventory' },
 ]);
 
-onMounted(() => {
+onMounted(async () => {
   uiStore.loadTheme();
+
+  // Restore a persisted session (reload case) before gating on auth.
+  await authStore.restoreSession();
 
   if (!authStore.isAuthenticated) {
     navigateTo('/login');

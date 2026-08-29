@@ -2,6 +2,7 @@
 import '../styles/globals.css';
 import { ClientRouter } from 'astro:transitions';
 import ThemeScript from '@/components/layout/ThemeScript.astro';
+import AuthBootstrap from '@/components/auth/AuthBootstrap.vue';
 
 interface Props {
   title?: string;
@@ -24,6 +25,7 @@ const {
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <ThemeScript />
   <ClientRouter />
+  <AuthBootstrap client:only="vue" />
 </head>
 <body class="min-h-screen bg-background font-sans antialiased">
   <slot />

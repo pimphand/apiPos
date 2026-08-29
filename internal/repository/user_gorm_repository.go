@@ -49,7 +49,7 @@ func (r *UserRepo) Create(ctx context.Context, user *gormdb.User) error {
 // GetByID gets a user by ID
 func (r *UserRepo) GetByID(ctx context.Context, id string) (*gormdb.User, error) {
 	var user gormdb.User
-	err := r.WithContext(ctx).Where("id = ?", id).First(&user).Error
+	err := r.WithContext(ctx).Preload("Role").Where("id = ?", id).First(&user).Error
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +59,7 @@ func (r *UserRepo) GetByID(ctx context.Context, id string) (*gormdb.User, error)
 // GetByUsername gets a user by username
 func (r *UserRepo) GetByUsername(ctx context.Context, username string) (*gormdb.User, error) {
 	var user gormdb.User
-	err := r.WithContext(ctx).Where("username = ?", username).First(&user).Error
+	err := r.WithContext(ctx).Preload("Role").Where("username = ?", username).First(&user).Error
 	if err != nil {
 		return nil, err
 	}

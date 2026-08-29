@@ -274,6 +274,7 @@ type RefreshToken struct {
 	ID        uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	UserID    uuid.UUID  `gorm:"type:uuid;not null" json:"user_id"`
 	Token     string     `gorm:"type:varchar(255);not null" json:"token"`
+	DeviceID  string     `gorm:"type:varchar(255);not null;default:''" json:"device_id"`
 	ExpiresAt time.Time  `gorm:"type:timestamptz;not null" json:"expires_at"`
 	IsRevoked bool       `gorm:"default:false" json:"is_revoked"`
 	CreatedAt time.Time  `gorm:"autoCreateTime" json:"created_at"`

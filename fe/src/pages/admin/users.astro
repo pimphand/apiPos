@@ -1,15 +1,8 @@
 ---
 import DashboardLayout from '@/layouts/DashboardLayout.astro';
-import ModulePlaceholder from '@/components/layout/ModulePlaceholder.vue';
+import UsersPage from '@/components/admin/UsersPage.vue';
 ---
 
 <DashboardLayout title="Users - POS Application">
-  <ModulePlaceholder
-    client:only="vue"
-    title="Users"
-    description="Manage user accounts, roles, and access permissions."
-    icon="🛠️"
-    permission="users.read"
-    hint="User CRUD, role assignment, and deactivation will be implemented here in a later phase."
-  />
+  <UsersPage client:only="vue" />
 </DashboardLayout>

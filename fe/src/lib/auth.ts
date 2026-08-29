@@ -1,29 +1,31 @@
 /**
  * Auth helper utilities
  *
- * Token Strategy (from Frontend.md §2.2 / §5.1):
+ * Token Strategy:
  * - Access token (15m): Memory only (Pinia + module variable). Never persisted.
- * - Refresh token (30d): Memory only.
- *
- * Security Note:
- * The backend grpc-gateway returns tokens in the JSON body (no HttpOnly cookie),
- * so to avoid XSS token theft we keep BOTH tokens in JS memory only. Nothing is
- * written to localStorage/sessionStorage. Consequence: a page reload clears the
- * session and the user must re-authenticate — an accepted trade-off documented
- * in Frontend.md.
+ * - Refresh token (30d): Persisted, but ENCRYPTED at rest (see lib/device.ts)
+ *   so raw data is never written to localStorage. On reload the session is
+ *   restored by calling /auth/refresh (see authStore.restoreSession). The
+ *   backend binds each refresh token to a device id, so a token pasted into
+ *   another browser cannot be used.
  */
 
 import type { User } from '@/types';
+import { encryptValue, decryptValue } from '@/lib/device';
+
+const REFRESH_KEY = 'pos_refresh_token';
+const USER_KEY = 'pos_user';
 
 /**
- * In-memory auth state. Scope is the page session; cleared on reload.
+ * Auth state. Access token is memory-only; the refresh token and a
+ * non-sensitive user profile cache are encrypted before persisting.
  */
 export const authStorage = {
   /** Memory-backed access token (never persisted). */
   _accessToken: null as string | null,
-  /** Memory-backed refresh token (never persisted). */
+  /** Decrypted refresh token mirror (not itself persisted raw). */
   _refreshToken: null as string | null,
-  /** Memory-backed current user (never persisted). */
+  /** Decrypted user mirror (not itself persisted raw). */
   _user: null as User | null,
 
   getAccessToken(): string | null {
@@ -34,36 +36,78 @@ export const authStorage = {
     authStorage._accessToken = token;
   },
 
-  getRefreshToken(): string | null {
-    return authStorage._refreshToken;
+  async getRefreshToken(): Promise<string | null> {
+    if (authStorage._refreshToken) return authStorage._refreshToken;
+    if (typeof window === 'undefined') return null;
+    const stored = window.localStorage.getItem(REFRESH_KEY);
+    if (!stored) return null;
+    const decrypted = await decryptValue(stored);
+    if (decrypted === null) return null;
+    authStorage._refreshToken = decrypted;
+    return decrypted;
   },
 
-  setRefreshToken(token: string): void {
+  async setRefreshToken(token: string | null): Promise<void> {
     authStorage._refreshToken = token;
+    if (typeof window === 'undefined') return;
+    if (token) {
+      window.localStorage.setItem(REFRESH_KEY, await encryptValue(token));
+    } else {
+      window.localStorage.removeItem(REFRESH_KEY);
+    }
   },
 
-  getUser(): User | null {
-    return authStorage._user;
+  async getUser(): Promise<User | null> {
+    if (authStorage._user) return authStorage._user;
+    if (typeof window === 'undefined') return null;
+    const stored = window.localStorage.getItem(USER_KEY);
+    if (!stored) return null;
+    const decrypted = await decryptValue(stored);
+    if (decrypted === null) return null;
+    try {
+      const u = JSON.parse(decrypted) as User;
+      authStorage._user = u;
+      return u;
+    } catch {
+      return null;
+    }
   },
 
-  setUser(user: User): void {
+  async setUser(user: User | null): Promise<void> {
     authStorage._user = user;
+    if (typeof window === 'undefined') return;
+    if (user) {
+      window.localStorage.setItem(USER_KEY, await encryptValue(JSON.stringify(user)));
+    } else {
+      window.localStorage.removeItem(USER_KEY);
+    }
   },
 
   /**
-   * Clear all auth state (both tokens and cached user).
+   * Clear all auth state (tokens and cached user).
    */
   clear(): void {
     authStorage._accessToken = null;
     authStorage._refreshToken = null;
     authStorage._user = null;
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(REFRESH_KEY);
+      window.localStorage.removeItem(USER_KEY);
+    }
+  },
+
+  /** Sync check for whether a refresh token is persisted (no decryption needed). */
+  hasPersistedRefresh(): boolean {
+    if (authStorage._refreshToken) return true;
+    if (typeof window === 'undefined') return false;
+    return !!window.localStorage.getItem(REFRESH_KEY);
   },
 
   /**
    * Check if user is authenticated (has tokens).
    */
   isAuthenticated(): boolean {
-    return !!authStorage.getAccessToken() || !!authStorage.getRefreshToken();
+    return !!authStorage.getAccessToken() || authStorage.hasPersistedRefresh();
   },
 };
 

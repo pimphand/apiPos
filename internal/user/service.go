@@ -206,7 +206,7 @@ func (s *Service) UpdateUserRole(ctx context.Context, idStr, roleIDStr string) (
 }
 
 // Register creates a new user with default role (Cashier)
-func (s *Service) Register(ctx context.Context, username, email, password, fullName string) (*auth.TokenPair, *gormdb.User, error) {
+func (s *Service) Register(ctx context.Context, username, email, password, fullName, deviceID string) (*auth.TokenPair, *gormdb.User, error) {
 	// Check if username already exists
 	_, err := s.repos.User.GetByUsername(ctx, username)
 	if err == nil {
@@ -261,24 +261,17 @@ func (s *Service) Register(ctx context.Context, username, email, password, fullN
 		return nil, nil, apperror.Wrap(apperror.ErrInternal, "Failed to create user", err)
 	}
 
-	// Generate tokens
-	tokenPair, err := s.auth.GenerateTokenPair(
-		user.ID.String(),
-		user.Username,
-		user.Email,
-		user.RoleID.String(),
-		"cashier",
-		user.StoreID.String(),
-	)
+	// Registration always assigns the cashier role.
+	tokenPair, err := s.issueTokenPair(ctx, user, deviceID, "cashier")
 	if err != nil {
-		return nil, nil, apperror.Wrap(apperror.ErrInternal, "Failed to generate tokens", err)
+		return nil, nil, err
 	}
 
 	return tokenPair, user, nil
 }
 
 // Login authenticates a user
-func (s *Service) Login(ctx context.Context, username, password string) (*auth.TokenPair, *gormdb.User, error) {
+func (s *Service) Login(ctx context.Context, username, password, deviceID string) (*auth.TokenPair, *gormdb.User, error) {
 	// Get user by username
 	user, err := s.repos.User.GetByUsername(ctx, username)
 	if err != nil {
@@ -298,17 +291,10 @@ func (s *Service) Login(ctx context.Context, username, password string) (*auth.T
 		return nil, nil, apperror.ErrInvalidCredentials
 	}
 
-	// Generate tokens
-	tokenPair, err := s.auth.GenerateTokenPair(
-		user.ID.String(),
-		user.Username,
-		user.Email,
-		user.RoleID.String(),
-		"user",
-		user.StoreID.String(),
-	)
+	// Issue a device-bound token pair
+	tokenPair, err := s.issueTokenPair(ctx, user, deviceID, user.Role.Name)
 	if err != nil {
-		return nil, nil, apperror.Wrap(apperror.ErrInternal, "Failed to generate tokens", err)
+		return nil, nil, err
 	}
 
 	// Update last login
@@ -317,16 +303,65 @@ func (s *Service) Login(ctx context.Context, username, password string) (*auth.T
 	return tokenPair, user, nil
 }
 
-// RefreshToken refreshes an access token
-func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*auth.TokenPair, error) {
-	// Validate refresh token
-	userIDStr, err := s.auth.ValidateRefreshToken(refreshToken)
+// issueTokenPair generates an access token and a device-bound refresh token,
+// persisting only the refresh token hash. The raw refresh token is returned to
+// the client.
+func (s *Service) issueTokenPair(ctx context.Context, user *gormdb.User, deviceID, roleName string) (*auth.TokenPair, error) {
+	accessToken, expiresAt, err := s.auth.GenerateAccessToken(
+		user.ID.String(),
+		user.Username,
+		user.Email,
+		user.RoleID.String(),
+		roleName,
+		user.StoreID.String(),
+	)
 	if err != nil {
-		return nil, err
+		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to generate access token", err)
+	}
+
+	rawRefresh, hash, refreshExpiresAt, err := s.auth.GenerateRefreshToken()
+	if err != nil {
+		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to generate refresh token", err)
+	}
+
+	// Persist only the hash, bound to the device so a token used from any other
+	// device is rejected.
+	rt := &gormdb.RefreshToken{
+		UserID:    user.ID,
+		Token:     hash,
+		DeviceID:  deviceID,
+		ExpiresAt: refreshExpiresAt,
+		IsRevoked: false,
+	}
+	if err := s.repos.RefreshToken.Create(ctx, rt); err != nil {
+		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to store refresh token", err)
+	}
+
+	return &auth.TokenPair{
+		AccessToken:  accessToken,
+		RefreshToken: rawRefresh,
+		ExpiresAt:    expiresAt,
+	}, nil
+}
+
+// RefreshToken refreshes an access token by rotating the device-bound refresh
+// token: the presented token must match its stored hash + device id, is then
+// revoked, and a new token pair is issued.
+func (s *Service) RefreshToken(ctx context.Context, refreshToken, deviceID string) (*auth.TokenPair, error) {
+	tokenHash := s.auth.HashToken(refreshToken)
+
+	// Look up the active token for this hash + device. A device mismatch,
+	// revoked token, or expired token all resolve to NOT_FOUND => invalid.
+	rt, err := s.repos.RefreshToken.GetActiveByTokenHash(ctx, tokenHash, deviceID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, apperror.ErrInvalidToken
+		}
+		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to validate refresh token", err)
 	}
 
 	// Get user
-	user, err := s.repos.User.GetByID(ctx, userIDStr)
+	user, err := s.repos.User.GetByID(ctx, rt.UserID.String())
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperror.ErrInvalidToken
@@ -339,20 +374,26 @@ func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*auth.
 		return nil, apperror.ErrUnauthorized
 	}
 
-	// Generate new tokens
-	tokenPair, err := s.auth.GenerateTokenPair(
-		user.ID.String(),
-		user.Username,
-		user.Email,
-		user.RoleID.String(),
-		"user",
-		user.StoreID.String(),
-	)
+	// Rotate: revoke the used token before issuing a new one.
+	if err := s.repos.RefreshToken.Revoke(ctx, rt.ID.String()); err != nil {
+		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to revoke refresh token", err)
+	}
+
+	tokenPair, err := s.issueTokenPair(ctx, user, deviceID, user.Role.Name)
 	if err != nil {
-		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to generate tokens", err)
+		return nil, err
 	}
 
 	return tokenPair, nil
+}
+
+// Logout revokes the presented refresh token (optionally scoped to a device).
+func (s *Service) Logout(ctx context.Context, refreshToken, deviceID string) error {
+	if refreshToken == "" {
+		return nil
+	}
+	tokenHash := s.auth.HashToken(refreshToken)
+	return s.repos.RefreshToken.RevokeByTokenHash(ctx, tokenHash, deviceID)
 }
 
 // parseUUID converts a string to UUID string

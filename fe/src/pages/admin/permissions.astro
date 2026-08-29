@@ -1,0 +1,8 @@
+---
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+import PermissionsPage from '@/components/admin/PermissionsPage.vue';
+---
+
+<DashboardLayout title="Permissions - POS Application">
+  <PermissionsPage client:only="vue" />
+</DashboardLayout>

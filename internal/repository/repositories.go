@@ -21,6 +21,7 @@ type Repositories struct {
 	Cashier          CashierRepository
 	Report           ReportRepository
 	ActivityLog      ActivityLogRepository
+	RefreshToken     RefreshTokenRepository
 }
 
 // DB returns the underlying GORM DB instance
@@ -46,5 +47,6 @@ func New(db *gorm.DB) *Repositories {
 		Cashier:        NewCashierRepository(db),
 		Report:         NewReportRepository(db),
 		ActivityLog:    NewActivityLogRepository(db),
+		RefreshToken:   NewRefreshTokenRepository(db),
 	}
 }

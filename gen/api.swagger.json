@@ -5333,6 +5333,10 @@
         },
         "password": {
           "type": "string"
+        },
+        "deviceId": {
+          "type": "string",
+          "description": "Browser/device identifier used to bind the issued refresh token so a\ntoken copied to another device cannot be used."
         }
       }
     },
@@ -5359,6 +5363,10 @@
       "properties": {
         "refreshToken": {
           "type": "string"
+        },
+        "deviceId": {
+          "type": "string",
+          "description": "Optional device identifier; when present, only tokens for this device are\nrevoked, otherwise all tokens for the user are revoked."
         }
       }
     },
@@ -5749,6 +5757,10 @@
       "properties": {
         "refreshToken": {
           "type": "string"
+        },
+        "deviceId": {
+          "type": "string",
+          "description": "Device identifier the refresh token was originally bound to. A mismatch\n(token pasted/used from another device) is rejected."
         }
       }
     },
@@ -5781,6 +5793,10 @@
         },
         "fullName": {
           "type": "string"
+        },
+        "deviceId": {
+          "type": "string",
+          "description": "Browser/device identifier used to bind the issued refresh token."
         }
       }
     },

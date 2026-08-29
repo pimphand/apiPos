@@ -1,6 +1,7 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import type { ApiError } from '@/types';
 import { navigateTo } from '@/lib/navigation';
+import { getDeviceId } from '@/lib/device';
 
 // Access token stored in memory (synced with auth store)
 let accessToken: string | null = null;
@@ -118,7 +119,7 @@ http.interceptors.response.use(
         // Try to refresh the token
         const response = await axios.post(
           `${import.meta.env.PUBLIC_API_BASE_URL || '/api'}/v1/auth/refresh`,
-          { refresh_token: refreshToken }
+          { refresh_token: refreshToken, device_id: getDeviceId() }
         );
 
         const resData = response.data ?? {};

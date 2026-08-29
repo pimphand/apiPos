@@ -45,6 +45,8 @@ message RegisterRequest {
   string email = 2;
   string password = 3;
   string full_name = 4;
+  // Browser/device identifier used to bind the issued refresh token.
+  string device_id = 5;
 }
 
 message RegisterResponse {
@@ -57,6 +59,9 @@ message RegisterResponse {
 message LoginRequest {
   string username = 1;
   string password = 2;
+  // Browser/device identifier used to bind the issued refresh token so a
+  // token copied to another device cannot be used.
+  string device_id = 3;
 }
 
 message LoginResponse {
@@ -79,6 +84,9 @@ message User {
 
 message RefreshTokenRequest {
   string refresh_token = 1;
+  // Device identifier the refresh token was originally bound to. A mismatch
+  // (token pasted/used from another device) is rejected.
+  string device_id = 2;
 }
 
 message RefreshTokenResponse {
@@ -89,6 +97,9 @@ message RefreshTokenResponse {
 
 message LogoutRequest {
   string refresh_token = 1;
+  // Optional device identifier; when present, only tokens for this device are
+  // revoked, otherwise all tokens for the user are revoked.
+  string device_id = 2;
 }
 
 message LogoutResponse {

@@ -37,6 +37,7 @@ import {
   BarChart3,
   UserCog,
   Shield,
+  KeyRound,
   FileText,
   Store,
 } from '@lucide/vue';
@@ -94,6 +95,7 @@ const menuGroups = computed(() => {
       items: [
         { label: 'Users', icon: UserCog, href: '/admin/users', permission: 'users.read' },
         { label: 'Roles', icon: Shield, href: '/admin/roles', permission: 'roles.read' },
+        { label: 'Permissions', icon: KeyRound, href: '/admin/permissions', permission: 'permissions.read' },
         { label: 'Activity Logs', icon: FileText, href: '/admin/activity-logs', permission: 'activity_logs.read' },
       ],
     },
