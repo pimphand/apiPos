@@ -14,11 +14,12 @@ import (
 type CategoryHandler struct {
 	categoryv1.UnimplementedCategoryServiceServer
 	service *category.Service
+	logs    *ActivityLogger
 }
 
 // NewCategoryHandler creates a new category Handler
-func NewCategoryHandler(service *category.Service) *CategoryHandler {
-	return &CategoryHandler{service: service}
+func NewCategoryHandler(service *category.Service, logs *ActivityLogger) *CategoryHandler {
+	return &CategoryHandler{service: service, logs: logs}
 }
 
 // CreateCategory creates a new category
@@ -27,6 +28,8 @@ func (h *CategoryHandler) CreateCategory(ctx context.Context, req *categoryv1.Cr
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
+
+	h.logs.Log(ctx, "CREATE", "categories", c.ID.String(), `{"name":"`+c.Name+`"}`)
 
 	return &categoryv1.CategoryResponse{
 		Category: toProtoCategoryFromGORM(c),
@@ -72,6 +75,8 @@ func (h *CategoryHandler) UpdateCategory(ctx context.Context, req *categoryv1.Up
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
 
+	h.logs.Log(ctx, "UPDATE", "categories", c.ID.String(), `{"name":"`+c.Name+`"}`)
+
 	return &categoryv1.CategoryResponse{
 		Category: toProtoCategoryFromGORM(c),
 	}, nil
@@ -79,9 +84,20 @@ func (h *CategoryHandler) UpdateCategory(ctx context.Context, req *categoryv1.Up
 
 // DeleteCategory deletes a category
 func (h *CategoryHandler) DeleteCategory(ctx context.Context, req *categoryv1.DeleteCategoryRequest) (*categoryv1.DeleteCategoryResponse, error) {
+	var meta interface{}
+	if c, gerr := h.service.GetCategory(ctx, req.Id); gerr == nil {
+		meta = c
+	}
+
 	err := h.service.DeleteCategory(ctx, req.Id)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
+	if meta != nil {
+		h.logs.LogJSON(ctx, "DELETE", "categories", req.Id, meta)
+	} else {
+		h.logs.Log(ctx, "DELETE", "categories", req.Id, `{}`)
 	}
 
 	return &categoryv1.DeleteCategoryResponse{
@@ -96,6 +112,8 @@ func (h *CategoryHandler) DeactivateCategory(ctx context.Context, req *categoryv
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
+
+	h.logs.Log(ctx, "UPDATE", "categories", req.Id, `{"is_active":false}`)
 
 	return &categoryv1.DeleteCategoryResponse{
 		Success: true,

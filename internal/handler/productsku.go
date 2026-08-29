@@ -19,12 +19,14 @@ import (
 type ProductSKUHandler struct {
 	productskuv1.UnimplementedProductServiceSKUServiceServer
 	service *productsku.Service
+	logs    *ActivityLogger
 }
 
 // NewProductSKUHandler creates a new product SKU handler
-func NewProductSKUHandler(service *productsku.Service) *ProductSKUHandler {
+func NewProductSKUHandler(service *productsku.Service, logs *ActivityLogger) *ProductSKUHandler {
 	return &ProductSKUHandler{
 		service: service,
+		logs:    logs,
 	}
 }
 
@@ -56,6 +58,9 @@ func (h *ProductSKUHandler) CreateProductSKU(ctx context.Context, req *productsk
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
+
+	h.logs.Log(ctx, "CREATE", "product_skus", productSKU.ID.String(),
+		`{"sku":"`+productSKU.SKU+`","barcode":"`+productSKU.Barcode+`"}`)
 
 	return &productskuv1.ProductSKUResponse{
 		ProductSku: toProtoProductSKU(productSKU),
@@ -198,6 +203,9 @@ func (h *ProductSKUHandler) UpdateProductSKU(ctx context.Context, req *productsk
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
 
+	h.logs.Log(ctx, "UPDATE", "product_skus", productSKU.ID.String(),
+		`{"sku":"`+productSKU.SKU+`"}`)
+
 	return &productskuv1.ProductSKUResponse{
 		ProductSku: toProtoProductSKU(productSKU),
 	}, nil
@@ -209,9 +217,20 @@ func (h *ProductSKUHandler) DeleteProductSKU(ctx context.Context, req *productsk
 		return nil, status.Error(codes.InvalidArgument, "id is required")
 	}
 
+	var meta interface{}
+	if ps, gerr := h.service.GetProductSKU(req.Id); gerr == nil {
+		meta = ps
+	}
+
 	err := h.service.DeleteProductSKU(req.Id)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
+	if meta != nil {
+		h.logs.LogJSON(ctx, "DELETE", "product_skus", req.Id, meta)
+	} else {
+		h.logs.Log(ctx, "DELETE", "product_skus", req.Id, `{}`)
 	}
 
 	return &productskuv1.DeleteProductSKUResponse{

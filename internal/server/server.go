@@ -317,43 +317,45 @@ func (s *Server) registerServices() {
 	healthServer.SetServingStatus("permission.v1.PermissionService", healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus("activitylog.v1.ActivityLogService", healthpb.HealthCheckResponse_SERVING)
 
-	authHandler := handler.NewAuthHandler(s.userService)
+	logs := handler.NewActivityLogger(s.activityLogService)
+
+	authHandler := handler.NewAuthHandler(s.userService, logs)
 	authv1.RegisterAuthServiceServer(s.grpcServer, authHandler)
 
-	userHandler := handler.NewUserHandler(s.userService)
+	userHandler := handler.NewUserHandler(s.userService, logs)
 	userv1.RegisterUserServiceServer(s.grpcServer, userHandler)
 
-	categoryHandler := handler.NewCategoryHandler(s.categoryService)
+	categoryHandler := handler.NewCategoryHandler(s.categoryService, logs)
 	categoryv1.RegisterCategoryServiceServer(s.grpcServer, categoryHandler)
 
-	productHandler := handler.NewProductHandler(s.productService, s.repositories)
+	productHandler := handler.NewProductHandler(s.productService, s.repositories, logs)
 	productv1.RegisterProductServiceServer(s.grpcServer, productHandler)
 
-	productSKUHandler := handler.NewProductSKUHandler(s.productSKUService)
+	productSKUHandler := handler.NewProductSKUHandler(s.productSKUService, logs)
 	productskuv1.RegisterProductServiceSKUServiceServer(s.grpcServer, productSKUHandler)
 
-	inventoryHandler := handler.NewInventoryHandler(s.inventoryService)
+	inventoryHandler := handler.NewInventoryHandler(s.inventoryService, logs)
 	inventoryv1.RegisterInventoryServiceServer(s.grpcServer, inventoryHandler)
 
-	customerHandler := handler.NewCustomerHandler(s.customerService)
+	customerHandler := handler.NewCustomerHandler(s.customerService, logs)
 	customerv1.RegisterCustomerServiceServer(s.grpcServer, customerHandler)
 
-	saleHandler := handler.NewSaleHandler(s.saleService, s.repositories)
+	saleHandler := handler.NewSaleHandler(s.saleService, s.repositories, logs)
 	salev1.RegisterSaleServiceServer(s.grpcServer, saleHandler)
 
-	paymentHandler := handler.NewPaymentHandler(s.paymentService)
+	paymentHandler := handler.NewPaymentHandler(s.paymentService, logs)
 	paymentv1.RegisterPaymentServiceServer(s.grpcServer, paymentHandler)
 
-	cashierHandler := handler.NewCashierHandler(s.cashierService, s.repositories)
+	cashierHandler := handler.NewCashierHandler(s.cashierService, s.repositories, logs)
 	cashierpb.RegisterCashierServiceServer(s.grpcServer, cashierHandler)
 
 	reportHandler := handler.NewReportHandler(s.reportService)
 	reportv1.RegisterReportServiceServer(s.grpcServer, reportHandler)
 
-	roleHandler := handler.NewRoleHandler(s.roleService)
+	roleHandler := handler.NewRoleHandler(s.roleService, logs)
 	rolev1.RegisterRoleServiceServer(s.grpcServer, roleHandler)
 
-	permissionHandler := handler.NewPermissionHandler(s.permissionService)
+	permissionHandler := handler.NewPermissionHandler(s.permissionService, logs)
 	permissionv1.RegisterPermissionServiceServer(s.grpcServer, permissionHandler)
 
 	activityLogHandler := handler.NewActivityLogHandler(s.activityLogService)

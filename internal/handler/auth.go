@@ -13,11 +13,12 @@ import (
 type AuthHandler struct {
 	authv1.UnimplementedAuthServiceServer
 	userService *user.Service
+	logs        *ActivityLogger
 }
 
 // NewAuthHandler creates a new auth Handler
-func NewAuthHandler(userService *user.Service) *AuthHandler {
-	return &AuthHandler{userService: userService}
+func NewAuthHandler(userService *user.Service, logs *ActivityLogger) *AuthHandler {
+	return &AuthHandler{userService: userService, logs: logs}
 }
 
 // Register creates a new user account
@@ -26,6 +27,9 @@ func (h *AuthHandler) Register(ctx context.Context, req *authv1.RegisterRequest)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
+
+	h.logs.LogWithUser(ctx, u.ID.String(), u.Username, "CREATE", "users", u.ID.String(),
+		`{"username":"`+u.Username+`","email":"`+u.Email+`"}`)
 
 	return &authv1.RegisterResponse{
 		AccessToken:  tokenPair.AccessToken,
@@ -59,6 +63,9 @@ func (h *AuthHandler) Login(ctx context.Context, req *authv1.LoginRequest) (*aut
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
+
+	h.logs.LogWithUser(ctx, u.ID.String(), u.Username, "LOGIN", "auth", u.ID.String(),
+		`{"username":"`+u.Username+`"}`)
 
 	return &authv1.LoginResponse{
 		AccessToken:  tokenPair.AccessToken,
@@ -96,6 +103,8 @@ func (h *AuthHandler) Logout(ctx context.Context, req *authv1.LogoutRequest) (*a
 	if err := h.userService.Logout(ctx, req.RefreshToken, req.DeviceId); err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
+
+	h.logs.Log(ctx, "LOGOUT", "auth", "", `{}`)
 
 	return &authv1.LogoutResponse{
 		Success: true,

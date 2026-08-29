@@ -1,15 +1,8 @@
 ---
 import DashboardLayout from '@/layouts/DashboardLayout.astro';
-import ModulePlaceholder from '@/components/layout/ModulePlaceholder.vue';
+import InventoryPage from '@/components/admin/InventoryPage.vue';
 ---
 
 <DashboardLayout title="Inventory - POS Application">
-  <ModulePlaceholder
-    client:only="vue"
-    title="Inventory"
-    description="Track stock movements, adjust quantities, and monitor low-stock items."
-    icon="📋"
-    permission="inventory.read"
-    hint="Inventory transactions (purchase, sale, return, adjustment, damage, transfer) and low-stock alerts will be implemented here in a later phase."
-  />
+  <InventoryPage client:only="vue" />
 </DashboardLayout>

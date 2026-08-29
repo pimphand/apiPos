@@ -101,7 +101,8 @@ func (r *UserRepo) List(ctx context.Context, params UserListParams) ([]gormdb.Us
 
 	// Apply pagination
 	normalized := PaginationParams{Page: params.Page, PerPage: params.PerPage}.normalize()
-	err := query.Order("created_at DESC").
+	err := query.Preload("Role").
+		Order("created_at DESC").
 		Offset(normalized.offset()).
 		Limit(normalized.limit()).
 		Find(&users).Error

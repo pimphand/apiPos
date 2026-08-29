@@ -14,11 +14,12 @@ import (
 type PaymentHandler struct {
 	paymentv1.UnimplementedPaymentServiceServer
 	service *payment.Service
+	logs    *ActivityLogger
 }
 
 // NewPaymentHandler creates a new payment Handler
-func NewPaymentHandler(service *payment.Service) *PaymentHandler {
-	return &PaymentHandler{service: service}
+func NewPaymentHandler(service *payment.Service, logs *ActivityLogger) *PaymentHandler {
+	return &PaymentHandler{service: service, logs: logs}
 }
 
 // CreatePayment creates a new payment for a sale
@@ -32,6 +33,9 @@ func (h *PaymentHandler) CreatePayment(ctx context.Context, req *paymentv1.Creat
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
+
+	h.logs.Log(ctx, "CREATE", "payments", p.ID.String(),
+		`{"sale_id":"`+p.SaleID.String()+`","payment_method":"`+p.PaymentMethod+`","amount":`+float64Str(p.Amount)+`}`)
 
 	return &paymentv1.PaymentResponse{
 		Payment: toProtoPayment(p),
@@ -89,9 +93,20 @@ func (h *PaymentHandler) ListPayments(ctx context.Context, req *paymentv1.ListPa
 
 // DeletePayment deletes a payment
 func (h *PaymentHandler) DeletePayment(ctx context.Context, req *paymentv1.DeletePaymentRequest) (*paymentv1.DeletePaymentResponse, error) {
+	var meta interface{}
+	if p, gerr := h.service.GetPayment(ctx, req.Id); gerr == nil {
+		meta = p
+	}
+
 	err := h.service.DeletePayment(ctx, req.Id)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
+	if meta != nil {
+		h.logs.LogJSON(ctx, "DELETE", "payments", req.Id, meta)
+	} else {
+		h.logs.Log(ctx, "DELETE", "payments", req.Id, `{}`)
 	}
 
 	return &paymentv1.DeletePaymentResponse{

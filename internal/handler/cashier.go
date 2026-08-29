@@ -15,11 +15,12 @@ type CashierHandler struct {
 	cashierpb.UnimplementedCashierServiceServer
 	service *cashier.Service
 	repos   *repository.Repositories
+	logs    *ActivityLogger
 }
 
 // NewCashierHandler creates a new cashier Handler
-func NewCashierHandler(service *cashier.Service, repos *repository.Repositories) *CashierHandler {
-	return &CashierHandler{service: service, repos: repos}
+func NewCashierHandler(service *cashier.Service, repos *repository.Repositories, logs *ActivityLogger) *CashierHandler {
+	return &CashierHandler{service: service, repos: repos, logs: logs}
 }
 
 // OpenShift opens a new cashier shift
@@ -34,6 +35,9 @@ func (h *CashierHandler) OpenShift(ctx context.Context, req *cashierpb.OpenShift
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
+
+	h.logs.Log(ctx, "OPEN_SHIFT", "cashier", shift.ID.String(),
+		`{"store_id":"`+shift.StoreID.String()+`","opening_cash":`+float64Str(shift.OpeningCash)+`}`)
 
 	return &cashierpb.ShiftResponse{
 		Shift: toProtoShift(shift, h.repos),
@@ -50,6 +54,9 @@ func (h *CashierHandler) CloseShift(ctx context.Context, req *cashierpb.CloseShi
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
+
+	h.logs.Log(ctx, "CLOSE_SHIFT", "cashier", shift.ID.String(),
+		`{"actual_cash":`+float64Str(shift.ActualCash)+`,"difference":`+float64Str(shift.CashDifference)+`}`)
 
 	return &cashierpb.ShiftResponse{
 		Shift: toProtoShift(shift, h.repos),

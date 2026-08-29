@@ -17,11 +17,12 @@ type SaleHandler struct {
 	salev1.UnimplementedSaleServiceServer
 	service *sale.Service
 	repos   *repository.Repositories
+	logs    *ActivityLogger
 }
 
 // NewSaleHandler creates a new sale Handler
-func NewSaleHandler(service *sale.Service, repos *repository.Repositories) *SaleHandler {
-	return &SaleHandler{service: service, repos: repos}
+func NewSaleHandler(service *sale.Service, repos *repository.Repositories, logs *ActivityLogger) *SaleHandler {
+	return &SaleHandler{service: service, repos: repos, logs: logs}
 }
 
 // CreateSale creates a new sale (checkout)
@@ -55,6 +56,9 @@ func (h *SaleHandler) CreateSale(ctx context.Context, req *salev1.CreateSaleRequ
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
+
+	h.logs.Log(ctx, "CREATE", "sales", detail.Sale.ID.String(),
+		`{"invoice_number":"`+detail.Sale.InvoiceNumber+`","grand_total":`+float64Str(detail.Sale.GrandTotal)+`}`)
 
 	return &salev1.SaleResponse{
 		Sale: toProtoSale(&detail.Sale, h.repos),
@@ -122,6 +126,9 @@ func (h *SaleHandler) CancelSale(ctx context.Context, req *salev1.CancelSaleRequ
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
 
+	h.logs.Log(ctx, "CANCEL", "sales", req.Id,
+		`{"invoice_number":"`+detail.Sale.InvoiceNumber+`"}`)
+
 	return &salev1.SaleResponse{
 		Sale: toProtoSale(&detail.Sale, h.repos),
 	}, nil
@@ -138,6 +145,9 @@ func (h *SaleHandler) RefundSale(ctx context.Context, req *salev1.RefundSaleRequ
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
+
+	h.logs.Log(ctx, "REFUND", "sales", req.Id,
+		`{"invoice_number":"`+detail.Sale.InvoiceNumber+`"}`)
 
 	return &salev1.SaleResponse{
 		Sale: toProtoSale(&detail.Sale, h.repos),

@@ -147,6 +147,28 @@ export const useAuthStore = defineStore('auth', () => {
         authStorage.setAccessToken(access_token);
         await authStorage.setRefreshToken(newRefreshToken);
 
+        // Re-fetch the current user so cached role/permissions stay in sync
+        // with the backend (e.g. a role change or the initial role assignment
+        // on a stale reload) instead of serving the stale persisted profile.
+        const currentId = user.value?.id;
+        if (currentId) {
+          try {
+            const { userService } = await import('@/services/user');
+            const previousRole = user.value?.role_name;
+            const fresh = await userService.get(currentId);
+            const freshUser = normalizeUser(fresh as Record<string, any>);
+            // Defensive: if the fetched profile omits the role, keep the
+            // existing one so we never downgrade to "no permission".
+            if (!freshUser.role_name && previousRole) {
+              freshUser.role_name = previousRole;
+            }
+            user.value = freshUser;
+            await authStorage.setUser(user.value);
+          } catch {
+            // Profile refresh is best-effort; token refresh above still succeeded.
+          }
+        }
+
         return access_token;
       } catch (err) {
         // Refresh failed - logout

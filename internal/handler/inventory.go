@@ -8,6 +8,7 @@ import (
 
 	inventoryv1 "apiPos/gen/inventory/v1"
 	"apiPos/internal/apperror"
+	"apiPos/internal/auth"
 	gormdb "apiPos/internal/database/gorm"
 	"apiPos/internal/inventory"
 )
@@ -16,11 +17,12 @@ import (
 type InventoryHandler struct {
 	inventoryv1.UnimplementedInventoryServiceServer
 	service *inventory.Service
+	logs    *ActivityLogger
 }
 
 // NewInventoryHandler creates a new inventory Handler
-func NewInventoryHandler(service *inventory.Service) *InventoryHandler {
-	return &InventoryHandler{service: service}
+func NewInventoryHandler(service *inventory.Service, logs *ActivityLogger) *InventoryHandler {
+	return &InventoryHandler{service: service, logs: logs}
 }
 
 // CreateTransaction creates a new inventory transaction
@@ -41,6 +43,9 @@ func (h *InventoryHandler) CreateTransaction(ctx context.Context, req *inventory
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
+
+	h.logs.Log(ctx, "CREATE", "inventory", txn.ID.String(),
+		`{"type":"`+txn.Type+`","quantity":`+itoa(int(txn.Quantity))+`,"product_id":"`+txn.ProductID.String()+`"}`)
 
 	return &inventoryv1.TransactionResponse{
 		Transaction: toProtoTransaction(txn, h.service),
@@ -95,6 +100,9 @@ func (h *InventoryHandler) AdjustStock(ctx context.Context, req *inventoryv1.Adj
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
+
+	h.logs.Log(ctx, "ADJUST", "inventory", txn.ID.String(),
+		`{"direction":"`+req.Direction+`","quantity":`+itoa(int(req.Quantity))+`,"product_id":"`+req.ProductId+`"}`)
 
 	return &inventoryv1.TransactionResponse{
 		Transaction: toProtoTransaction(txn, h.service),
@@ -178,11 +186,11 @@ func toProtoTransaction(txn *gormdb.InventoryTransaction, svc *inventory.Service
 	return protoTxn
 }
 
-// getUserIDFromContext extracts user ID from context (set by auth middleware)
+// getUserIDFromContext extracts user ID from the authenticated claims stored in
+// context by the auth interceptor (see internal/auth.AuthService).
 func getUserIDFromContext(ctx context.Context) string {
-	// Try to get from context - auth middleware sets this
-	if userID, ok := ctx.Value("user_id").(string); ok {
-		return userID
+	if claims, ok := auth.ClaimsFromContext(ctx); ok && claims.UserID != "" {
+		return claims.UserID
 	}
 	// Fallback - return empty string (will be validated in service)
 	log.Printf("Warning: user_id not found in context")

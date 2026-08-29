@@ -21,11 +21,12 @@ type ProductHandler struct {
 	productv1.UnimplementedProductServiceServer
 	service *product.Service
 	repos   *repository.Repositories
+	logs    *ActivityLogger
 }
 
 // NewProductHandler creates a new product Handler
-func NewProductHandler(service *product.Service, repos *repository.Repositories) *ProductHandler {
-	return &ProductHandler{service: service, repos: repos}
+func NewProductHandler(service *product.Service, repos *repository.Repositories, logs *ActivityLogger) *ProductHandler {
+	return &ProductHandler{service: service, repos: repos, logs: logs}
 }
 
 // CreateProduct creates a new product
@@ -55,6 +56,9 @@ func (h *ProductHandler) CreateProduct(ctx context.Context, req *productv1.Creat
 
 	// Load SKU count and category name for the created product
 	protoProduct := h.toProtoProductEnriched(p)
+
+	h.logs.Log(ctx, "CREATE", "products", p.ID.String(),
+		`{"name":"`+p.Name+`","sku":"`+req.Sku+`"}`)
 
 	return &productv1.ProductResponse{
 		Product: protoProduct,
@@ -201,6 +205,9 @@ func (h *ProductHandler) UpdateProduct(ctx context.Context, req *productv1.Updat
 
 	protoProduct := h.toProtoProductEnriched(p)
 
+	h.logs.Log(ctx, "UPDATE", "products", p.ID.String(),
+		`{"name":"`+p.Name+`"}`)
+
 	return &productv1.ProductResponse{
 		Product: protoProduct,
 	}, nil
@@ -208,9 +215,20 @@ func (h *ProductHandler) UpdateProduct(ctx context.Context, req *productv1.Updat
 
 // DeleteProduct deletes a product
 func (h *ProductHandler) DeleteProduct(ctx context.Context, req *productv1.DeleteProductRequest) (*productv1.DeleteProductResponse, error) {
+	var meta interface{}
+	if p, gerr := h.service.GetProduct(ctx, req.Id); gerr == nil {
+		meta = p
+	}
+
 	err := h.service.DeleteProduct(ctx, req.Id)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
+	if meta != nil {
+		h.logs.LogJSON(ctx, "DELETE", "products", req.Id, meta)
+	} else {
+		h.logs.Log(ctx, "DELETE", "products", req.Id, `{}`)
 	}
 
 	return &productv1.DeleteProductResponse{
@@ -226,6 +244,8 @@ func (h *ProductHandler) ActivateProduct(ctx context.Context, req *productv1.Act
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
 
+	h.logs.Log(ctx, "UPDATE", "products", req.Id, `{"is_active":true}`)
+
 	return &productv1.DeleteProductResponse{
 		Success: true,
 		Message: response.MsgProductActivated,
@@ -238,6 +258,8 @@ func (h *ProductHandler) DeactivateProduct(ctx context.Context, req *productv1.D
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
+
+	h.logs.Log(ctx, "UPDATE", "products", req.Id, `{"is_active":false}`)
 
 	return &productv1.DeleteProductResponse{
 		Success: true,

@@ -14,11 +14,12 @@ import (
 type PermissionHandler struct {
 	permissionv1.UnimplementedPermissionServiceServer
 	service *permission.Service
+	logs    *ActivityLogger
 }
 
 // NewPermissionHandler creates a new permission Handler
-func NewPermissionHandler(service *permission.Service) *PermissionHandler {
-	return &PermissionHandler{service: service}
+func NewPermissionHandler(service *permission.Service, logs *ActivityLogger) *PermissionHandler {
+	return &PermissionHandler{service: service, logs: logs}
 }
 
 // GetPermission gets a permission by ID
@@ -94,6 +95,9 @@ func (h *PermissionHandler) CreatePermission(ctx context.Context, req *permissio
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
 
+	h.logs.Log(ctx, "CREATE", "permissions", p.ID.String(),
+		`{"name":"`+p.Name+`","resource":"`+p.Resource+`"}`)
+
 	return &permissionv1.PermissionResponse{
 		Permission: toProtoPermFromGORM(p),
 	}, nil
@@ -106,6 +110,8 @@ func (h *PermissionHandler) UpdatePermission(ctx context.Context, req *permissio
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
 
+	h.logs.Log(ctx, "UPDATE", "permissions", p.ID.String(), `{"name":"`+p.Name+`"}`)
+
 	return &permissionv1.PermissionResponse{
 		Permission: toProtoPermFromGORM(p),
 	}, nil
@@ -113,9 +119,20 @@ func (h *PermissionHandler) UpdatePermission(ctx context.Context, req *permissio
 
 // DeletePermission deletes a permission
 func (h *PermissionHandler) DeletePermission(ctx context.Context, req *permissionv1.DeletePermissionRequest) (*permissionv1.DeletePermissionResponse, error) {
+	var meta interface{}
+	if p, gerr := h.service.GetPermission(ctx, req.Id); gerr == nil {
+		meta = p
+	}
+
 	err := h.service.DeletePermission(ctx, req.Id)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
+	if meta != nil {
+		h.logs.LogJSON(ctx, "DELETE", "permissions", req.Id, meta)
+	} else {
+		h.logs.Log(ctx, "DELETE", "permissions", req.Id, `{}`)
 	}
 
 	return &permissionv1.DeletePermissionResponse{

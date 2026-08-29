@@ -14,11 +14,12 @@ import (
 type CustomerHandler struct {
 	customerv1.UnimplementedCustomerServiceServer
 	service *customer.Service
+	logs    *ActivityLogger
 }
 
 // NewCustomerHandler creates a new customer Handler
-func NewCustomerHandler(service *customer.Service) *CustomerHandler {
-	return &CustomerHandler{service: service}
+func NewCustomerHandler(service *customer.Service, logs *ActivityLogger) *CustomerHandler {
+	return &CustomerHandler{service: service, logs: logs}
 }
 
 // CreateCustomer creates a new customer
@@ -33,6 +34,8 @@ func (h *CustomerHandler) CreateCustomer(ctx context.Context, req *customerv1.Cr
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
+
+	h.logs.Log(ctx, "CREATE", "customers", c.ID.String(), `{"name":"`+c.Name+`"}`)
 
 	return &customerv1.CustomerResponse{
 		Customer: toProtoCustomer(c),
@@ -106,6 +109,8 @@ func (h *CustomerHandler) UpdateCustomer(ctx context.Context, req *customerv1.Up
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
 
+	h.logs.Log(ctx, "UPDATE", "customers", c.ID.String(), `{"name":"`+c.Name+`"}`)
+
 	return &customerv1.CustomerResponse{
 		Customer: toProtoCustomer(c),
 	}, nil
@@ -113,9 +118,20 @@ func (h *CustomerHandler) UpdateCustomer(ctx context.Context, req *customerv1.Up
 
 // DeleteCustomer deletes a customer
 func (h *CustomerHandler) DeleteCustomer(ctx context.Context, req *customerv1.DeleteCustomerRequest) (*customerv1.DeleteCustomerResponse, error) {
+	var meta interface{}
+	if c, gerr := h.service.GetCustomer(ctx, req.Id); gerr == nil {
+		meta = c
+	}
+
 	err := h.service.DeleteCustomer(ctx, req.Id)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
+	if meta != nil {
+		h.logs.LogJSON(ctx, "DELETE", "customers", req.Id, meta)
+	} else {
+		h.logs.Log(ctx, "DELETE", "customers", req.Id, `{}`)
 	}
 
 	return &customerv1.DeleteCustomerResponse{
@@ -130,6 +146,8 @@ func (h *CustomerHandler) DeactivateCustomer(ctx context.Context, req *customerv
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
+
+	h.logs.Log(ctx, "UPDATE", "customers", req.Id, `{"is_active":false}`)
 
 	return &customerv1.DeleteCustomerResponse{
 		Success: true,

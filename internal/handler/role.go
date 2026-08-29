@@ -15,11 +15,12 @@ import (
 type RoleHandler struct {
 	rolev1.UnimplementedRoleServiceServer
 	service *role.Service
+	logs    *ActivityLogger
 }
 
 // NewRoleHandler creates a new role Handler
-func NewRoleHandler(service *role.Service) *RoleHandler {
-	return &RoleHandler{service: service}
+func NewRoleHandler(service *role.Service, logs *ActivityLogger) *RoleHandler {
+	return &RoleHandler{service: service, logs: logs}
 }
 
 // CreateRole creates a new role
@@ -28,6 +29,8 @@ func (h *RoleHandler) CreateRole(ctx context.Context, req *rolev1.CreateRoleRequ
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
+
+	h.logs.Log(ctx, "CREATE", "roles", r.ID.String(), `{"name":"`+r.Name+`"}`)
 
 	return &rolev1.RoleResponse{
 		Role: toProtoRoleFromGORM(r),
@@ -80,6 +83,8 @@ func (h *RoleHandler) UpdateRole(ctx context.Context, req *rolev1.UpdateRoleRequ
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
 
+	h.logs.Log(ctx, "UPDATE", "roles", r.ID.String(), `{"name":"`+r.Name+`"}`)
+
 	return &rolev1.RoleResponse{
 		Role: toProtoRoleFromGORM(r),
 	}, nil
@@ -87,9 +92,20 @@ func (h *RoleHandler) UpdateRole(ctx context.Context, req *rolev1.UpdateRoleRequ
 
 // DeleteRole deletes a role
 func (h *RoleHandler) DeleteRole(ctx context.Context, req *rolev1.DeleteRoleRequest) (*rolev1.DeleteRoleResponse, error) {
+	var meta interface{}
+	if r, gerr := h.service.GetRole(ctx, req.Id); gerr == nil {
+		meta = r
+	}
+
 	err := h.service.DeleteRole(ctx, req.Id)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
+	if meta != nil {
+		h.logs.LogJSON(ctx, "DELETE", "roles", req.Id, meta)
+	} else {
+		h.logs.Log(ctx, "DELETE", "roles", req.Id, `{}`)
 	}
 
 	return &rolev1.DeleteRoleResponse{
@@ -127,6 +143,9 @@ func (h *RoleHandler) AssignPermissions(ctx context.Context, req *rolev1.AssignP
 		protoPermissions[i] = toProtoPermissionFromGORM(&p)
 	}
 
+	h.logs.Log(ctx, "UPDATE", "roles", req.Id,
+		`{"action":"assign_permissions","count":`+itoa(len(req.PermissionIds))+`}`)
+
 	return &rolev1.AssignPermissionsResponse{
 		Permissions: protoPermissions,
 		Message:     "Permissions assigned successfully",
@@ -139,6 +158,9 @@ func (h *RoleHandler) RemovePermission(ctx context.Context, req *rolev1.RemovePe
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
+
+	h.logs.Log(ctx, "UPDATE", "roles", req.RoleId,
+		`{"action":"remove_permission","permission_id":"`+req.PermissionId+`"}`)
 
 	return &rolev1.RemovePermissionResponse{
 		Success: true,

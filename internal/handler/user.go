@@ -14,11 +14,12 @@ import (
 type UserHandler struct {
 	userv1.UnimplementedUserServiceServer
 	service *user.Service
+	logs    *ActivityLogger
 }
 
 // NewUserHandler creates a new user Handler
-func NewUserHandler(service *user.Service) *UserHandler {
-	return &UserHandler{service: service}
+func NewUserHandler(service *user.Service, logs *ActivityLogger) *UserHandler {
+	return &UserHandler{service: service, logs: logs}
 }
 
 // CreateUser creates a new user
@@ -27,6 +28,9 @@ func (h *UserHandler) CreateUser(ctx context.Context, req *userv1.CreateUserRequ
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
+
+	h.logs.Log(ctx, "CREATE", "users", u.ID.String(),
+		`{"username":"`+u.Username+`","email":"`+u.Email+`"}`)
 
 	return &userv1.UserResponse{
 		User: toProtoUserFromGORM(u, ""),
@@ -81,6 +85,9 @@ func (h *UserHandler) UpdateUser(ctx context.Context, req *userv1.UpdateUserRequ
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
 
+	h.logs.Log(ctx, "UPDATE", "users", u.ID.String(),
+		`{"username":"`+u.Username+`","is_active":`+boolStr(u.IsActive)+`}`)
+
 	return &userv1.UserResponse{
 		User: toProtoUserFromGORM(u, ""),
 	}, nil
@@ -88,9 +95,20 @@ func (h *UserHandler) UpdateUser(ctx context.Context, req *userv1.UpdateUserRequ
 
 // DeleteUser deletes a user
 func (h *UserHandler) DeleteUser(ctx context.Context, req *userv1.DeleteUserRequest) (*userv1.DeleteUserResponse, error) {
+	var meta interface{}
+	if u, gerr := h.service.GetUser(ctx, req.Id); gerr == nil {
+		meta = u
+	}
+
 	err := h.service.DeleteUser(ctx, req.Id)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
+	if meta != nil {
+		h.logs.LogJSON(ctx, "DELETE", "users", req.Id, meta)
+	} else {
+		h.logs.Log(ctx, "DELETE", "users", req.Id, `{}`)
 	}
 
 	return &userv1.DeleteUserResponse{
@@ -106,13 +124,17 @@ func (h *UserHandler) UpdateUserRole(ctx context.Context, req *userv1.UpdateUser
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
 
+	h.logs.Log(ctx, "UPDATE", "users", u.ID.String(),
+		`{"username":"`+u.Username+`","role_id":"`+req.RoleId+`"}`)
+
 	return &userv1.UserResponse{
 		User: toProtoUserFromGORM(u, ""),
 	}, nil
 }
 
 // toProtoUserFromGORM converts a GORM User model to proto User
-func toProtoUserFromGORM(u *gormdb.User, roleName string) *userv1.User {
+func toProtoUserFromGORM(u *gormdb.User, _ string) *userv1.User {
+	roleName := u.Role.Name
 	return &userv1.User{
 		Id:        u.ID.String(),
 		Username:  u.Username,
