@@ -109,34 +109,60 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function refreshAccessToken() {
+  let refreshPromise: Promise<string | null> | null = null;
+  let restorePromise: Promise<User | null> | null = null;
+
+  function refreshAccessToken() {
+    // Single-flight: if a refresh is already in progress, share it. The
+    // backend rotates (revokes) the refresh token on use, so concurrent
+    // refresh calls with the same token would race and the second one would
+    // fail with 401 -> logout. Multiple guarded components (DashboardShell +
+    // page guards) call restoreSession at once on reload, so this dedup is
+    // required to survive a page reload.
+    if (refreshPromise) {
+      return refreshPromise;
+    }
+
     if (!refreshToken.value) {
+      refreshPromise = Promise.reject(new Error('No refresh token available'));
+      refreshPromise = null;
       throw new Error('No refresh token available');
     }
 
-    try {
-      const response = await http.post('/v1/auth/refresh', {
-        refresh_token: refreshToken.value,
-        device_id: getDeviceId(),
-      });
+    const pending = (async () => {
+      try {
+        const response = await http.post('/v1/auth/refresh', {
+          refresh_token: refreshToken.value,
+          device_id: getDeviceId(),
+        });
 
-      const resData = response.data ?? {};
-      const access_token = resData.access_token ?? resData.accessToken;
-      const newRefreshToken = resData.refresh_token ?? resData.refreshToken;
+        const resData = response.data ?? {};
+        const access_token = resData.access_token ?? resData.accessToken;
+        const newRefreshToken = resData.refresh_token ?? resData.refreshToken;
 
-      // Update tokens (mirrors the rotated refresh token to localStorage)
-      accessToken.value = access_token;
-      refreshToken.value = newRefreshToken;
-      tokenManager.setTokens(access_token, newRefreshToken);
-      authStorage.setAccessToken(access_token);
-      await authStorage.setRefreshToken(newRefreshToken);
+        // Update tokens (mirrors the rotated refresh token to localStorage)
+        accessToken.value = access_token;
+        refreshToken.value = newRefreshToken;
+        tokenManager.setTokens(access_token, newRefreshToken);
+        authStorage.setAccessToken(access_token);
+        await authStorage.setRefreshToken(newRefreshToken);
 
-      return access_token;
-    } catch (err) {
-      // Refresh failed - logout
-      logout();
-      throw err;
-    }
+        return access_token;
+      } catch (err) {
+        // Refresh failed - logout
+        logout();
+        throw err;
+      }
+    })();
+
+    refreshPromise = pending;
+    pending.finally(() => {
+      if (refreshPromise === pending) {
+        refreshPromise = null;
+      }
+    }).catch(() => {});
+
+    return pending;
   }
 
   /**
@@ -152,26 +178,41 @@ export const useAuthStore = defineStore('auth', () => {
       return user.value;
     }
 
-    const persistedRefresh = await authStorage.getRefreshToken();
-    const cachedUser = await authStorage.getUser();
-
-    if (!persistedRefresh) {
-      return null;
+    // Single-flight: multiple guarded components (DashboardShell + page guard)
+    // call restoreSession at once on reload. Share one restore result so they
+    // don't each trigger their own refresh (the backend rotates refresh tokens).
+    if (restorePromise) {
+      return restorePromise;
     }
 
-    // Stage the refresh token + cached profile so refreshAccessToken can run
-    // and the guard has a user while the access token is being minted.
-    refreshToken.value = persistedRefresh;
-    if (cachedUser) {
-      user.value = cachedUser;
-    }
+    restorePromise = (async () => {
+      const persistedRefresh = await authStorage.getRefreshToken();
+      const cachedUser = await authStorage.getUser();
+
+      if (!persistedRefresh) {
+        return null;
+      }
+
+      // Stage the refresh token + cached profile so refreshAccessToken can run
+      // and the guard has a user while the access token is being minted.
+      refreshToken.value = persistedRefresh;
+      if (cachedUser) {
+        user.value = cachedUser;
+      }
+
+      try {
+        await refreshAccessToken();
+        return user.value;
+      } catch {
+        // refreshAccessToken already clears local state on failure.
+        return null;
+      }
+    })();
 
     try {
-      await refreshAccessToken();
-      return user.value;
-    } catch {
-      // refreshAccessToken already clears local state on failure.
-      return null;
+      return await restorePromise;
+    } finally {
+      restorePromise = null;
     }
   }
 

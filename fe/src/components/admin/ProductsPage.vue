@@ -11,8 +11,6 @@ import Button from '@/components/ui/button/Button.vue';
 import Input from '@/components/ui/input/Input.vue';
 import Label from '@/components/ui/label/Label.vue';
 import Textarea from '@/components/ui/textarea/Textarea.vue';
-import Badge from '@/components/ui/badge/Badge.vue';
-import Switch from '@/components/ui/switch/Switch.vue';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -254,9 +252,21 @@ async function save() {
   }
 }
 
-async function toggleActive(p: Product) {
+const statusTarget = ref<Product | null>(null);
+const statusAction = ref<'activate' | 'deactivate'>('deactivate');
+const toggling = ref(false);
+
+function openStatusDialog(p: Product) {
+  statusAction.value = p.is_active ? 'deactivate' : 'activate';
+  statusTarget.value = p;
+}
+
+async function confirmStatusToggle() {
+  const p = statusTarget.value;
+  if (!p) return;
+  toggling.value = true;
   try {
-    if (p.is_active) {
+    if (statusAction.value === 'deactivate') {
       await productService.deactivate(p.id);
       ui.addToast('success', 'Product deactivated');
     } else {
@@ -266,6 +276,9 @@ async function toggleActive(p: Product) {
     load();
   } catch (err) {
     ui.addToast('error', apiMessage(err));
+  } finally {
+    toggling.value = false;
+    statusTarget.value = null;
   }
 }
 
@@ -371,7 +384,16 @@ watch(isReady, (r) => {
                 <TableCell class="text-right tabular-nums">{{ p.stock }}</TableCell>
                 <TableCell class="text-center tabular-nums">{{ p.sku_count ?? 0 }}</TableCell>
                 <TableCell>
-                  <Badge :variant="p.is_active ? 'default' : 'secondary'">{{ p.is_active ? 'Active' : 'Inactive' }}</Badge>
+                  <button
+                    type="button"
+                    class="inline-flex items-center gap-1.5 rounded px-2 py-1 text-xs font-medium transition-colors hover:opacity-80"
+                    :class="p.is_active ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'"
+                    @click="openStatusDialog(p)"
+                    :title="p.is_active ? 'Click to deactivate' : 'Click to activate'"
+                  >
+                    <span class="size-1.5 rounded-full" :class="p.is_active ? 'bg-primary' : 'bg-muted-foreground'"></span>
+                    {{ p.is_active ? 'Active' : 'Inactive' }}
+                  </button>
                 </TableCell>
                 <TableCell class="text-right">
                   <div class="flex justify-end items-center gap-2">
@@ -404,6 +426,33 @@ watch(isReady, (r) => {
         </div>
       </CardContent>
     </Card>
+
+    <AlertDialog
+      :open="!!statusTarget"
+      @update:open="(v) => { if (!v) statusTarget = null }"
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{{ statusAction === 'deactivate' ? 'Deactivate product?' : 'Activate product?' }}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {{ statusAction === 'deactivate'
+              ? `This will deactivate "${statusTarget?.name}". The product (and its SKUs) will no longer be available in the POS until reactivated.`
+              : `This will reactivate "${statusTarget?.name}". The product will become available in the POS again.` }}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel :disabled="toggling">Cancel</AlertDialogCancel>
+          <Button
+            type="button"
+            variant="default"
+            :disabled="toggling"
+            @click="confirmStatusToggle"
+          >
+            {{ toggling ? 'Saving...' : statusAction === 'deactivate' ? 'Deactivate' : 'Activate' }}
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 
     <Dialog v-model:open="formOpen">
       <DialogContent class="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
