@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { roleService } from '@/services/role';
 import { permissionService } from '@/services/permission';
 import { useUiStore } from '@/stores/ui';
@@ -7,6 +7,7 @@ import { usePageGuard } from '@/composables/usePageGuard';
 import { apiMessage } from '@/lib/apiError';
 import type { Role, Permission } from '@/types';
 import Button from '@/components/ui/button/Button.vue';
+import DashboardShell from '@/components/layout/DashboardShell.vue';
 import Input from '@/components/ui/input/Input.vue';
 import Label from '@/components/ui/label/Label.vue';
 import Textarea from '@/components/ui/textarea/Textarea.vue';
@@ -15,7 +16,7 @@ import Checkbox from '@/components/ui/checkbox/Checkbox.vue';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import PaginationBar from '@/components/ui/PaginationBar.vue';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableEmpty } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
 
 const { isReady, allowed } = usePageGuard('roles.read');
@@ -145,10 +146,11 @@ async function savePermissions() {
   }
 }
 
-onMounted(load);
+watch(isReady, (r) => { if (r) load(); }, { immediate: true });
 </script>
 
-<template>
+ <template>
+  <DashboardShell>
   <div v-if="!isReady" class="flex items-center justify-center h-[60vh]">
     <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
   </div>
@@ -182,41 +184,45 @@ onMounted(load);
             <TableRow v-if="loading">
               <TableCell colspan="4" class="text-center py-8 text-muted-foreground">Loading...</TableCell>
             </TableRow>
-            <TableEmpty v-else-if="roles.length === 0" :colspan="4">No roles found</TableEmpty>
-            <TableRow v-for="r in roles" v-else :key="r.id">
-              <TableCell>
-                <div class="flex items-center gap-2">
-                  <span class="font-medium">{{ r.name }}</span>
-                  <Badge v-if="DEFAULT_ROLES.has(r.name)" variant="secondary">default</Badge>
-                </div>
-              </TableCell>
-              <TableCell class="text-muted-foreground">{{ r.description || '—' }}</TableCell>
-              <TableCell>
-                <Button variant="outline" size="sm" @click="openPermissions(r)">Assign Permissions</Button>
-              </TableCell>
-              <TableCell class="text-right">
-                <div class="flex justify-end gap-2">
-                  <Button variant="outline" size="sm" @click="openEdit(r)">Edit</Button>
-                  <AlertDialog v-if="!DEFAULT_ROLES.has(r.name)">
-                    <AlertDialogTrigger as-child>
-                      <Button variant="destructive" size="sm">Delete</Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete role?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This will permanently delete the role "{{ r.name }}".
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction @click="removeRole(r)">Delete</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </TableCell>
-            </TableRow>
+            <template v-else>
+              <TableRow v-if="roles.length === 0">
+                <TableCell colspan="4" class="text-center py-8 text-muted-foreground">No roles found</TableCell>
+              </TableRow>
+              <TableRow v-for="r in roles" :key="r.id">
+                <TableCell>
+                  <div class="flex items-center gap-2">
+                    <span class="font-medium">{{ r.name }}</span>
+                    <Badge v-if="DEFAULT_ROLES.has(r.name)" variant="secondary">default</Badge>
+                  </div>
+                </TableCell>
+                <TableCell class="text-muted-foreground">{{ r.description || '—' }}</TableCell>
+                <TableCell>
+                  <Button variant="outline" size="sm" @click="openPermissions(r)">Assign Permissions</Button>
+                </TableCell>
+                <TableCell class="text-right">
+                  <div class="flex justify-end gap-2">
+                    <Button variant="outline" size="sm" @click="openEdit(r)">Edit</Button>
+                    <AlertDialog v-if="!DEFAULT_ROLES.has(r.name)">
+                      <AlertDialogTrigger as-child>
+                        <Button variant="destructive" size="sm">Delete</Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete role?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will permanently delete the role "{{ r.name }}".
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction @click="removeRole(r)">Delete</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </TableCell>
+              </TableRow>
+            </template>
           </TableBody>
         </Table>
         <div class="flex justify-center py-4">
@@ -283,4 +289,5 @@ onMounted(load);
       </DialogContent>
     </Dialog>
   </div>
+  </DashboardShell>
 </template>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { ref, watch } from 'vue';
 import { activityLogService } from '@/services/activitylog';
 import { useUiStore } from '@/stores/ui';
 import { usePageGuard } from '@/composables/usePageGuard';
@@ -7,13 +7,14 @@ import { apiMessage } from '@/lib/apiError';
 import { formatDateTime } from '@/lib/utils';
 import type { ActivityLog } from '@/types';
 import Button from '@/components/ui/button/Button.vue';
+import DashboardShell from '@/components/layout/DashboardShell.vue';
 import Input from '@/components/ui/input/Input.vue';
 import Label from '@/components/ui/label/Label.vue';
 import Badge from '@/components/ui/badge/Badge.vue';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import PaginationBar from '@/components/ui/PaginationBar.vue';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableEmpty } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
 
 const { isReady, allowed } = usePageGuard('activity_logs.read');
@@ -43,7 +44,7 @@ async function load() {
   try {
     const res = await activityLogService.list({
       user_id: undefined,
-      action: filters.value.action || undefined,
+      action: filters.value.action !== 'all' ? filters.value.action || undefined : undefined,
       resource: filters.value.resource || undefined,
       start_date: filters.value.start_date || undefined,
       end_date: filters.value.end_date || undefined,
@@ -92,10 +93,11 @@ function parseMetadata(raw: string): Record<string, unknown> {
   }
 }
 
-onMounted(load);
+watch(isReady, (r) => { if (r) load(); }, { immediate: true });
 </script>
 
 <template>
+  <DashboardShell>
   <div v-if="!isReady" class="flex items-center justify-center h-[60vh]">
     <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
   </div>
@@ -118,7 +120,7 @@ onMounted(load);
           <Select v-model="filters.action">
             <SelectTrigger class="w-40"><SelectValue placeholder="All actions" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All actions</SelectItem>
+              <SelectItem value="all">All actions</SelectItem>
               <SelectItem v-for="a in ACTIONS" :key="a" :value="a">{{ a }}</SelectItem>
             </SelectContent>
           </Select>
@@ -156,16 +158,20 @@ onMounted(load);
             <TableRow v-if="loading">
               <TableCell colspan="5" class="text-center py-8 text-muted-foreground">Loading...</TableCell>
             </TableRow>
-            <TableEmpty v-else-if="logs.length === 0" :colspan="5">No activity logs found</TableEmpty>
-            <TableRow v-for="log in logs" v-else :key="log.id" class="cursor-pointer hover:bg-muted/50" @click="openDetail(log)">
-              <TableCell>
-                <div class="font-medium">{{ log.username || '—' }}</div>
-              </TableCell>
-              <TableCell><Badge :variant="actionVariant(log.action)">{{ log.action }}</Badge></TableCell>
-              <TableCell><span class="font-mono text-xs">{{ log.resource }}</span></TableCell>
-              <TableCell class="max-w-[280px] truncate text-muted-foreground">{{ log.description }}</TableCell>
-              <TableCell class="text-muted-foreground text-sm whitespace-nowrap">{{ formatDateTime(log.created_at) }}</TableCell>
-            </TableRow>
+            <template v-else>
+              <TableRow v-if="logs.length === 0">
+                <TableCell colspan="5" class="text-center py-8 text-muted-foreground">No activity logs found</TableCell>
+              </TableRow>
+              <TableRow v-for="log in logs" :key="log.id" class="cursor-pointer hover:bg-muted/50" @click="openDetail(log)">
+                <TableCell>
+                  <div class="font-medium">{{ log.username || '—' }}</div>
+                </TableCell>
+                <TableCell><Badge :variant="actionVariant(log.action)">{{ log.action }}</Badge></TableCell>
+                <TableCell><span class="font-mono text-xs">{{ log.resource }}</span></TableCell>
+                <TableCell class="max-w-[280px] truncate text-muted-foreground">{{ log.description }}</TableCell>
+                <TableCell class="text-muted-foreground text-sm whitespace-nowrap">{{ formatDateTime(log.created_at) }}</TableCell>
+              </TableRow>
+            </template>
           </TableBody>
         </Table>
         <div class="flex justify-center py-4">
@@ -196,4 +202,5 @@ onMounted(load);
       </DialogContent>
     </Dialog>
   </div>
+  </DashboardShell>
 </template>

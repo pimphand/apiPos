@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { ref, watch } from 'vue';
 import { permissionService } from '@/services/permission';
 import { useUiStore } from '@/stores/ui';
 import { usePageGuard } from '@/composables/usePageGuard';
 import { apiMessage } from '@/lib/apiError';
 import type { Permission } from '@/types';
 import Button from '@/components/ui/button/Button.vue';
+import DashboardShell from '@/components/layout/DashboardShell.vue';
 import Input from '@/components/ui/input/Input.vue';
 import Label from '@/components/ui/label/Label.vue';
 import Textarea from '@/components/ui/textarea/Textarea.vue';
@@ -14,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import PaginationBar from '@/components/ui/PaginationBar.vue';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableEmpty } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
 
 const { isReady, allowed } = usePageGuard('permissions.read');
@@ -41,7 +42,7 @@ const form = ref({ name: '', resource: RESOURCES[0], action: 'read', description
 async function load() {
   loading.value = true;
   try {
-    const res = resourceFilter.value
+    const res = resourceFilter.value && resourceFilter.value !== 'all'
       ? await permissionService.listByResource(resourceFilter.value, { page: page.value, per_page: perPage })
       : await permissionService.list({ page: page.value, per_page: perPage });
     permissions.value = res.permissions;
@@ -102,10 +103,11 @@ async function removePermission(p: Permission) {
   }
 }
 
-onMounted(load);
+watch(isReady, (r) => { if (r) load(); }, { immediate: true });
 </script>
 
 <template>
+  <DashboardShell>
   <div v-if="!isReady" class="flex items-center justify-center h-[60vh]">
     <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
   </div>
@@ -131,7 +133,7 @@ onMounted(load);
           <Select v-model="resourceFilter">
             <SelectTrigger class="w-48"><SelectValue placeholder="All resources" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All resources</SelectItem>
+              <SelectItem value="all">All resources</SelectItem>
               <SelectItem v-for="r in RESOURCES" :key="r" :value="r">{{ r }}</SelectItem>
             </SelectContent>
           </Select>
@@ -156,35 +158,39 @@ onMounted(load);
             <TableRow v-if="loading">
               <TableCell colspan="5" class="text-center py-8 text-muted-foreground">Loading...</TableCell>
             </TableRow>
-            <TableEmpty v-else-if="permissions.length === 0" :colspan="5">No permissions found</TableEmpty>
-            <TableRow v-for="p in permissions" v-else :key="p.id">
-              <TableCell><span class="font-mono text-sm font-medium">{{ p.name }}</span></TableCell>
-              <TableCell><Badge variant="outline">{{ p.resource }}</Badge></TableCell>
-              <TableCell><Badge variant="secondary">{{ p.action }}</Badge></TableCell>
-              <TableCell class="text-muted-foreground">{{ p.description || '—' }}</TableCell>
-              <TableCell class="text-right">
-                <div class="flex justify-end gap-2">
-                  <Button variant="outline" size="sm" @click="openEdit(p)">Edit</Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger as-child>
-                      <Button variant="destructive" size="sm">Delete</Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete permission?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This will permanently delete "{{ p.name }}".
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction @click="removePermission(p)">Delete</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </TableCell>
-            </TableRow>
+            <template v-else>
+              <TableRow v-if="permissions.length === 0">
+                <TableCell colspan="5" class="text-center py-8 text-muted-foreground">No permissions found</TableCell>
+              </TableRow>
+              <TableRow v-for="p in permissions" :key="p.id">
+                <TableCell><span class="font-mono text-sm font-medium">{{ p.name }}</span></TableCell>
+                <TableCell><Badge variant="outline">{{ p.resource }}</Badge></TableCell>
+                <TableCell><Badge variant="secondary">{{ p.action }}</Badge></TableCell>
+                <TableCell class="text-muted-foreground">{{ p.description || '—' }}</TableCell>
+                <TableCell class="text-right">
+                  <div class="flex justify-end gap-2">
+                    <Button variant="outline" size="sm" @click="openEdit(p)">Edit</Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger as-child>
+                        <Button variant="destructive" size="sm">Delete</Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete permission?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will permanently delete "{{ p.name }}".
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction @click="removePermission(p)">Delete</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </TableCell>
+              </TableRow>
+            </template>
           </TableBody>
         </Table>
         <div class="flex justify-center py-4">
@@ -236,4 +242,5 @@ onMounted(load);
       </DialogContent>
     </Dialog>
   </div>
+  </DashboardShell>
 </template>

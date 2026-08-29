@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { userService } from '@/services/user';
 import { roleService } from '@/services/role';
 import { useUiStore } from '@/stores/ui';
@@ -7,6 +7,7 @@ import { usePageGuard } from '@/composables/usePageGuard';
 import { apiMessage } from '@/lib/apiError';
 import type { User } from '@/types';
 import Button from '@/components/ui/button/Button.vue';
+import DashboardShell from '@/components/layout/DashboardShell.vue';
 import Input from '@/components/ui/input/Input.vue';
 import Label from '@/components/ui/label/Label.vue';
 import Badge from '@/components/ui/badge/Badge.vue';
@@ -15,7 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import PaginationBar from '@/components/ui/PaginationBar.vue';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableEmpty } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
 
 const { isReady, allowed } = usePageGuard('users.read');
@@ -66,7 +67,7 @@ async function load() {
     const res = await userService.list({
       page: page.value,
       per_page: perPage,
-      role_id: roleFilter.value || undefined,
+      role_id: roleFilter.value !== 'all' ? roleFilter.value || undefined : undefined,
       is_active: undefined,
     });
     users.value = res.users;
@@ -153,13 +154,16 @@ async function removeUser(u: User) {
   }
 }
 
-onMounted(async () => {
-  await loadRoles();
-  await load();
-});
+watch(isReady, async (r) => {
+  if (r) {
+    await loadRoles();
+    await load();
+  }
+}, { immediate: true });
 </script>
 
 <template>
+  <DashboardShell>
   <div v-if="!isReady" class="flex items-center justify-center h-[60vh]">
     <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
   </div>
@@ -191,7 +195,7 @@ onMounted(async () => {
           <Select v-model="roleFilter">
             <SelectTrigger class="w-48"><SelectValue placeholder="All roles" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All roles</SelectItem>
+              <SelectItem value="all">All roles</SelectItem>
               <SelectItem v-for="r in roles" :key="r.id" :value="r.id">{{ r.name }}</SelectItem>
             </SelectContent>
           </Select>
@@ -216,45 +220,49 @@ onMounted(async () => {
             <TableRow v-if="loading">
               <TableCell colspan="5" class="text-center py-8 text-muted-foreground">Loading...</TableCell>
             </TableRow>
-            <TableEmpty v-else-if="users.length === 0" :colspan="5">No users found</TableEmpty>
-            <TableRow v-for="u in users" v-else :key="u.id">
-              <TableCell>
-                <div class="font-medium">{{ u.full_name || u.username }}</div>
-                <div class="text-xs text-muted-foreground">@{{ u.username }}</div>
-              </TableCell>
-              <TableCell>{{ u.email }}</TableCell>
-              <TableCell>
-                <Badge variant="outline">{{ u.role_name || u.role_id || '—' }}</Badge>
-              </TableCell>
-              <TableCell>
-                <div class="flex items-center gap-2">
-                  <Switch :model-value="u.is_active" size="sm" @update:model-value="toggleActive(u)" />
-                  <span class="text-xs text-muted-foreground">{{ u.is_active ? 'Active' : 'Inactive' }}</span>
-                </div>
-              </TableCell>
-              <TableCell class="text-right">
-                <div class="flex justify-end gap-2">
-                  <Button variant="outline" size="sm" @click="openEdit(u)">Edit</Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger as-child>
-                      <Button variant="destructive" size="sm">Delete</Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete user?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This will permanently delete {{ u.username }}. This action cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction @click="removeUser(u)">Delete</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </TableCell>
-            </TableRow>
+            <template v-else>
+              <TableRow v-if="users.length === 0">
+                <TableCell colspan="5" class="text-center py-8 text-muted-foreground">No users found</TableCell>
+              </TableRow>
+              <TableRow v-for="u in users" :key="u.id">
+                <TableCell>
+                  <div class="font-medium">{{ u.full_name || u.username }}</div>
+                  <div class="text-xs text-muted-foreground">@{{ u.username }}</div>
+                </TableCell>
+                <TableCell>{{ u.email }}</TableCell>
+                <TableCell>
+                  <Badge variant="outline">{{ u.role_name || u.role_id || '—' }}</Badge>
+                </TableCell>
+                <TableCell>
+                  <div class="flex items-center gap-2">
+                    <Switch :model-value="u.is_active" size="sm" @update:model-value="toggleActive(u)" />
+                    <span class="text-xs text-muted-foreground">{{ u.is_active ? 'Active' : 'Inactive' }}</span>
+                  </div>
+                </TableCell>
+                <TableCell class="text-right">
+                  <div class="flex justify-end gap-2">
+                    <Button variant="outline" size="sm" @click="openEdit(u)">Edit</Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger as-child>
+                        <Button variant="destructive" size="sm">Delete</Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete user?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will permanently delete {{ u.username }}. This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction @click="removeUser(u)">Delete</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </TableCell>
+              </TableRow>
+            </template>
           </TableBody>
         </Table>
         <div class="flex justify-center py-4">
@@ -305,4 +313,5 @@ onMounted(async () => {
       </DialogContent>
     </Dialog>
   </div>
+  </DashboardShell>
 </template>
