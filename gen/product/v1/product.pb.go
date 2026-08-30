@@ -594,25 +594,26 @@ func (x *UpdateProductRequest) GetSkuIdsToDelete() []string {
 type ProductSKUUpdate struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// If empty, a new SKU will be created. If provided, the existing SKU will be updated.
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Sku           string                 `protobuf:"bytes,2,opt,name=sku,proto3" json:"sku,omitempty"`
-	Barcode       string                 `protobuf:"bytes,3,opt,name=barcode,proto3" json:"barcode,omitempty"`
-	Variant       string                 `protobuf:"bytes,4,opt,name=variant,proto3" json:"variant,omitempty"`
-	Color         string                 `protobuf:"bytes,5,opt,name=color,proto3" json:"color,omitempty"`
-	Size          string                 `protobuf:"bytes,6,opt,name=size,proto3" json:"size,omitempty"`
-	Unit          string                 `protobuf:"bytes,7,opt,name=unit,proto3" json:"unit,omitempty"`
-	CostPrice     float64                `protobuf:"fixed64,8,opt,name=cost_price,json=costPrice,proto3" json:"cost_price,omitempty"`
-	SellingPrice  float64                `protobuf:"fixed64,9,opt,name=selling_price,json=sellingPrice,proto3" json:"selling_price,omitempty"`
-	Stock         int32                  `protobuf:"varint,10,opt,name=stock,proto3" json:"stock,omitempty"`
-	MinimumStock  int32                  `protobuf:"varint,11,opt,name=minimum_stock,json=minimumStock,proto3" json:"minimum_stock,omitempty"`
-	Weight        float64                `protobuf:"fixed64,12,opt,name=weight,proto3" json:"weight,omitempty"`
-	Volume        float64                `protobuf:"fixed64,13,opt,name=volume,proto3" json:"volume,omitempty"`
-	ExpiryDate    *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=expiry_date,json=expiryDate,proto3" json:"expiry_date,omitempty"`
-	BatchNumber   string                 `protobuf:"bytes,15,opt,name=batch_number,json=batchNumber,proto3" json:"batch_number,omitempty"`
-	Location      string                 `protobuf:"bytes,16,opt,name=location,proto3" json:"location,omitempty"`
-	ImageUrl      string                 `protobuf:"bytes,17,opt,name=image_url,json=imageUrl,proto3" json:"image_url,omitempty"`
-	IsActive      bool                   `protobuf:"varint,18,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
-	Metadata      map[string]string      `protobuf:"bytes,19,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Id           string  `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Sku          string  `protobuf:"bytes,2,opt,name=sku,proto3" json:"sku,omitempty"`
+	Barcode      string  `protobuf:"bytes,3,opt,name=barcode,proto3" json:"barcode,omitempty"`
+	Variant      string  `protobuf:"bytes,4,opt,name=variant,proto3" json:"variant,omitempty"`
+	Color        string  `protobuf:"bytes,5,opt,name=color,proto3" json:"color,omitempty"`
+	Size         string  `protobuf:"bytes,6,opt,name=size,proto3" json:"size,omitempty"`
+	Unit         string  `protobuf:"bytes,7,opt,name=unit,proto3" json:"unit,omitempty"`
+	CostPrice    float64 `protobuf:"fixed64,8,opt,name=cost_price,json=costPrice,proto3" json:"cost_price,omitempty"`
+	SellingPrice float64 `protobuf:"fixed64,9,opt,name=selling_price,json=sellingPrice,proto3" json:"selling_price,omitempty"`
+	Stock        int32   `protobuf:"varint,10,opt,name=stock,proto3" json:"stock,omitempty"`
+	MinimumStock int32   `protobuf:"varint,11,opt,name=minimum_stock,json=minimumStock,proto3" json:"minimum_stock,omitempty"`
+	Weight       float64 `protobuf:"fixed64,12,opt,name=weight,proto3" json:"weight,omitempty"`
+	Volume       float64 `protobuf:"fixed64,13,opt,name=volume,proto3" json:"volume,omitempty"`
+	// Expiry date in string form; accepts "2006-01-02" or a full RFC3339 timestamp
+	ExpiryDate    string            `protobuf:"bytes,14,opt,name=expiry_date,json=expiryDate,proto3" json:"expiry_date,omitempty"`
+	BatchNumber   string            `protobuf:"bytes,15,opt,name=batch_number,json=batchNumber,proto3" json:"batch_number,omitempty"`
+	Location      string            `protobuf:"bytes,16,opt,name=location,proto3" json:"location,omitempty"`
+	ImageUrl      string            `protobuf:"bytes,17,opt,name=image_url,json=imageUrl,proto3" json:"image_url,omitempty"`
+	IsActive      bool              `protobuf:"varint,18,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
+	Metadata      map[string]string `protobuf:"bytes,19,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -738,11 +739,11 @@ func (x *ProductSKUUpdate) GetVolume() float64 {
 	return 0
 }
 
-func (x *ProductSKUUpdate) GetExpiryDate() *timestamppb.Timestamp {
+func (x *ProductSKUUpdate) GetExpiryDate() string {
 	if x != nil {
 		return x.ExpiryDate
 	}
-	return nil
+	return ""
 }
 
 func (x *ProductSKUUpdate) GetBatchNumber() string {
@@ -1492,7 +1493,7 @@ const file_product_v1_product_proto_rawDesc = "" +
 	"\vsku_updates\x18\n" +
 	" \x03(\v2\x1c.product.v1.ProductSKUUpdateR\n" +
 	"skuUpdates\x12)\n" +
-	"\x11sku_ids_to_delete\x18\v \x03(\tR\x0eskuIdsToDelete\"\x90\x05\n" +
+	"\x11sku_ids_to_delete\x18\v \x03(\tR\x0eskuIdsToDelete\"\xf4\x04\n" +
 	"\x10ProductSKUUpdate\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x10\n" +
 	"\x03sku\x18\x02 \x01(\tR\x03sku\x12\x18\n" +
@@ -1508,8 +1509,8 @@ const file_product_v1_product_proto_rawDesc = "" +
 	" \x01(\x05R\x05stock\x12#\n" +
 	"\rminimum_stock\x18\v \x01(\x05R\fminimumStock\x12\x16\n" +
 	"\x06weight\x18\f \x01(\x01R\x06weight\x12\x16\n" +
-	"\x06volume\x18\r \x01(\x01R\x06volume\x12;\n" +
-	"\vexpiry_date\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"\x06volume\x18\r \x01(\x01R\x06volume\x12\x1f\n" +
+	"\vexpiry_date\x18\x0e \x01(\tR\n" +
 	"expiryDate\x12!\n" +
 	"\fbatch_number\x18\x0f \x01(\tR\vbatchNumber\x12\x1a\n" +
 	"\blocation\x18\x10 \x01(\tR\blocation\x12\x1b\n" +
@@ -1635,35 +1636,34 @@ var file_product_v1_product_proto_goTypes = []any{
 var file_product_v1_product_proto_depIdxs = []int32{
 	13, // 0: product.v1.ListProductsResponse.products:type_name -> product.v1.Product
 	6,  // 1: product.v1.UpdateProductRequest.sku_updates:type_name -> product.v1.ProductSKUUpdate
-	17, // 2: product.v1.ProductSKUUpdate.expiry_date:type_name -> google.protobuf.Timestamp
-	15, // 3: product.v1.ProductSKUUpdate.metadata:type_name -> product.v1.ProductSKUUpdate.MetadataEntry
-	13, // 4: product.v1.ProductResponse.product:type_name -> product.v1.Product
-	14, // 5: product.v1.Product.skus:type_name -> product.v1.ProductSKU
-	17, // 6: product.v1.ProductSKU.expiry_date:type_name -> google.protobuf.Timestamp
-	16, // 7: product.v1.ProductSKU.metadata:type_name -> product.v1.ProductSKU.MetadataEntry
-	0,  // 8: product.v1.ProductService.CreateProduct:input_type -> product.v1.CreateProductRequest
-	1,  // 9: product.v1.ProductService.GetProduct:input_type -> product.v1.GetProductRequest
-	2,  // 10: product.v1.ProductService.ListProducts:input_type -> product.v1.ListProductsRequest
-	4,  // 11: product.v1.ProductService.SearchProducts:input_type -> product.v1.SearchProductsRequest
-	5,  // 12: product.v1.ProductService.UpdateProduct:input_type -> product.v1.UpdateProductRequest
-	7,  // 13: product.v1.ProductService.DeleteProduct:input_type -> product.v1.DeleteProductRequest
-	9,  // 14: product.v1.ProductService.ActivateProduct:input_type -> product.v1.ActivateProductRequest
-	10, // 15: product.v1.ProductService.DeactivateProduct:input_type -> product.v1.DeactivateProductRequest
-	11, // 16: product.v1.ProductService.GetLowStockProducts:input_type -> product.v1.LowStockProductsRequest
-	12, // 17: product.v1.ProductService.CreateProduct:output_type -> product.v1.ProductResponse
-	12, // 18: product.v1.ProductService.GetProduct:output_type -> product.v1.ProductResponse
-	3,  // 19: product.v1.ProductService.ListProducts:output_type -> product.v1.ListProductsResponse
-	3,  // 20: product.v1.ProductService.SearchProducts:output_type -> product.v1.ListProductsResponse
-	12, // 21: product.v1.ProductService.UpdateProduct:output_type -> product.v1.ProductResponse
-	8,  // 22: product.v1.ProductService.DeleteProduct:output_type -> product.v1.DeleteProductResponse
-	8,  // 23: product.v1.ProductService.ActivateProduct:output_type -> product.v1.DeleteProductResponse
-	8,  // 24: product.v1.ProductService.DeactivateProduct:output_type -> product.v1.DeleteProductResponse
-	3,  // 25: product.v1.ProductService.GetLowStockProducts:output_type -> product.v1.ListProductsResponse
-	17, // [17:26] is the sub-list for method output_type
-	8,  // [8:17] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	15, // 2: product.v1.ProductSKUUpdate.metadata:type_name -> product.v1.ProductSKUUpdate.MetadataEntry
+	13, // 3: product.v1.ProductResponse.product:type_name -> product.v1.Product
+	14, // 4: product.v1.Product.skus:type_name -> product.v1.ProductSKU
+	17, // 5: product.v1.ProductSKU.expiry_date:type_name -> google.protobuf.Timestamp
+	16, // 6: product.v1.ProductSKU.metadata:type_name -> product.v1.ProductSKU.MetadataEntry
+	0,  // 7: product.v1.ProductService.CreateProduct:input_type -> product.v1.CreateProductRequest
+	1,  // 8: product.v1.ProductService.GetProduct:input_type -> product.v1.GetProductRequest
+	2,  // 9: product.v1.ProductService.ListProducts:input_type -> product.v1.ListProductsRequest
+	4,  // 10: product.v1.ProductService.SearchProducts:input_type -> product.v1.SearchProductsRequest
+	5,  // 11: product.v1.ProductService.UpdateProduct:input_type -> product.v1.UpdateProductRequest
+	7,  // 12: product.v1.ProductService.DeleteProduct:input_type -> product.v1.DeleteProductRequest
+	9,  // 13: product.v1.ProductService.ActivateProduct:input_type -> product.v1.ActivateProductRequest
+	10, // 14: product.v1.ProductService.DeactivateProduct:input_type -> product.v1.DeactivateProductRequest
+	11, // 15: product.v1.ProductService.GetLowStockProducts:input_type -> product.v1.LowStockProductsRequest
+	12, // 16: product.v1.ProductService.CreateProduct:output_type -> product.v1.ProductResponse
+	12, // 17: product.v1.ProductService.GetProduct:output_type -> product.v1.ProductResponse
+	3,  // 18: product.v1.ProductService.ListProducts:output_type -> product.v1.ListProductsResponse
+	3,  // 19: product.v1.ProductService.SearchProducts:output_type -> product.v1.ListProductsResponse
+	12, // 20: product.v1.ProductService.UpdateProduct:output_type -> product.v1.ProductResponse
+	8,  // 21: product.v1.ProductService.DeleteProduct:output_type -> product.v1.DeleteProductResponse
+	8,  // 22: product.v1.ProductService.ActivateProduct:output_type -> product.v1.DeleteProductResponse
+	8,  // 23: product.v1.ProductService.DeactivateProduct:output_type -> product.v1.DeleteProductResponse
+	3,  // 24: product.v1.ProductService.GetLowStockProducts:output_type -> product.v1.ListProductsResponse
+	16, // [16:25] is the sub-list for method output_type
+	7,  // [7:16] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_product_v1_product_proto_init() }

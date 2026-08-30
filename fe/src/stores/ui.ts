@@ -1,17 +1,12 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
+import { toast } from 'vue-sonner';
 
 export const useUiStore = defineStore('ui', () => {
   // State
   const isDarkMode = ref(false);
   const isSidebarOpen = ref(true);
   const isLoading = ref(false);
-  const toasts = ref<Array<{
-    id: string;
-    type: 'success' | 'error' | 'warning' | 'info';
-    message: string;
-    duration?: number;
-  }>>([]);
 
   // Getters
   const theme = computed(() => (isDarkMode.value ? 'dark' : 'light'));
@@ -54,21 +49,27 @@ export const useUiStore = defineStore('ui', () => {
     message: string,
     duration = 5000
   ) {
-    const id = Date.now().toString();
-    toasts.value.push({ id, type, message, duration });
-
-    if (duration > 0) {
-      setTimeout(() => {
-        removeToast(id);
-      }, duration);
+    // Delegate to the global vue-sonner toast API. This works across Vue
+    // islands because vue-sonner uses a module-level singleton that renders
+    // into the first mounted <Toaster/> it finds in the DOM.
+    const opts = { duration } as const;
+    switch (type) {
+      case 'success':
+        toast.success(message, opts);
+        break;
+      case 'error':
+        toast.error(message, opts);
+        break;
+      case 'warning':
+        toast.warning(message, opts);
+        break;
+      default:
+        toast.info(message, opts);
     }
   }
 
   function removeToast(id: string) {
-    const index = toasts.value.findIndex((t) => t.id === id);
-    if (index > -1) {
-      toasts.value.splice(index, 1);
-    }
+    if (id) toast.dismiss(id);
   }
 
   return {
@@ -76,7 +77,6 @@ export const useUiStore = defineStore('ui', () => {
     isDarkMode,
     isSidebarOpen,
     isLoading,
-    toasts,
     // Getters
     theme,
     // Actions

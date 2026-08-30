@@ -49,7 +49,8 @@ message CreateProductSKURequest {
   int32 minimum_stock = 11;
   double weight = 12;
   double volume = 13;
-  google.protobuf.Timestamp expiry_date = 14;
+  // Expiry date in string form; accepts "2006-01-02" or a full RFC3339 timestamp
+  string expiry_date = 14;
   string batch_number = 15;
   string location = 16;
   string image_url = 17;
@@ -108,7 +109,8 @@ message UpdateProductSKURequest {
   int32 minimum_stock = 12;
   double weight = 13;
   double volume = 14;
-  google.protobuf.Timestamp expiry_date = 15;
+  // Expiry date in string form; accepts "2006-01-02" or a full RFC3339 timestamp
+  string expiry_date = 15;
   string batch_number = 16;
   string location = 17;
   string image_url = 18;

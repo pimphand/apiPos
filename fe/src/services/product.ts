@@ -12,6 +12,14 @@ function num(v: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+function toDateOnly(v: string): string {
+  if (!v) return '';
+  // Backend may return a full ISO timestamp (e.g. "2026-08-30T00:00:00Z")
+  // but <input type="date"> requires "YYYY-MM-DD".
+  const m = v.match(/^\d{4}-\d{2}-\d{2}/);
+  return m ? m[0] : v;
+}
+
 function normalizeSKU(raw: Record<string, unknown>): ProductSKU {
   return {
     id: String(raw.id ?? ''),
@@ -28,7 +36,7 @@ function normalizeSKU(raw: Record<string, unknown>): ProductSKU {
     minimum_stock: num(raw.minimum_stock ?? raw.minimumStock),
     weight: num(raw.weight),
     volume: num(raw.volume),
-    expiry_date: String(raw.expiry_date ?? raw.expiryDate ?? ''),
+    expiry_date: toDateOnly(String(raw.expiry_date ?? raw.expiryDate ?? '')),
     batch_number: String(raw.batch_number ?? raw.batchNumber ?? ''),
     location: String(raw.location ?? ''),
     image_url: String(raw.image_url ?? raw.imageUrl ?? ''),

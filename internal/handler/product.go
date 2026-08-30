@@ -165,8 +165,8 @@ func (h *ProductHandler) UpdateProduct(ctx context.Context, req *productv1.Updat
 			IsActive:     sku.IsActive,
 			Metadata:     sku.Metadata,
 		})
-		if sku.ExpiryDate != nil {
-			skuUpdates[len(skuUpdates)-1].ExpiryDate = sku.ExpiryDate.AsTime().Format("2006-01-02T15:04:05Z07:00")
+		if len(skuUpdates) > 0 {
+			skuUpdates[len(skuUpdates)-1].ExpiryDate = sku.ExpiryDate
 		}
 	}
 

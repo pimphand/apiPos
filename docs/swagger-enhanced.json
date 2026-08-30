@@ -3221,8 +3221,7 @@
         },
         "expiry_date": {
           "type": "string",
-          "format": "date-time",
-          "description": "Expiry date (ISO 8601)"
+          "description": "Expiry date; accepts \"YYYY-MM-DD\" or a full timestamp (e.g. \"2026-08-30T00:00:00Z\")"
         },
         "batch_number": {
           "type": "string",
@@ -3663,7 +3662,8 @@
         },
         "expiry_date": {
           "type": "string",
-          "format": "date-time"
+          "format": "date-time",
+          "description": "Expiry date (ISO 8601)"
         },
         "batch_number": {
           "type": "string"
@@ -3744,7 +3744,7 @@
         },
         "expiry_date": {
           "type": "string",
-          "format": "date-time"
+          "description": "Expiry date; accepts \"YYYY-MM-DD\" or a full timestamp (e.g. \"2026-08-30T00:00:00Z\")"
         },
         "batch_number": {
           "type": "string"
@@ -3828,7 +3828,7 @@
         },
         "expiry_date": {
           "type": "string",
-          "format": "date-time"
+          "description": "Expiry date; accepts \"YYYY-MM-DD\" or a full timestamp (e.g. \"2026-08-30T00:00:00Z\")"
         },
         "batch_number": {
           "type": "string"

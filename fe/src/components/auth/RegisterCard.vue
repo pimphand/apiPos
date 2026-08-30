@@ -13,6 +13,7 @@ import CardDescription from '@/components/ui/card/CardDescription.vue';
 import CardContent from '@/components/ui/card/CardContent.vue';
 import CardFooter from '@/components/ui/card/CardFooter.vue';
 import { navigateTo } from '@/lib/navigation';
+import { Toaster } from '@/components/ui/sonner';
 
 const authStore = useAuthStore();
 const uiStore = useUiStore();
@@ -162,4 +163,6 @@ async function handleRegister() {
       </p>
     </CardFooter>
   </Card>
+
+  <Toaster rich-colors position="bottom-right" />
 </template>

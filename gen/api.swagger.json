@@ -3631,7 +3631,7 @@
         },
         "expiryDate": {
           "type": "string",
-          "format": "date-time"
+          "title": "Expiry date in string form; accepts \"2006-01-02\" or a full RFC3339 timestamp"
         },
         "batchNumber": {
           "type": "string"
@@ -3704,7 +3704,7 @@
         },
         "expiryDate": {
           "type": "string",
-          "format": "date-time"
+          "title": "Expiry date in string form; accepts \"2006-01-02\" or a full RFC3339 timestamp"
         },
         "batchNumber": {
           "type": "string"
@@ -5687,7 +5687,7 @@
         },
         "expiryDate": {
           "type": "string",
-          "format": "date-time"
+          "title": "Expiry date in string form; accepts \"2006-01-02\" or a full RFC3339 timestamp"
         },
         "batchNumber": {
           "type": "string"

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -12,6 +11,7 @@ import (
 	"apiPos/internal/apperror"
 	gormdb "apiPos/internal/database/gorm"
 	"apiPos/internal/repository"
+	"apiPos/pkg/timeutil"
 )
 
 // PaginationResult holds pagination metadata
@@ -356,7 +356,7 @@ func (s *Service) UpdateProduct(ctx context.Context, req UpdateProductRequest) (
 			}
 
 			if skuItem.ExpiryDate != "" {
-				if t, err := time.Parse("2006-01-02T15:04:05Z07:00", skuItem.ExpiryDate); err == nil {
+				if t, err := timeutil.ParseFlexible(skuItem.ExpiryDate); err == nil {
 					existingSKU.ExpiryDate = &t
 				}
 			}
@@ -399,7 +399,7 @@ func (s *Service) UpdateProduct(ctx context.Context, req UpdateProductRequest) (
 			}
 
 			if skuItem.ExpiryDate != "" {
-				if t, err := time.Parse("2006-01-02T15:04:05Z07:00", skuItem.ExpiryDate); err == nil {
+				if t, err := timeutil.ParseFlexible(skuItem.ExpiryDate); err == nil {
 					newSKU.ExpiryDate = &t
 				}
 			}

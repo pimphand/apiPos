@@ -6,6 +6,7 @@ import { navigateTo } from '@/lib/navigation';
 import AppSidebar from './AppSidebar.vue';
 import AppTopbar from './AppTopbar.vue';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
+import { Toaster } from '@/components/ui/sonner';
 
 const authStore = useAuthStore();
 const uiStore = useUiStore();
@@ -43,4 +44,8 @@ onMounted(async () => {
       <p class="mt-4 text-muted-foreground">Loading...</p>
     </div>
   </div>
+
+  <!-- Toaster lives in the same Vue island as the page components that push
+       toasts, so the vue-sonner singleton is reliably shared. -->
+  <Toaster rich-colors position="bottom-right" />
 </template>

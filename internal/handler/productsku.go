@@ -13,6 +13,7 @@ import (
 	"apiPos/internal/apperror"
 	gormdb "apiPos/internal/database/gorm"
 	"apiPos/internal/productsku"
+	"apiPos/pkg/timeutil"
 )
 
 // ProductSKUHandler handles product SKU gRPC requests
@@ -39,15 +40,11 @@ func (h *ProductSKUHandler) CreateProductSKU(ctx context.Context, req *productsk
 		return nil, status.Error(codes.InvalidArgument, "sku is required")
 	}
 
-	var expiryDate *timestamppb.Timestamp
-	if req.ExpiryDate != nil {
-		expiryDate = req.ExpiryDate
-	}
-
 	var expiryTime *time.Time
-	if expiryDate != nil {
-		t := expiryDate.AsTime()
-		expiryTime = &t
+	if req.ExpiryDate != "" {
+		if t, err := timeutil.ParseFlexible(req.ExpiryDate); err == nil {
+			expiryTime = &t
+		}
 	}
 
 	productSKU, err := h.service.CreateProductSKU(
@@ -183,15 +180,11 @@ func (h *ProductSKUHandler) UpdateProductSKU(ctx context.Context, req *productsk
 		return nil, status.Error(codes.InvalidArgument, "id is required")
 	}
 
-	var expiryDate *timestamppb.Timestamp
-	if req.ExpiryDate != nil {
-		expiryDate = req.ExpiryDate
-	}
-
 	var expiryTime *time.Time
-	if expiryDate != nil {
-		t := expiryDate.AsTime()
-		expiryTime = &t
+	if req.ExpiryDate != "" {
+		if t, err := timeutil.ParseFlexible(req.ExpiryDate); err == nil {
+			expiryTime = &t
+		}
 	}
 
 	productSKU, err := h.service.UpdateProductSKU(
