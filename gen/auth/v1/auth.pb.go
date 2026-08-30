@@ -29,7 +29,11 @@ type RegisterRequest struct {
 	Password string                 `protobuf:"bytes,3,opt,name=password,proto3" json:"password,omitempty"`
 	FullName string                 `protobuf:"bytes,4,opt,name=full_name,json=fullName,proto3" json:"full_name,omitempty"`
 	// Browser/device identifier used to bind the issued refresh token.
-	DeviceId      string `protobuf:"bytes,5,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`
+	DeviceId string `protobuf:"bytes,5,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`
+	// Name of the store to create for the registering user (required for SaaS onboarding).
+	// The store is created inactive/pending until verified by a superadmin, and the
+	// registering user is assigned the admin role for it.
+	StoreName     string `protobuf:"bytes,6,opt,name=store_name,json=storeName,proto3" json:"store_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -95,6 +99,13 @@ func (x *RegisterRequest) GetFullName() string {
 func (x *RegisterRequest) GetDeviceId() string {
 	if x != nil {
 		return x.DeviceId
+	}
+	return ""
+}
+
+func (x *RegisterRequest) GetStoreName() string {
+	if x != nil {
+		return x.StoreName
 	}
 	return ""
 }
@@ -621,13 +632,15 @@ var File_auth_v1_auth_proto protoreflect.FileDescriptor
 
 const file_auth_v1_auth_proto_rawDesc = "" +
 	"\n" +
-	"\x12auth/v1/auth.proto\x12\aauth.v1\x1a\x1cgoogle/api/annotations.proto\"\x99\x01\n" +
+	"\x12auth/v1/auth.proto\x12\aauth.v1\x1a\x1cgoogle/api/annotations.proto\"\xb8\x01\n" +
 	"\x0fRegisterRequest\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\x12\x14\n" +
 	"\x05email\x18\x02 \x01(\tR\x05email\x12\x1a\n" +
 	"\bpassword\x18\x03 \x01(\tR\bpassword\x12\x1b\n" +
 	"\tfull_name\x18\x04 \x01(\tR\bfullName\x12\x1b\n" +
-	"\tdevice_id\x18\x05 \x01(\tR\bdeviceId\"\x9c\x01\n" +
+	"\tdevice_id\x18\x05 \x01(\tR\bdeviceId\x12\x1d\n" +
+	"\n" +
+	"store_name\x18\x06 \x01(\tR\tstoreName\"\x9c\x01\n" +
 	"\x10RegisterResponse\x12!\n" +
 	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\x12#\n" +
 	"\rrefresh_token\x18\x02 \x01(\tR\frefreshToken\x12\x1d\n" +

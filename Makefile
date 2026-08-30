@@ -1,3 +1,6 @@
+include .env
+export
+
 # POS Application Makefile
 
 .PHONY: all build test run proto sqlc migrate-up migrate-down docker-up docker-down lint clean swagger

@@ -23,7 +23,7 @@ func NewAuthHandler(userService *user.Service, logs *ActivityLogger) *AuthHandle
 
 // Register creates a new user account
 func (h *AuthHandler) Register(ctx context.Context, req *authv1.RegisterRequest) (*authv1.RegisterResponse, error) {
-	tokenPair, u, err := h.userService.Register(ctx, req.Username, req.Email, req.Password, req.FullName, req.DeviceId)
+	tokenPair, u, err := h.userService.Register(ctx, req.Username, req.Email, req.Password, req.FullName, req.DeviceId, req.StoreName)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
@@ -49,10 +49,10 @@ func (h *AuthHandler) Register(ctx context.Context, req *authv1.RegisterRequest)
 }
 
 // registerRoleName returns the role name for a newly registered user.
-// Registration always assigns the cashier role, so fall back if not populated.
+// Registration always assigns the admin role, so fall back if not populated.
 func registerRoleName(name string) string {
 	if name == "" {
-		return "cashier"
+		return "admin"
 	}
 	return name
 }

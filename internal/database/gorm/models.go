@@ -22,13 +22,14 @@ func (Role) TableName() string {
 
 // Store represents the stores table
 type Store struct {
-	ID        uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	Name      string     `gorm:"type:varchar(100);uniqueIndex;not null" json:"name"`
-	Address   string     `gorm:"type:text" json:"address"`
-	Phone     string     `gorm:"type:varchar(20)" json:"phone"`
-	IsActive  bool       `gorm:"default:true" json:"is_active"`
-	CreatedAt time.Time  `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
+	ID         uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	Name       string     `gorm:"type:varchar(100);uniqueIndex;not null" json:"name"`
+	Address    string     `gorm:"type:text" json:"address"`
+	Phone      string     `gorm:"type:varchar(20)" json:"phone"`
+	IsActive   bool       `json:"is_active"`
+	IsVerified bool       `json:"is_verified"`
+	CreatedAt  time.Time  `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt  time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 // TableName returns the table name for Store
@@ -63,11 +64,15 @@ func (User) TableName() string {
 // Category represents the categories table
 type Category struct {
 	ID          uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	Name        string     `gorm:"type:varchar(100);uniqueIndex;not null" json:"name"`
+	StoreID     uuid.UUID  `gorm:"type:uuid;not null;index:idx_categories_store_id;default:00000000-0000-0000-0000-000000000001" json:"store_id"`
+	Name        string     `gorm:"type:varchar(100);uniqueIndex:idx_categories_store_name;not null" json:"name"`
 	Description string     `gorm:"type:text" json:"description"`
 	IsActive    bool       `gorm:"default:true" json:"is_active"`
 	CreatedAt   time.Time  `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt   time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
+
+	// Relations
+	Store Store `gorm:"foreignKey:StoreID" json:"store,omitempty"`
 }
 
 // TableName returns the table name for Category
@@ -78,6 +83,7 @@ func (Category) TableName() string {
 // Product represents the products table
 type Product struct {
 	ID           uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	StoreID      uuid.UUID  `gorm:"type:uuid;not null;index:idx_products_store_id;default:00000000-0000-0000-0000-000000000001" json:"store_id"`
 	Name         string     `gorm:"type:varchar(200);not null" json:"name"`
 	Description  string     `gorm:"type:text" json:"description"`
 	CategoryID   uuid.UUID  `gorm:"type:uuid" json:"category_id"`
@@ -90,7 +96,8 @@ type Product struct {
 	UpdatedAt    time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
 
 	// Relations
-	Category   Category     `gorm:"foreignKey:CategoryID" json:"category,omitempty"`
+	Store      Store         `gorm:"foreignKey:StoreID" json:"store,omitempty"`
+	Category   Category      `gorm:"foreignKey:CategoryID" json:"category,omitempty"`
 	ProductSKUs []ProductSKU `gorm:"foreignKey:ProductID" json:"product_skus,omitempty"`
 }
 
@@ -103,6 +110,7 @@ func (Product) TableName() string {
 type ProductSKU struct {
 	ID           uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	ProductID    uuid.UUID      `gorm:"type:uuid;not null" json:"product_id"`
+	StoreID      uuid.UUID      `gorm:"type:uuid;not null;index:idx_product_skus_store_id;default:00000000-0000-0000-0000-000000000001" json:"store_id"`
 	SKU          string         `gorm:"type:varchar(100);not null" json:"sku"`
 	Barcode      string         `gorm:"type:varchar(100)" json:"barcode"`
 	Variant      string         `gorm:"type:varchar(255)" json:"variant"`
@@ -136,6 +144,7 @@ func (ProductSKU) TableName() string {
 // Customer represents the customers table
 type Customer struct {
 	ID        uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	StoreID   uuid.UUID  `gorm:"type:uuid;not null;index:idx_customers_store_id;default:00000000-0000-0000-0000-000000000001" json:"store_id"`
 	Code      string     `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
 	Name      string     `gorm:"type:varchar(100);not null" json:"name"`
 	Email     string     `gorm:"type:varchar(100)" json:"email"`
@@ -144,6 +153,9 @@ type Customer struct {
 	IsActive  bool       `gorm:"default:true" json:"is_active"`
 	CreatedAt time.Time  `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
+
+	// Relations
+	Store Store `gorm:"foreignKey:StoreID" json:"store,omitempty"`
 }
 
 // TableName returns the table name for Customer
@@ -181,6 +193,7 @@ func (Sale) TableName() string {
 type SaleItem struct {
 	ID        uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	SaleID    uuid.UUID  `gorm:"type:uuid;not null" json:"sale_id"`
+	StoreID   uuid.UUID  `gorm:"type:uuid;not null;index:idx_sale_items_store_id;default:00000000-0000-0000-0000-000000000001" json:"store_id"`
 	ProductID uuid.UUID  `gorm:"type:uuid;not null" json:"product_id"`
 	Quantity  int32      `gorm:"not null" json:"quantity"`
 	UnitPrice float64    `gorm:"type:numeric(15,2);not null" json:"unit_price"`
@@ -190,6 +203,7 @@ type SaleItem struct {
 
 	// Relations
 	Sale    Sale    `gorm:"foreignKey:SaleID" json:"sale,omitempty"`
+	Store   Store   `gorm:"foreignKey:StoreID" json:"store,omitempty"`
 	Product Product `gorm:"foreignKey:ProductID" json:"product,omitempty"`
 }
 
@@ -202,6 +216,7 @@ func (SaleItem) TableName() string {
 type Payment struct {
 	ID            uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	SaleID        uuid.UUID  `gorm:"type:uuid;not null" json:"sale_id"`
+	StoreID       uuid.UUID  `gorm:"type:uuid;not null;index:idx_payments_store_id;default:00000000-0000-0000-0000-000000000001" json:"store_id"`
 	PaymentMethod string     `gorm:"type:varchar(20);not null" json:"payment_method"`
 	Amount        float64    `gorm:"type:numeric(15,2);not null" json:"amount"`
 	Reference     string     `gorm:"type:varchar(100)" json:"reference"`
@@ -209,7 +224,8 @@ type Payment struct {
 	CreatedAt     time.Time  `gorm:"autoCreateTime" json:"created_at"`
 
 	// Relations
-	Sale Sale `gorm:"foreignKey:SaleID" json:"sale,omitempty"`
+	Sale  Sale  `gorm:"foreignKey:SaleID" json:"sale,omitempty"`
+	Store Store `gorm:"foreignKey:StoreID" json:"store,omitempty"`
 }
 
 // TableName returns the table name for Payment
@@ -325,6 +341,7 @@ func (RolePermission) TableName() string {
 type ActivityLog struct {
 	ID          uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	UserID      uuid.UUID  `gorm:"type:uuid" json:"user_id"`
+	StoreID     uuid.UUID  `gorm:"type:uuid;index:idx_activity_logs_store_id" json:"store_id"`
 	Username    string     `gorm:"type:varchar(50)" json:"username"`
 	Action      string     `gorm:"type:varchar(50);not null" json:"action"`
 	Resource    string     `gorm:"type:varchar(100);not null" json:"resource"`
@@ -336,7 +353,8 @@ type ActivityLog struct {
 	CreatedAt   time.Time  `gorm:"autoCreateTime" json:"created_at"`
 
 	// Relations
-	User User `gorm:"foreignKey:UserID" json:"user,omitempty"`
+	User  User  `gorm:"foreignKey:UserID" json:"user,omitempty"`
+	Store Store `gorm:"foreignKey:StoreID" json:"store,omitempty"`
 }
 
 // TableName returns the table name for ActivityLog

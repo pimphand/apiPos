@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue';
 import { userService } from '@/services/user';
 import { roleService } from '@/services/role';
 import { useUiStore } from '@/stores/ui';
+import { useLocaleStore } from '@/stores/locale';
 import { usePageGuard } from '@/composables/usePageGuard';
 import { apiMessage } from '@/lib/apiError';
 import type { User } from '@/types';
@@ -21,6 +22,7 @@ import { Card, CardContent } from '@/components/ui/card';
 
 const { isReady, allowed } = usePageGuard('users.read');
 const ui = useUiStore();
+const t = useLocaleStore().t;
 
 interface Role {
   id: string;
@@ -113,7 +115,7 @@ async function save() {
       if (form.value.role_id && form.value.role_id !== editing.value.role_id) {
         await userService.updateRole(editing.value.id, form.value.role_id);
       }
-      ui.addToast('success', 'User updated');
+      ui.addToast('success', t('admin.users.toastUpdated'));
     } else {
       await userService.create({
         username: form.value.username,
@@ -123,7 +125,7 @@ async function save() {
         role_id: form.value.role_id,
         store_id: form.value.store_id || undefined,
       });
-      ui.addToast('success', 'User created');
+      ui.addToast('success', t('admin.users.toastCreated'));
     }
     dialogOpen.value = false;
     load();
@@ -137,7 +139,7 @@ async function save() {
 async function toggleActive(u: User) {
   try {
     await userService.update(u.id, { is_active: !u.is_active });
-    ui.addToast('success', u.is_active ? 'User deactivated' : 'User activated');
+    ui.addToast('success', u.is_active ? t('admin.users.toastDeactivated') : t('admin.users.toastActivated'));
     load();
   } catch (err) {
     ui.addToast('error', apiMessage(err));
@@ -147,7 +149,7 @@ async function toggleActive(u: User) {
 async function removeUser(u: User) {
   try {
     await userService.delete(u.id);
-    ui.addToast('success', 'User deleted');
+    ui.addToast('success', t('admin.users.toastDeleted'));
     load();
   } catch (err) {
     ui.addToast('error', apiMessage(err));
@@ -169,38 +171,38 @@ watch(isReady, async (r) => {
   </div>
 
   <div v-else-if="!allowed" class="flex flex-col items-center justify-center py-24 text-center bg-card rounded-xl border">
-    <h3 class="text-xl font-semibold">Access restricted</h3>
+    <h3 class="text-xl font-semibold">{{ t('admin.shared.accessRestricted') }}</h3>
     <p class="text-muted-foreground mt-2 max-w-sm">
-      You don't have permission to view users. Contact an administrator if you believe this is a mistake.
+      {{ t('admin.shared.noPermission', { action: t('admin.users.noPermissionAction') }) }}
     </p>
   </div>
 
   <div v-else class="flex flex-col gap-4">
     <div class="flex items-start justify-between gap-4">
       <div>
-        <h2 class="text-2xl font-bold">Users</h2>
-        <p class="text-muted-foreground mt-1">Manage user accounts, roles, and access.</p>
+        <h2 class="text-2xl font-bold">{{ t('admin.users.title') }}</h2>
+        <p class="text-muted-foreground mt-1">{{ t('admin.users.description') }}</p>
       </div>
-      <Button @click="openCreate">+ New User</Button>
+      <Button @click="openCreate">{{ t('admin.users.newUser') }}</Button>
     </div>
 
     <Card>
       <CardContent class="flex flex-wrap items-end gap-3 pt-4">
         <div class="space-y-1">
-          <Label>Search</Label>
-          <Input v-model="search" placeholder="Search by name or username" class="w-64" @keyup.enter="applyFilters" />
+          <Label>{{ t('admin.shared.search') }}</Label>
+          <Input v-model="search" :placeholder="t('admin.users.searchPlaceholder')" class="w-64" @keyup.enter="applyFilters" />
         </div>
         <div class="space-y-1">
-          <Label>Role</Label>
+          <Label>{{ t('admin.users.role') }}</Label>
           <Select v-model="roleFilter">
-            <SelectTrigger class="w-48"><SelectValue placeholder="All roles" /></SelectTrigger>
+            <SelectTrigger class="w-48"><SelectValue :placeholder="t('admin.users.allRoles')" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All roles</SelectItem>
+              <SelectItem value="all">{{ t('admin.users.allRoles') }}</SelectItem>
               <SelectItem v-for="r in roles" :key="r.id" :value="r.id">{{ r.name }}</SelectItem>
             </SelectContent>
           </Select>
         </div>
-        <Button variant="outline" size="icon" title="Search" @click="applyFilters">🔍</Button>
+        <Button variant="outline" size="icon" :title="t('admin.shared.search')" @click="applyFilters">🔍</Button>
       </CardContent>
     </Card>
 
@@ -209,20 +211,20 @@ watch(isReady, async (r) => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>User</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead class="text-right">Actions</TableHead>
+              <TableHead>{{ t('admin.users.user') }}</TableHead>
+              <TableHead>{{ t('admin.shared.email') }}</TableHead>
+              <TableHead>{{ t('admin.users.role') }}</TableHead>
+              <TableHead>{{ t('admin.shared.status') }}</TableHead>
+              <TableHead class="text-right">{{ t('admin.shared.actions') }}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             <TableRow v-if="loading">
-              <TableCell colspan="5" class="text-center py-8 text-muted-foreground">Loading...</TableCell>
+              <TableCell colspan="5" class="text-center py-8 text-muted-foreground">{{ t('admin.shared.loading') }}</TableCell>
             </TableRow>
             <template v-else>
               <TableRow v-if="users.length === 0">
-                <TableCell colspan="5" class="text-center py-8 text-muted-foreground">No users found</TableCell>
+                <TableCell colspan="5" class="text-center py-8 text-muted-foreground">{{ t('admin.users.noData') }}</TableCell>
               </TableRow>
               <TableRow v-for="u in users" :key="u.id">
                 <TableCell>
@@ -236,26 +238,26 @@ watch(isReady, async (r) => {
                 <TableCell>
                   <div class="flex items-center gap-2">
                     <Switch :model-value="u.is_active" size="sm" @update:model-value="toggleActive(u)" />
-                    <span class="text-xs text-muted-foreground">{{ u.is_active ? 'Active' : 'Inactive' }}</span>
+                    <span class="text-xs text-muted-foreground">{{ u.is_active ? t('admin.shared.active') : t('admin.shared.inactive') }}</span>
                   </div>
                 </TableCell>
                 <TableCell class="text-right">
                   <div class="flex justify-end gap-2">
-                    <Button variant="outline" size="sm" @click="openEdit(u)">Edit</Button>
+                    <Button variant="outline" size="sm" @click="openEdit(u)">{{ t('admin.shared.edit') }}</Button>
                     <AlertDialog>
                       <AlertDialogTrigger as-child>
-                        <Button variant="destructive" size="sm">Delete</Button>
+                        <Button variant="destructive" size="sm">{{ t('admin.shared.delete') }}</Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Delete user?</AlertDialogTitle>
+                          <AlertDialogTitle>{{ t('admin.users.deleteTitle') }}</AlertDialogTitle>
                           <AlertDialogDescription>
-                            This will permanently delete {{ u.username }}. This action cannot be undone.
+                            {{ t('admin.users.deleteDescription', { username: u.username }) }}
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction @click="removeUser(u)">Delete</AlertDialogAction>
+                          <AlertDialogCancel>{{ t('admin.shared.cancel') }}</AlertDialogCancel>
+                          <AlertDialogAction @click="removeUser(u)">{{ t('admin.shared.delete') }}</AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
@@ -274,32 +276,32 @@ watch(isReady, async (r) => {
     <Dialog v-model:open="dialogOpen">
       <DialogContent class="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{{ editing ? 'Edit User' : 'Create User' }}</DialogTitle>
+          <DialogTitle>{{ editing ? t('admin.users.editTitle') : t('admin.users.createTitle') }}</DialogTitle>
           <DialogDescription>
-            {{ editing ? 'Update the user account details.' : 'Create a new user account.' }}
+            {{ editing ? t('admin.users.editDescription') : t('admin.users.createDescription') }}
           </DialogDescription>
         </DialogHeader>
         <div class="grid gap-4">
           <div class="space-y-2">
-            <Label>Full Name</Label>
-            <Input v-model="form.full_name" placeholder="Full name" />
+            <Label>{{ t('admin.users.fullName') }}</Label>
+            <Input v-model="form.full_name" :placeholder="t('admin.users.fullNamePlaceholder')" />
           </div>
           <div class="space-y-2">
-            <Label>Username</Label>
-            <Input v-model="form.username" placeholder="Username" autocomplete="off" />
+            <Label>{{ t('admin.users.username') }}</Label>
+            <Input v-model="form.username" :placeholder="t('admin.users.usernamePlaceholder')" autocomplete="off" />
           </div>
           <div class="space-y-2">
-            <Label>Email</Label>
-            <Input v-model="form.email" type="email" placeholder="Email" autocomplete="off" />
+            <Label>{{ t('admin.shared.email') }}</Label>
+            <Input v-model="form.email" type="email" :placeholder="t('admin.users.emailPlaceholder')" autocomplete="off" />
           </div>
           <div class="space-y-2">
-            <Label>Password</Label>
-            <Input v-model="form.password" type="password" placeholder="Password" autocomplete="new-password" />
+            <Label>{{ t('admin.users.password') }}</Label>
+            <Input v-model="form.password" type="password" :placeholder="t('admin.users.passwordPlaceholder')" autocomplete="new-password" />
           </div>
           <div class="space-y-2">
-            <Label>Role</Label>
+            <Label>{{ t('admin.users.role') }}</Label>
             <Select v-model="form.role_id">
-              <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
+              <SelectTrigger><SelectValue :placeholder="t('admin.users.selectRole')" /></SelectTrigger>
               <SelectContent>
                 <SelectItem v-for="r in roles" :key="r.id" :value="r.id">{{ r.name }}</SelectItem>
               </SelectContent>
@@ -307,8 +309,8 @@ watch(isReady, async (r) => {
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" @click="dialogOpen = false">Cancel</Button>
-          <Button :disabled="saving" @click="save">{{ saving ? 'Saving...' : 'Save' }}</Button>
+          <Button variant="outline" @click="dialogOpen = false">{{ t('admin.shared.cancel') }}</Button>
+          <Button :disabled="saving" @click="save">{{ saving ? t('admin.shared.saving') : t('admin.shared.save') }}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

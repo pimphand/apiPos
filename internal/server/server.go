@@ -29,6 +29,7 @@ import (
 	reportv1 "apiPos/gen/report/v1"
 	rolev1 "apiPos/gen/role/v1"
 	salev1 "apiPos/gen/sale/v1"
+	storev1 "apiPos/gen/store/v1"
 	userv1 "apiPos/gen/user/v1"
 	"apiPos/internal/activitylog"
 	"apiPos/internal/auth"
@@ -47,6 +48,7 @@ import (
 	"apiPos/internal/repository"
 	"apiPos/internal/role"
 	"apiPos/internal/sale"
+	"apiPos/internal/store"
 	"apiPos/internal/user"
 	"apiPos/middleware"
 )
@@ -71,6 +73,7 @@ type Server struct {
 	roleService         *role.Service
 	permissionService   *permission.Service
 	activityLogService  *activitylog.Service
+	storeService        *store.Service
 }
 
 // New creates a new gRPC server
@@ -90,6 +93,7 @@ func New(cfg *config.Config, db *gormdb.DB) *Server {
 	roleService := role.NewService(repos)
 	permissionService := permission.NewService(repos)
 	activityLogService := activitylog.NewService(repos)
+	storeService := store.NewService(repos)
 
 	return &Server{
 		config:             cfg,
@@ -109,6 +113,7 @@ func New(cfg *config.Config, db *gormdb.DB) *Server {
 		roleService:        roleService,
 		permissionService:  permissionService,
 		activityLogService: activityLogService,
+		storeService:       storeService,
 	}
 }
 
@@ -243,6 +248,11 @@ func (s *Server) startHTTP() error {
 		return fmt.Errorf("failed to register activity log gateway: %w", err)
 	}
 
+	// Register StoreService (superadmin)
+	if err := storev1.RegisterStoreServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", s.config.GRPC.Port), opts); err != nil {
+		return fmt.Errorf("failed to register store gateway: %w", err)
+	}
+
 	httpMux := http.NewServeMux()
 	httpMux.HandleFunc("/", s.handleSwaggerUI)
 	httpMux.HandleFunc("/swagger.json", s.handleSwaggerJSON)
@@ -316,6 +326,7 @@ func (s *Server) registerServices() {
 	healthServer.SetServingStatus("role.v1.RoleService", healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus("permission.v1.PermissionService", healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus("activitylog.v1.ActivityLogService", healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus("store.v1.StoreService", healthpb.HealthCheckResponse_SERVING)
 
 	logs := handler.NewActivityLogger(s.activityLogService)
 
@@ -360,6 +371,9 @@ func (s *Server) registerServices() {
 
 	activityLogHandler := handler.NewActivityLogHandler(s.activityLogService)
 	activitylogv1.RegisterActivityLogServiceServer(s.grpcServer, activityLogHandler)
+
+	storeHandler := handler.NewStoreHandler(s.storeService, logs)
+	storev1.RegisterStoreServiceServer(s.grpcServer, storeHandler)
 
 	log.Println("All services registered")
 }

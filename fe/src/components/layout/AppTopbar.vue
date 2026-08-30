@@ -2,12 +2,15 @@
 import { ref } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useUiStore } from '@/stores/ui';
+import { useLocaleStore } from '@/stores/locale';
 import { navigateTo } from '@/lib/navigation';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
 
 const authStore = useAuthStore();
 const uiStore = useUiStore();
+const localeStore = useLocaleStore();
+const t = localeStore.t;
 
 const showUserMenu = ref(false);
 
@@ -27,14 +30,23 @@ function toggleDarkMode() {
     <Separator orientation="vertical" class="mr-2 h-4" />
 
     <div class="flex-1 flex items-center justify-between">
-      <h1 class="text-lg font-semibold">POS Application</h1>
+      <h1 class="text-lg font-semibold">{{ t('topbar.appTitle') }}</h1>
 
-      <div class="flex items-center gap-4">
+      <div class="flex items-center gap-2">
+        <!-- Language Toggle -->
+        <button
+          @click="localeStore.toggleLocale"
+          class="px-3 h-9 rounded-lg border text-sm font-medium hover:bg-muted transition-colors"
+          :title="localeStore.locale === 'en' ? 'Bahasa Indonesia' : 'English'"
+        >
+          {{ localeStore.locale === 'en' ? 'ID' : 'EN' }}
+        </button>
+
         <!-- Dark Mode Toggle -->
         <button
           @click="toggleDarkMode"
           class="p-2 rounded-lg hover:bg-muted transition-colors"
-          title="Toggle dark mode"
+          :title="t('topbar.toggleDark')"
         >
           <span v-if="uiStore.isDarkMode">☀️</span>
           <span v-else>🌙</span>
@@ -67,14 +79,14 @@ function toggleDarkMode() {
                 class="flex items-center gap-2 px-2 py-1.5 text-sm rounded-lg hover:bg-muted transition-colors"
               >
                 <span>👤</span>
-                <span>Profile</span>
+                <span>{{ t('topbar.profile') }}</span>
               </a>
               <button
                 @click="handleLogout"
                 class="w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-lg hover:bg-muted transition-colors text-destructive"
               >
                 <span>🚪</span>
-                <span>Logout</span>
+                <span>{{ t('topbar.logout') }}</span>
               </button>
             </div>
           </div>

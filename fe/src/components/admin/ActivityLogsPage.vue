@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue';
 import { activityLogService } from '@/services/activitylog';
 import { useUiStore } from '@/stores/ui';
+import { useLocaleStore } from '@/stores/locale';
 import { usePageGuard } from '@/composables/usePageGuard';
 import { apiMessage } from '@/lib/apiError';
 import { formatDateTime } from '@/lib/utils';
@@ -19,6 +20,7 @@ import { Card, CardContent } from '@/components/ui/card';
 
 const { isReady, allowed } = usePageGuard('activity_logs.read');
 const ui = useUiStore();
+const t = useLocaleStore().t;
 
 const ACTIONS = ['LOGIN', 'LOGOUT', 'CREATE', 'UPDATE', 'DELETE', 'VIEW'];
 
@@ -103,42 +105,42 @@ watch(isReady, (r) => { if (r) load(); }, { immediate: true });
   </div>
 
   <div v-else-if="!allowed" class="flex flex-col items-center justify-center py-24 text-center bg-card rounded-xl border">
-    <h3 class="text-xl font-semibold">Access restricted</h3>
-    <p class="text-muted-foreground mt-2 max-w-sm">You don't have permission to view activity logs.</p>
+    <h3 class="text-xl font-semibold">{{ t('admin.shared.accessRestricted') }}</h3>
+    <p class="text-muted-foreground mt-2 max-w-sm">{{ t('admin.shared.noPermission', { action: t('admin.activityLogs.noPermissionAction') }) }}</p>
   </div>
 
   <div v-else class="flex flex-col gap-4">
     <div>
-      <h2 class="text-2xl font-bold">Activity Logs</h2>
-      <p class="text-muted-foreground mt-1">Audit trail of all user actions across the system.</p>
+      <h2 class="text-2xl font-bold">{{ t('admin.activityLogs.title') }}</h2>
+      <p class="text-muted-foreground mt-1">{{ t('admin.activityLogs.description') }}</p>
     </div>
 
     <Card>
       <CardContent class="flex flex-wrap items-end gap-3 pt-4">
         <div class="space-y-1">
-          <Label>Action</Label>
+          <Label>{{ t('admin.activityLogs.action') }}</Label>
           <Select v-model="filters.action">
-            <SelectTrigger class="w-40"><SelectValue placeholder="All actions" /></SelectTrigger>
+            <SelectTrigger class="w-40"><SelectValue :placeholder="t('admin.activityLogs.allActions')" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All actions</SelectItem>
+              <SelectItem value="all">{{ t('admin.activityLogs.allActions') }}</SelectItem>
               <SelectItem v-for="a in ACTIONS" :key="a" :value="a">{{ a }}</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div class="space-y-1">
-          <Label>Resource</Label>
-          <Input v-model="filters.resource" placeholder="e.g. products" class="w-44" @keyup.enter="applyFilters" />
+          <Label>{{ t('admin.activityLogs.resource') }}</Label>
+          <Input v-model="filters.resource" :placeholder="t('admin.activityLogs.resourcePlaceholder')" class="w-44" @keyup.enter="applyFilters" />
         </div>
         <div class="space-y-1">
-          <Label>Start date</Label>
+          <Label>{{ t('admin.activityLogs.startDate') }}</Label>
           <Input v-model="filters.start_date" type="date" class="w-40" />
         </div>
         <div class="space-y-1">
-          <Label>End date</Label>
+          <Label>{{ t('admin.activityLogs.endDate') }}</Label>
           <Input v-model="filters.end_date" type="date" class="w-40" />
         </div>
-        <Button @click="applyFilters">Filter</Button>
-        <Button variant="ghost" @click="resetFilters">Reset</Button>
+        <Button @click="applyFilters">{{ t('admin.shared.filter') }}</Button>
+        <Button variant="ghost" @click="resetFilters">{{ t('admin.shared.reset') }}</Button>
       </CardContent>
     </Card>
 
@@ -147,20 +149,20 @@ watch(isReady, (r) => { if (r) load(); }, { immediate: true });
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>User</TableHead>
-              <TableHead>Action</TableHead>
-              <TableHead>Resource</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>When</TableHead>
+              <TableHead>{{ t('admin.activityLogs.user') }}</TableHead>
+              <TableHead>{{ t('admin.activityLogs.action') }}</TableHead>
+              <TableHead>{{ t('admin.activityLogs.resource') }}</TableHead>
+              <TableHead>{{ t('admin.shared.description') }}</TableHead>
+              <TableHead>{{ t('admin.activityLogs.when') }}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             <TableRow v-if="loading">
-              <TableCell colspan="5" class="text-center py-8 text-muted-foreground">Loading...</TableCell>
+              <TableCell colspan="5" class="text-center py-8 text-muted-foreground">{{ t('admin.shared.loading') }}</TableCell>
             </TableRow>
             <template v-else>
               <TableRow v-if="logs.length === 0">
-                <TableCell colspan="5" class="text-center py-8 text-muted-foreground">No activity logs found</TableCell>
+                <TableCell colspan="5" class="text-center py-8 text-muted-foreground">{{ t('admin.activityLogs.noData') }}</TableCell>
               </TableRow>
               <TableRow v-for="log in logs" :key="log.id" class="cursor-pointer hover:bg-muted/50" @click="openDetail(log)">
                 <TableCell>
@@ -183,19 +185,19 @@ watch(isReady, (r) => { if (r) load(); }, { immediate: true });
     <Dialog v-model:open="detailOpen">
       <DialogContent class="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Activity Log Detail</DialogTitle>
-          <DialogDescription>Full record for this activity.</DialogDescription>
+          <DialogTitle>{{ t('admin.activityLogs.detailTitle') }}</DialogTitle>
+          <DialogDescription>{{ t('admin.activityLogs.detailDescription') }}</DialogDescription>
         </DialogHeader>
         <div v-if="detail" class="grid gap-3 text-sm">
-          <div class="grid grid-cols-3 gap-2"><span class="text-muted-foreground">User</span><span class="col-span-2">{{ detail.username || '—' }}</span></div>
-          <div class="grid grid-cols-3 gap-2"><span class="text-muted-foreground">Action</span><span class="col-span-2"><Badge :variant="actionVariant(detail.action)">{{ detail.action }}</Badge></span></div>
-          <div class="grid grid-cols-3 gap-2"><span class="text-muted-foreground">Resource</span><span class="col-span-2 font-mono text-xs">{{ detail.resource }}</span></div>
-          <div class="grid grid-cols-3 gap-2"><span class="text-muted-foreground">Resource ID</span><span class="col-span-2 font-mono text-xs break-all">{{ detail.resource_id || '—' }}</span></div>
-          <div class="grid grid-cols-3 gap-2"><span class="text-muted-foreground">Description</span><span class="col-span-2">{{ detail.description }}</span></div>
-          <div class="grid grid-cols-3 gap-2"><span class="text-muted-foreground">IP</span><span class="col-span-2">{{ detail.ip_address || '—' }}</span></div>
-          <div class="grid grid-cols-3 gap-2"><span class="text-muted-foreground">Timestamp</span><span class="col-span-2">{{ formatDateTime(detail.created_at) }}</span></div>
+          <div class="grid grid-cols-3 gap-2"><span class="text-muted-foreground">{{ t('admin.activityLogs.user') }}</span><span class="col-span-2">{{ detail.username || '—' }}</span></div>
+          <div class="grid grid-cols-3 gap-2"><span class="text-muted-foreground">{{ t('admin.activityLogs.action') }}</span><span class="col-span-2"><Badge :variant="actionVariant(detail.action)">{{ detail.action }}</Badge></span></div>
+          <div class="grid grid-cols-3 gap-2"><span class="text-muted-foreground">{{ t('admin.activityLogs.resource') }}</span><span class="col-span-2 font-mono text-xs">{{ detail.resource }}</span></div>
+          <div class="grid grid-cols-3 gap-2"><span class="text-muted-foreground">{{ t('admin.activityLogs.resourceId') }}</span><span class="col-span-2 font-mono text-xs break-all">{{ detail.resource_id || '—' }}</span></div>
+          <div class="grid grid-cols-3 gap-2"><span class="text-muted-foreground">{{ t('admin.shared.description') }}</span><span class="col-span-2">{{ detail.description }}</span></div>
+          <div class="grid grid-cols-3 gap-2"><span class="text-muted-foreground">{{ t('admin.activityLogs.ip') }}</span><span class="col-span-2">{{ detail.ip_address || '—' }}</span></div>
+          <div class="grid grid-cols-3 gap-2"><span class="text-muted-foreground">{{ t('admin.activityLogs.timestamp') }}</span><span class="col-span-2">{{ formatDateTime(detail.created_at) }}</span></div>
           <div v-if="detail.metadata" class="grid grid-cols-3 gap-2">
-            <span class="text-muted-foreground">Metadata</span>
+            <span class="text-muted-foreground">{{ t('admin.activityLogs.metadata') }}</span>
             <pre class="col-span-2 overflow-auto rounded-md bg-muted p-2 text-xs">{{ parseMetadata(detail.metadata) }}</pre>
           </div>
         </div>

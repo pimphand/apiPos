@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package store.v1;
+
+option go_package = "apiPos/gen/store/v1;storev1";
+
+import "google/api/annotations.proto";
+
+// StoreService manages stores. Intended for superadmin users who verify and
+// manage tenant stores.
+service StoreService {
+  // GetStore gets a store by ID
+  rpc GetStore(GetStoreRequest) returns (StoreResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/stores/{id}"
+    };
+  }
+
+  // ListStores lists all stores (with optional status filter)
+  rpc ListStores(ListStoresRequest) returns (ListStoresResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/stores"
+    };
+  }
+
+  // VerifyStore verifies/approves a pending store, activating it.
+  rpc VerifyStore(VerifyStoreRequest) returns (StoreResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/stores/{id}/verify"
+      body: "*"
+    };
+  }
+}
+
+message Store {
+  string id = 1;
+  string name = 2;
+  string address = 3;
+  string phone = 4;
+  string is_active = 5;   // "true" | "false"
+  string is_verified = 6; // "true" | "false"
+  string created_at = 7;
+  string updated_at = 8;
+}
+
+message GetStoreRequest {
+  string id = 1;
+}
+
+message ListStoresRequest {
+  string is_verified = 1; // "" = all, "true" = verified, "false" = pending
+  string is_active = 2;   // "" = all, "true" | "false"
+  int32 page = 3;
+  int32 per_page = 4;
+}
+
+message ListStoresResponse {
+  repeated Store stores = 1;
+  int64 total_count = 2;
+  int32 page = 3;
+  int32 per_page = 4;
+}
+
+message VerifyStoreRequest {
+  string id = 1;
+}
+
+message StoreResponse {
+  Store store = 1;
+}

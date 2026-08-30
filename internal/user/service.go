@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -206,7 +207,12 @@ func (s *Service) UpdateUserRole(ctx context.Context, idStr, roleIDStr string) (
 }
 
 // Register creates a new user with default role (Cashier)
-func (s *Service) Register(ctx context.Context, username, email, password, fullName, deviceID string) (*auth.TokenPair, *gormdb.User, error) {
+func (s *Service) Register(ctx context.Context, username, email, password, fullName, deviceID, storeName string) (*auth.TokenPair, *gormdb.User, error) {
+	// Store name is required for SaaS onboarding
+	if strings.TrimSpace(storeName) == "" {
+		return nil, nil, apperror.Wrap(apperror.ErrInvalidRequest, "Store name is required", fmt.Errorf("store name required"))
+	}
+	storeName = strings.TrimSpace(storeName)
 	// Check if username already exists
 	_, err := s.repos.User.GetByUsername(ctx, username)
 	if err == nil {
@@ -231,38 +237,52 @@ func (s *Service) Register(ctx context.Context, username, email, password, fullN
 		return nil, nil, apperror.Wrap(apperror.ErrInternal, "Failed to hash password", err)
 	}
 
-	// Look up the cashier role
+	// Look up the admin role that the registering user is assigned
 	roles, err := s.repos.Role.List(ctx)
 	if err != nil {
 		return nil, nil, apperror.Wrap(apperror.ErrInternal, "Failed to list roles", err)
 	}
 
-	var cashierRoleID string
+	var adminRoleID string
 	for _, r := range roles {
-		if r.Name == "cashier" {
-			cashierRoleID = r.ID.String()
+		if r.Name == "admin" {
+			adminRoleID = r.ID.String()
 			break
 		}
 	}
-	if cashierRoleID == "" {
-		return nil, nil, apperror.Wrap(apperror.ErrInternal, "Cashier role not found", fmt.Errorf("cashier role missing"))
+	if adminRoleID == "" {
+		return nil, nil, apperror.Wrap(apperror.ErrInternal, "Admin role not found", fmt.Errorf("admin role missing"))
 	}
 
-	// Create user with default role (Cashier)
+	// Registration auto-creates a new store for the user and assigns the user
+	// the admin role for that store. The store name is provided by the user
+	// during signup (required for SaaS onboarding).
+	store := &gormdb.Store{
+		Name:       storeName,
+		IsActive:   false, // pending until verified by a superadmin
+		IsVerified: false,
+	}
+	if err := s.repos.Store.Create(ctx, store); err != nil {
+		return nil, nil, apperror.Wrap(apperror.ErrInternal, "Failed to create store", err)
+	}
+
+	// Create user with the admin role and store_id set to the new store
 	user := &gormdb.User{
 		Username:     username,
 		Email:        email,
 		PasswordHash: hashedPassword,
 		FullName:     fullName,
-		RoleID:       parseUUIDToUUID(cashierRoleID),
+		RoleID:       parseUUIDToUUID(adminRoleID),
+		StoreID:      store.ID,
+		IsActive:     true,
 	}
 
 	if err := s.repos.User.Create(ctx, user); err != nil {
 		return nil, nil, apperror.Wrap(apperror.ErrInternal, "Failed to create user", err)
 	}
 
-	// Registration always assigns the cashier role.
-	tokenPair, err := s.issueTokenPair(ctx, user, deviceID, "cashier")
+	// Registration assigns the admin role for the auto-created store.
+	tokenPair, err := s.issueTokenPair(ctx, user, deviceID, "admin")
 	if err != nil {
 		return nil, nil, err
 	}

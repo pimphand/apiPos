@@ -57,8 +57,16 @@ func (h *ProductHandler) CreateProduct(ctx context.Context, req *productv1.Creat
 	// Load SKU count and category name for the created product
 	protoProduct := h.toProtoProductEnriched(p)
 
-	h.logs.Log(ctx, "CREATE", "products", p.ID.String(),
-		`{"name":"`+p.Name+`","sku":"`+req.Sku+`"}`)
+	h.logs.LogJSON(ctx, "CREATE", "products", p.ID.String(), map[string]interface{}{
+		"name":          p.Name,
+		"description":   p.Description,
+		"category_id":   p.CategoryID.String(),
+		"cost_price":    p.CostPrice,
+		"selling_price": p.SellingPrice,
+		"minimum_stock": p.MinimumStock,
+		"is_active":     p.IsActive,
+		"skus":          p.ProductSKUs,
+	})
 
 	return &productv1.ProductResponse{
 		Product: protoProduct,
@@ -205,8 +213,17 @@ func (h *ProductHandler) UpdateProduct(ctx context.Context, req *productv1.Updat
 
 	protoProduct := h.toProtoProductEnriched(p)
 
-	h.logs.Log(ctx, "UPDATE", "products", p.ID.String(),
-		`{"name":"`+p.Name+`"}`)
+	h.logs.LogJSON(ctx, "UPDATE", "products", p.ID.String(), map[string]interface{}{
+		"name":              p.Name,
+		"description":       p.Description,
+		"category_id":       p.CategoryID.String(),
+		"cost_price":        p.CostPrice,
+		"selling_price":     p.SellingPrice,
+		"minimum_stock":     p.MinimumStock,
+		"is_active":         p.IsActive,
+		"skus":              p.ProductSKUs,
+		"sku_ids_to_delete": req.SkuIdsToDelete,
+	})
 
 	return &productv1.ProductResponse{
 		Product: protoProduct,

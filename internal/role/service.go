@@ -145,8 +145,8 @@ func (s *Service) DeleteRole(ctx context.Context, idStr string) error {
 		return apperror.Wrap(apperror.ErrInternal, "Failed to get role", err)
 	}
 
-	// Prevent deleting default roles
-	if role.Name == "admin" || role.Name == "manager" || role.Name == "cashier" {
+	// Prevent deleting default roles (superadmin is the system role)
+	if role.Name == "superadmin" || role.Name == "admin" || role.Name == "manager" || role.Name == "cashier" {
 		return apperror.Wrap(apperror.ErrFailedPrecondition, "Cannot delete default role", nil)
 	}
 

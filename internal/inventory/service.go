@@ -2,6 +2,7 @@ package inventory
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -136,38 +137,23 @@ func (s *Service) CreateTransaction(ctx context.Context, req CreateTransactionRe
 	storeID, _ := uuid.Parse(req.StoreID)
 	createdBy, _ := uuid.Parse(req.CreatedBy)
 
-	// Get current stock (use row locking via GORM)
-	var product gormdb.Product
-	if err := s.repos.DB().WithContext(ctx).Raw(
-		"SELECT * FROM products WHERE id = ? FOR UPDATE", productID,
-	).Scan(&product).Error; err != nil {
-		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to lock product row", err)
-	}
-
-	beforeStock := product.Stock
-	var afterStock int32
-
+	// Determine stock delta for the transaction type.
+	var delta int32
 	switch req.Type {
-	case TypePurchase, TypeReturn:
-		// Increase stock
-		afterStock = beforeStock + req.Quantity
+	case TypePurchase, TypeReturn, TypeAdjustment:
+		delta = req.Quantity
 	case TypeSale, TypeDamage, TypeTransfer:
-		// Decrease stock
-		if beforeStock < req.Quantity {
-			return nil, apperror.Wrap(apperror.ErrInvalidRequest, fmt.Sprintf("Insufficient stock. Available: %d, Requested: %d", beforeStock, req.Quantity), nil)
-		}
-		afterStock = beforeStock - req.Quantity
-	case TypeAdjustment:
-		// For adjustment, quantity can be positive (increase) or negative (decrease)
-		// But we require quantity > 0, so use direction
-		afterStock = beforeStock + req.Quantity
+		delta = -req.Quantity
 	}
 
-	// Update stock
-	if err := s.repos.DB().WithContext(ctx).Model(&gormdb.Product{}).
-		Where("id = ?", productID).
-		Update("stock", afterStock).Error; err != nil {
-		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to update stock", err)
+	// Atomically lock + adjust stock and capture before/after for the ledger.
+	beforeStock, afterStock, err := s.repos.Inventory.AdjustProductStock(ctx, productID, delta)
+	if err != nil {
+		if errors.Is(err, repository.ErrInsufficientStockAtRepo) {
+			return nil, apperror.Wrap(apperror.ErrInsufficientStock,
+				fmt.Sprintf("Insufficient stock. Available: %d, Requested: %d", beforeStock, req.Quantity), nil)
+		}
+		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to adjust stock", err)
 	}
 
 	// Create inventory transaction
@@ -223,31 +209,21 @@ func (s *Service) AdjustStock(ctx context.Context, req AdjustStockRequest) (*gor
 	storeID, _ := uuid.Parse(req.StoreID)
 	createdBy, _ := uuid.Parse(req.CreatedBy)
 
-	// Get current stock (use row locking via GORM)
-	var product gormdb.Product
-	if err := s.repos.DB().WithContext(ctx).Raw(
-		"SELECT * FROM products WHERE id = ? FOR UPDATE", productID,
-	).Scan(&product).Error; err != nil {
-		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to lock product row", err)
-	}
-
-	beforeStock := product.Stock
-	var afterStock int32
-
+	// Atomically lock + adjust stock and capture before/after for the ledger.
+	var delta int32
 	if req.Direction == "INCREASE" {
-		afterStock = beforeStock + req.Quantity
+		delta = req.Quantity
 	} else {
-		if beforeStock < req.Quantity {
-			return nil, apperror.Wrap(apperror.ErrInvalidRequest, fmt.Sprintf("Insufficient stock. Available: %d, Requested: %d", beforeStock, req.Quantity), nil)
-		}
-		afterStock = beforeStock - req.Quantity
+		delta = -req.Quantity
 	}
 
-	// Update stock
-	if err := s.repos.DB().WithContext(ctx).Model(&gormdb.Product{}).
-		Where("id = ?", productID).
-		Update("stock", afterStock).Error; err != nil {
-		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to update stock", err)
+	beforeStock, afterStock, err := s.repos.Inventory.AdjustProductStock(ctx, productID, delta)
+	if err != nil {
+		if errors.Is(err, repository.ErrInsufficientStockAtRepo) {
+			return nil, apperror.Wrap(apperror.ErrInsufficientStock,
+				fmt.Sprintf("Insufficient stock. Available: %d, Requested: %d", beforeStock, req.Quantity), nil)
+		}
+		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to adjust stock", err)
 	}
 
 	// Create inventory transaction

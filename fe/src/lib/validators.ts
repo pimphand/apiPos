@@ -27,6 +27,11 @@ export const registerSchema = z
       .trim()
       .min(1, 'Full name is required')
       .max(200, 'Full name must be at most 200 characters'),
+    store_name: z
+      .string({ required_error: 'Store name is required' })
+      .trim()
+      .min(1, 'Store name is required')
+      .max(100, 'Store name must be at most 100 characters'),
     username: z
       .string({ required_error: 'Username is required' })
       .trim()

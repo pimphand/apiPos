@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue';
 import { permissionService } from '@/services/permission';
 import { useUiStore } from '@/stores/ui';
+import { useLocaleStore } from '@/stores/locale';
 import { usePageGuard } from '@/composables/usePageGuard';
 import { apiMessage } from '@/lib/apiError';
 import type { Permission } from '@/types';
@@ -20,6 +21,7 @@ import { Card, CardContent } from '@/components/ui/card';
 
 const { isReady, allowed } = usePageGuard('permissions.read');
 const ui = useUiStore();
+const t = useLocaleStore().t;
 
 const RESOURCES = [
   'users', 'roles', 'permissions', 'categories', 'products', 'inventory',
@@ -79,10 +81,10 @@ async function save() {
   try {
     if (editing.value) {
       await permissionService.update(editing.value.id, form.value);
-      ui.addToast('success', 'Permission updated');
+      ui.addToast('success', t('admin.permissions.toastUpdated'));
     } else {
       await permissionService.create(form.value);
-      ui.addToast('success', 'Permission created');
+      ui.addToast('success', t('admin.permissions.toastCreated'));
     }
     formOpen.value = false;
     load();
@@ -96,7 +98,7 @@ async function save() {
 async function removePermission(p: Permission) {
   try {
     await permissionService.delete(p.id);
-    ui.addToast('success', 'Permission deleted');
+    ui.addToast('success', t('admin.permissions.toastDeleted'));
     load();
   } catch (err) {
     ui.addToast('error', apiMessage(err));
@@ -113,32 +115,32 @@ watch(isReady, (r) => { if (r) load(); }, { immediate: true });
   </div>
 
   <div v-else-if="!allowed" class="flex flex-col items-center justify-center py-24 text-center bg-card rounded-xl border">
-    <h3 class="text-xl font-semibold">Access restricted</h3>
-    <p class="text-muted-foreground mt-2 max-w-sm">You don't have permission to manage permissions.</p>
+    <h3 class="text-xl font-semibold">{{ t('admin.shared.accessRestricted') }}</h3>
+    <p class="text-muted-foreground mt-2 max-w-sm">{{ t('admin.shared.noPermission', { action: t('admin.permissions.noPermissionAction') }) }}</p>
   </div>
 
   <div v-else class="flex flex-col gap-4">
     <div class="flex items-start justify-between gap-4">
       <div>
-        <h2 class="text-2xl font-bold">Permissions</h2>
-        <p class="text-muted-foreground mt-1">Manage granular permission definitions keyed by resource and action.</p>
+        <h2 class="text-2xl font-bold">{{ t('admin.permissions.title') }}</h2>
+        <p class="text-muted-foreground mt-1">{{ t('admin.permissions.description') }}</p>
       </div>
-      <Button @click="openCreate">+ New Permission</Button>
+      <Button @click="openCreate">{{ t('admin.permissions.newPermission') }}</Button>
     </div>
 
     <Card>
       <CardContent class="flex flex-wrap items-end gap-3 pt-4">
         <div class="space-y-1">
-          <Label>Resource</Label>
+          <Label>{{ t('admin.permissions.resource') }}</Label>
           <Select v-model="resourceFilter">
-            <SelectTrigger class="w-48"><SelectValue placeholder="All resources" /></SelectTrigger>
+            <SelectTrigger class="w-48"><SelectValue :placeholder="t('admin.permissions.allResources')" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All resources</SelectItem>
+              <SelectItem value="all">{{ t('admin.permissions.allResources') }}</SelectItem>
               <SelectItem v-for="r in RESOURCES" :key="r" :value="r">{{ r }}</SelectItem>
             </SelectContent>
           </Select>
         </div>
-        <Button variant="outline" @click="applyResourceFilter">Filter</Button>
+        <Button variant="outline" @click="applyResourceFilter">{{ t('admin.shared.filter') }}</Button>
       </CardContent>
     </Card>
 
@@ -147,20 +149,20 @@ watch(isReady, (r) => { if (r) load(); }, { immediate: true });
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Resource</TableHead>
-              <TableHead>Action</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead class="text-right">Actions</TableHead>
+              <TableHead>{{ t('admin.shared.name') }}</TableHead>
+              <TableHead>{{ t('admin.permissions.resource') }}</TableHead>
+              <TableHead>{{ t('admin.permissions.action') }}</TableHead>
+              <TableHead>{{ t('admin.shared.description') }}</TableHead>
+              <TableHead class="text-right">{{ t('admin.shared.actions') }}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             <TableRow v-if="loading">
-              <TableCell colspan="5" class="text-center py-8 text-muted-foreground">Loading...</TableCell>
+              <TableCell colspan="5" class="text-center py-8 text-muted-foreground">{{ t('admin.shared.loading') }}</TableCell>
             </TableRow>
             <template v-else>
               <TableRow v-if="permissions.length === 0">
-                <TableCell colspan="5" class="text-center py-8 text-muted-foreground">No permissions found</TableCell>
+                <TableCell colspan="5" class="text-center py-8 text-muted-foreground">{{ t('admin.permissions.noData') }}</TableCell>
               </TableRow>
               <TableRow v-for="p in permissions" :key="p.id">
                 <TableCell><span class="font-mono text-sm font-medium">{{ p.name }}</span></TableCell>
@@ -169,21 +171,21 @@ watch(isReady, (r) => { if (r) load(); }, { immediate: true });
                 <TableCell class="text-muted-foreground">{{ p.description || '—' }}</TableCell>
                 <TableCell class="text-right">
                   <div class="flex justify-end gap-2">
-                    <Button variant="outline" size="sm" @click="openEdit(p)">Edit</Button>
+                    <Button variant="outline" size="sm" @click="openEdit(p)">{{ t('admin.shared.edit') }}</Button>
                     <AlertDialog>
                       <AlertDialogTrigger as-child>
-                        <Button variant="destructive" size="sm">Delete</Button>
+                        <Button variant="destructive" size="sm">{{ t('admin.shared.delete') }}</Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Delete permission?</AlertDialogTitle>
+                          <AlertDialogTitle>{{ t('admin.permissions.deleteTitle') }}</AlertDialogTitle>
                           <AlertDialogDescription>
-                            This will permanently delete "{{ p.name }}".
+                            {{ t('admin.permissions.deleteDescription', { name: p.name }) }}
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction @click="removePermission(p)">Delete</AlertDialogAction>
+                          <AlertDialogCancel>{{ t('admin.shared.cancel') }}</AlertDialogCancel>
+                          <AlertDialogAction @click="removePermission(p)">{{ t('admin.shared.delete') }}</AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
@@ -202,17 +204,17 @@ watch(isReady, (r) => { if (r) load(); }, { immediate: true });
     <Dialog v-model:open="formOpen">
       <DialogContent class="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{{ editing ? 'Edit Permission' : 'Create Permission' }}</DialogTitle>
-          <DialogDescription>Permissions follow the {resource}.{action} format.</DialogDescription>
+          <DialogTitle>{{ editing ? t('admin.permissions.editTitle') : t('admin.permissions.createTitle') }}</DialogTitle>
+          <DialogDescription>{{ t('admin.permissions.dialogDescription') }}</DialogDescription>
         </DialogHeader>
         <div class="grid gap-4">
           <div class="space-y-2">
-            <Label>Name</Label>
-            <Input v-model="form.name" placeholder="e.g. products.create" autocomplete="off" />
+            <Label>{{ t('admin.shared.name') }}</Label>
+            <Input v-model="form.name" :placeholder="t('admin.permissions.namePlaceholder')" autocomplete="off" />
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-2">
-              <Label>Resource</Label>
+              <Label>{{ t('admin.permissions.resource') }}</Label>
               <Select v-model="form.resource">
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -221,7 +223,7 @@ watch(isReady, (r) => { if (r) load(); }, { immediate: true });
               </Select>
             </div>
             <div class="space-y-2">
-              <Label>Action</Label>
+              <Label>{{ t('admin.permissions.action') }}</Label>
               <Select v-model="form.action">
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -231,13 +233,13 @@ watch(isReady, (r) => { if (r) load(); }, { immediate: true });
             </div>
           </div>
           <div class="space-y-2">
-            <Label>Description</Label>
-            <Textarea v-model="form.description" placeholder="Permission description" :rows="3" />
+            <Label>{{ t('admin.shared.description') }}</Label>
+            <Textarea v-model="form.description" :placeholder="t('admin.permissions.descriptionPlaceholder')" :rows="3" />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" @click="formOpen = false">Cancel</Button>
-          <Button :disabled="saving" @click="save">{{ saving ? 'Saving...' : 'Save' }}</Button>
+          <Button variant="outline" @click="formOpen = false">{{ t('admin.shared.cancel') }}</Button>
+          <Button :disabled="saving" @click="save">{{ saving ? t('admin.shared.saving') : t('admin.shared.save') }}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

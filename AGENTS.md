@@ -42,6 +42,7 @@ pos/
 │   ├── sales/
 │   ├── payment/
 │   ├── cashier/
+│   ├── store/
 │   └── report/
 ├── proto/
 ├── gen/
@@ -82,18 +83,34 @@ Implement the following modules.
 
 Features:
 
-* Login
-* Logout
-* JWT access token
-* Refresh token
-* Password hashing using bcrypt/argon2
+* Hash password
 * Role-based authorization
 
 Roles:
 
+* Superadmin (system-wide; manages admins and verifies stores)
 * Admin
 * Manager
 * Cashier
+
+### Registration Flow
+
+* Register **auto-creates a new store** and assigns the registering user the **`admin`** role for that store (`store_id` set to the new store).
+* The new store is created **inactive/pending** until verified by a `superadmin`.
+
+### Store Management (Superadmin)
+
+Superadmin-only endpoints to manage and verify tenant stores. None of these are tenant-scoped (they operate system-wide):
+
+```text
+GET  /api/v1/stores              - List all stores (optional is_verified / is_active filters)
+GET  /api/v1/stores/{id}         - Get a store by ID
+POST /api/v1/stores/{id}/verify  - Verify/approve a pending store (sets is_verified=true, is_active=true)
+```
+
+* Only a `superadmin` can verify (approve) a store (`VerifyStore`).
+* A store is created `is_active=false, is_verified=false` on registration and becomes operational once verified.
+* `StoreService` is a superadmin-only gRPC/REST service; the `superadmin` guard is enforced in the service layer.
 
 ### Users
 
@@ -457,6 +474,55 @@ inventory_transactions.created_at
 
 Use UUID or BIGINT consistently throughout the system. Choose one approach and use it consistently.
 
+### 4.1 Store-based Multi-Tenancy (SaaS)
+
+The POS is multi-tenant at the **store** level. Every tenant-scoped table MUST have a `store_id` column that is a foreign key to `stores(id)`.
+
+Tables that MUST include `store_id`:
+
+```text
+categories
+products
+product_skus
+customers
+sales
+sale_items
+payments
+inventory_transactions
+cashier_shifts
+users
+activity_logs (via the acting user's store, when available)
+```
+
+Global/system tables (NOT tenant-scoped, no `store_id`):
+
+```text
+roles
+permissions
+role_permissions
+refresh_tokens
+```
+
+Rules:
+
+1. **Every query** on a tenant-scoped table MUST filter by the authenticated user's `store_id`.
+2. The token claims carry the user's `store_id`; services must scope queries using `store_id`.
+3. `store_id` is NOT NULL for records created inside a store context (e.g. products, sales).
+4. Non-administrative users (admin/manager/cashier) are always bound to a single store.
+5. Add a `store_id` index on every tenant-scoped table.
+
+### 4.2 Registration Creates a Store
+
+- When a user registers, the system **automatically creates a new store** for them.
+- The registering user is assigned the **`admin`** role for that store, and their `store_id` is set to the newly created store.
+- The store is created inactive/pending until it is verified by a `superadmin`.
+
+### 4.3 Superadmin Role
+
+- A **`superadmin`** role exists to manage the overall system: it handles registered admins and **verifies/approves stores**.
+- `superadmin` is a default/protected role and cannot be deleted.
+- Only a `superadmin` can activate (verify) a pending store.
+
 ## 5. gRPC API
 
 Create `.proto` files per domain:
@@ -472,6 +538,7 @@ sales.proto
 payment.proto
 cashier.proto
 report.proto
+store.proto
 ```
 
 Use proper protobuf conventions.
@@ -1120,9 +1187,12 @@ DeleteRole   - Delete a role (prevent deleting default roles)
 ```
 
 Default roles (cannot be deleted):
+- superadmin
 - admin
 - manager
 - cashier
+
+`superadmin` is the system-wide role: it manages registered admins and verifies/approves stores. `admin` is the role auto-assigned to a store owner on registration.
 
 ### Permissions
 

@@ -50,6 +50,10 @@
       "name": "SaleService"
     },
     {
+      "name": "StoreService",
+      "description": "StoreService manages stores. Intended for superadmin users who verify and\nmanage tenant stores."
+    },
+    {
       "name": "UserService"
     }
   ],
@@ -3297,6 +3301,129 @@
         ]
       }
     },
+    "/api/v1/stores": {
+      "get": {
+        "summary": "ListStores lists all stores (with optional status filter)",
+        "operationId": "StoreService_ListStores",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListStoresResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "isVerified",
+            "description": "\"\" = all, \"true\" = verified, \"false\" = pending",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "isActive",
+            "description": "\"\" = all, \"true\" | \"false\"",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "perPage",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "tags": [
+          "StoreService"
+        ]
+      }
+    },
+    "/api/v1/stores/{id}": {
+      "get": {
+        "summary": "GetStore gets a store by ID",
+        "operationId": "StoreService_GetStore",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1StoreResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "StoreService"
+        ]
+      }
+    },
+    "/api/v1/stores/{id}/verify": {
+      "post": {
+        "summary": "VerifyStore verifies/approves a pending store, activating it.",
+        "operationId": "StoreService_VerifyStore",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1StoreResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/StoreServiceVerifyStoreBody"
+            }
+          }
+        ],
+        "tags": [
+          "StoreService"
+        ]
+      }
+    },
     "/api/v1/users": {
       "get": {
         "summary": "ListUsers lists users with filters",
@@ -3808,6 +3935,9 @@
           "type": "string"
         }
       }
+    },
+    "StoreServiceVerifyStoreBody": {
+      "type": "object"
     },
     "UserServiceUpdateUserBody": {
       "type": "object",
@@ -5277,6 +5407,30 @@
         }
       }
     },
+    "v1ListStoresResponse": {
+      "type": "object",
+      "properties": {
+        "stores": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Store"
+          }
+        },
+        "totalCount": {
+          "type": "string",
+          "format": "int64"
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "perPage": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
     "v1ListTransactionsResponse": {
       "type": "object",
       "properties": {
@@ -5797,6 +5951,10 @@
         "deviceId": {
           "type": "string",
           "description": "Browser/device identifier used to bind the issued refresh token."
+        },
+        "storeName": {
+          "type": "string",
+          "description": "Name of the store to create for the registering user (required for SaaS onboarding).\nThe store is created inactive/pending until verified by a superadmin, and the\nregistering user is assigned the admin role for it."
         }
       }
     },
@@ -6176,6 +6334,45 @@
             "type": "object",
             "$ref": "#/definitions/v1SKUStock"
           }
+        }
+      }
+    },
+    "v1Store": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "isActive": {
+          "type": "string",
+          "title": "\"true\" | \"false\""
+        },
+        "isVerified": {
+          "type": "string",
+          "title": "\"true\" | \"false\""
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      }
+    },
+    "v1StoreResponse": {
+      "type": "object",
+      "properties": {
+        "store": {
+          "$ref": "#/definitions/v1Store"
         }
       }
     },

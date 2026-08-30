@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue';
 import { roleService } from '@/services/role';
 import { permissionService } from '@/services/permission';
 import { useUiStore } from '@/stores/ui';
+import { useLocaleStore } from '@/stores/locale';
 import { usePageGuard } from '@/composables/usePageGuard';
 import { apiMessage } from '@/lib/apiError';
 import type { Role, Permission } from '@/types';
@@ -21,6 +22,7 @@ import { Card, CardContent } from '@/components/ui/card';
 
 const { isReady, allowed } = usePageGuard('roles.read');
 const ui = useUiStore();
+const t = useLocaleStore().t;
 
 const DEFAULT_ROLES = new Set(['admin', 'manager', 'cashier']);
 
@@ -82,10 +84,10 @@ async function save() {
   try {
     if (editing.value) {
       await roleService.update(editing.value.id, form.value);
-      ui.addToast('success', 'Role updated');
+      ui.addToast('success', t('admin.roles.toastUpdated'));
     } else {
       await roleService.create(form.value);
-      ui.addToast('success', 'Role created');
+      ui.addToast('success', t('admin.roles.toastCreated'));
     }
     formOpen.value = false;
     load();
@@ -99,7 +101,7 @@ async function save() {
 async function removeRole(r: Role) {
   try {
     await roleService.delete(r.id);
-    ui.addToast('success', 'Role deleted');
+    ui.addToast('success', t('admin.roles.toastDeleted'));
     load();
   } catch (err) {
     ui.addToast('error', apiMessage(err));
@@ -137,7 +139,7 @@ async function savePermissions() {
   permSaving.value = true;
   try {
     await roleService.assignPermissions(permRole.value.id, Array.from(selectedPerms.value));
-    ui.addToast('success', 'Permissions updated');
+    ui.addToast('success', t('admin.roles.toastPerms'));
     permOpen.value = false;
   } catch (err) {
     ui.addToast('error', apiMessage(err));
@@ -156,17 +158,17 @@ watch(isReady, (r) => { if (r) load(); }, { immediate: true });
   </div>
 
   <div v-else-if="!allowed" class="flex flex-col items-center justify-center py-24 text-center bg-card rounded-xl border">
-    <h3 class="text-xl font-semibold">Access restricted</h3>
-    <p class="text-muted-foreground mt-2 max-w-sm">You don't have permission to manage roles.</p>
+    <h3 class="text-xl font-semibold">{{ t('admin.shared.accessRestricted') }}</h3>
+    <p class="text-muted-foreground mt-2 max-w-sm">{{ t('admin.shared.noPermission', { action: t('admin.roles.noPermissionAction') }) }}</p>
   </div>
 
   <div v-else class="flex flex-col gap-4">
     <div class="flex items-start justify-between gap-4">
       <div>
-        <h2 class="text-2xl font-bold">Roles</h2>
-        <p class="text-muted-foreground mt-1">Define roles and their permissions. Default roles cannot be deleted.</p>
+        <h2 class="text-2xl font-bold">{{ t('admin.roles.title') }}</h2>
+        <p class="text-muted-foreground mt-1">{{ t('admin.roles.description') }}</p>
       </div>
-      <Button @click="openCreate">+ New Role</Button>
+      <Button @click="openCreate">+ {{ t('admin.roles.newRole') }}</Button>
     </div>
 
     <Card>
@@ -174,48 +176,48 @@ watch(isReady, (r) => { if (r) load(); }, { immediate: true });
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Permissions</TableHead>
-              <TableHead class="text-right">Actions</TableHead>
+              <TableHead>{{ t('admin.shared.name') }}</TableHead>
+              <TableHead>{{ t('admin.shared.description') }}</TableHead>
+              <TableHead>{{ t('admin.roles.permissions') }}</TableHead>
+              <TableHead class="text-right">{{ t('admin.shared.actions') }}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             <TableRow v-if="loading">
-              <TableCell colspan="4" class="text-center py-8 text-muted-foreground">Loading...</TableCell>
+              <TableCell colspan="4" class="text-center py-8 text-muted-foreground">{{ t('admin.shared.loading') }}</TableCell>
             </TableRow>
             <template v-else>
               <TableRow v-if="roles.length === 0">
-                <TableCell colspan="4" class="text-center py-8 text-muted-foreground">No roles found</TableCell>
+                <TableCell colspan="4" class="text-center py-8 text-muted-foreground">{{ t('admin.roles.noData') }}</TableCell>
               </TableRow>
               <TableRow v-for="r in roles" :key="r.id">
                 <TableCell>
                   <div class="flex items-center gap-2">
                     <span class="font-medium">{{ r.name }}</span>
-                    <Badge v-if="DEFAULT_ROLES.has(r.name)" variant="secondary">default</Badge>
+                    <Badge v-if="DEFAULT_ROLES.has(r.name)" variant="secondary">{{ t('admin.roles.default') }}</Badge>
                   </div>
                 </TableCell>
                 <TableCell class="text-muted-foreground">{{ r.description || '—' }}</TableCell>
                 <TableCell>
-                  <Button variant="outline" size="sm" @click="openPermissions(r)">Assign Permissions</Button>
+                  <Button variant="outline" size="sm" @click="openPermissions(r)">{{ t('admin.roles.assignPermissions') }}</Button>
                 </TableCell>
                 <TableCell class="text-right">
                   <div class="flex justify-end gap-2">
-                    <Button variant="outline" size="sm" @click="openEdit(r)">Edit</Button>
+                    <Button variant="outline" size="sm" @click="openEdit(r)">{{ t('admin.shared.edit') }}</Button>
                     <AlertDialog v-if="!DEFAULT_ROLES.has(r.name)">
                       <AlertDialogTrigger as-child>
-                        <Button variant="destructive" size="sm">Delete</Button>
+                        <Button variant="destructive" size="sm">{{ t('admin.shared.delete') }}</Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Delete role?</AlertDialogTitle>
+                          <AlertDialogTitle>{{ t('admin.roles.deleteTitle') }}</AlertDialogTitle>
                           <AlertDialogDescription>
-                            This will permanently delete the role "{{ r.name }}".
+                            {{ t('admin.roles.deleteDescription', { name: r.name }) }}
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction @click="removeRole(r)">Delete</AlertDialogAction>
+                          <AlertDialogCancel>{{ t('admin.shared.cancel') }}</AlertDialogCancel>
+                          <AlertDialogAction @click="removeRole(r)">{{ t('admin.shared.delete') }}</AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
@@ -235,22 +237,22 @@ watch(isReady, (r) => { if (r) load(); }, { immediate: true });
     <Dialog v-model:open="formOpen">
       <DialogContent class="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{{ editing ? 'Edit Role' : 'Create Role' }}</DialogTitle>
-          <DialogDescription>Enter the role name and an optional description.</DialogDescription>
+          <DialogTitle>{{ editing ? t('admin.roles.editTitle') : t('admin.roles.createTitle') }}</DialogTitle>
+          <DialogDescription>{{ t('admin.roles.dialogDescription') }}</DialogDescription>
         </DialogHeader>
         <div class="grid gap-4">
           <div class="space-y-2">
-            <Label>Name</Label>
-            <Input v-model="form.name" placeholder="e.g. supervisor" autocomplete="off" />
+            <Label>{{ t('admin.shared.name') }}</Label>
+            <Input v-model="form.name" :placeholder="t('admin.roles.namePlaceholder')" autocomplete="off" />
           </div>
           <div class="space-y-2">
-            <Label>Description</Label>
-            <Textarea v-model="form.description" placeholder="Role description" :rows="3" />
+            <Label>{{ t('admin.shared.description') }}</Label>
+            <Textarea v-model="form.description" :placeholder="t('admin.roles.descriptionPlaceholder')" :rows="3" />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" @click="formOpen = false">Cancel</Button>
-          <Button :disabled="saving" @click="save">{{ saving ? 'Saving...' : 'Save' }}</Button>
+          <Button variant="outline" @click="formOpen = false">{{ t('admin.shared.cancel') }}</Button>
+          <Button :disabled="saving" @click="save">{{ saving ? t('admin.shared.saving') : t('admin.shared.save') }}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -259,10 +261,10 @@ watch(isReady, (r) => { if (r) load(); }, { immediate: true });
     <Dialog v-model:open="permOpen">
       <DialogContent class="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Permissions — {{ permRole?.name }}</DialogTitle>
-          <DialogDescription>Select the permissions this role should have.</DialogDescription>
+          <DialogTitle>{{ t('admin.roles.permTitle', { name: permRole?.name ?? '' }) }}</DialogTitle>
+          <DialogDescription>{{ t('admin.roles.permDescription') }}</DialogDescription>
         </DialogHeader>
-        <div v-if="permLoading" class="py-8 text-center text-muted-foreground">Loading permissions...</div>
+        <div v-if="permLoading" class="py-8 text-center text-muted-foreground">{{ t('admin.roles.loadingPermissions') }}</div>
         <div v-else class="space-y-4">
           <div v-for="[resource, items] in groupedPermissions" :key="resource">
             <h4 class="font-medium capitalize mb-2">{{ resource }}</h4>
@@ -280,11 +282,11 @@ watch(isReady, (r) => { if (r) load(); }, { immediate: true });
               </label>
             </div>
           </div>
-          <p v-if="allPermissions.length === 0" class="text-muted-foreground">No permissions available.</p>
+          <p v-if="allPermissions.length === 0" class="text-muted-foreground">{{ t('admin.roles.noPermissions') }}</p>
         </div>
         <DialogFooter>
-          <Button variant="outline" @click="permOpen = false">Cancel</Button>
-          <Button :disabled="permSaving" @click="savePermissions">{{ permSaving ? 'Saving...' : 'Save' }}</Button>
+          <Button variant="outline" @click="permOpen = false">{{ t('admin.shared.cancel') }}</Button>
+          <Button :disabled="permSaving" @click="savePermissions">{{ permSaving ? t('admin.shared.saving') : t('admin.shared.save') }}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useUiStore } from '@/stores/ui';
+import { useLocaleStore } from '@/stores/locale';
 import { registerSchema } from '@/lib/validators';
 import Button from '@/components/ui/button/Button.vue';
 import Input from '@/components/ui/input/Input.vue';
@@ -17,12 +18,15 @@ import { Toaster } from '@/components/ui/sonner';
 
 const authStore = useAuthStore();
 const uiStore = useUiStore();
+const localeStore = useLocaleStore();
+const t = localeStore.t;
 
 const username = ref('');
 const email = ref('');
 const password = ref('');
 const confirmPassword = ref('');
 const fullName = ref('');
+const storeName = ref('');
 const isLoading = ref(false);
 const error = ref('');
 let errorTimer: ReturnType<typeof setTimeout> | null = null;
@@ -46,6 +50,7 @@ async function handleRegister() {
     email: email.value,
     password: password.value,
     confirm_password: confirmPassword.value,
+    store_name: storeName.value,
   });
 
   if (!parsed.success) {
@@ -58,18 +63,19 @@ async function handleRegister() {
   error.value = '';
 
   try {
-    const { full_name, username, email, password } = parsed.data;
+    const { full_name, username, email, password, store_name } = parsed.data;
     await authStore.register({
       full_name,
       username,
       email,
       password,
+      store_name,
     });
-    uiStore.addToast('success', 'Registration successful!');
+    uiStore.addToast('success', t('auth.register.success'));
     navigateTo('/dashboard');
   } catch (err: unknown) {
     const apiError = err as { response?: { data?: { message?: string } }; message?: string };
-    const message = apiError.response?.data?.message || apiError.message || 'Registration failed';
+    const message = apiError.response?.data?.message || apiError.message || t('auth.register.failed');
     showError(message);
     uiStore.addToast('error', message, 3000);
   } finally {
@@ -81,8 +87,8 @@ async function handleRegister() {
 <template>
   <Card class="w-full max-w-md">
     <CardHeader class="text-center">
-      <CardTitle class="text-2xl">Create Account</CardTitle>
-      <CardDescription>Sign up for a new account</CardDescription>
+      <CardTitle class="text-2xl">{{ t('auth.register.title') }}</CardTitle>
+      <CardDescription>{{ t('auth.register.subtitle') }}</CardDescription>
     </CardHeader>
     <CardContent>
       <form @submit.prevent="handleRegister" class="space-y-4">
@@ -91,75 +97,88 @@ async function handleRegister() {
         </div>
 
         <div class="space-y-2">
-          <Label for="fullName">Full Name</Label>
+          <Label for="fullName">{{ t('auth.register.fullName') }}</Label>
           <Input
             id="fullName"
             v-model="fullName"
             type="text"
-            placeholder="Enter your full name"
+            :placeholder="t('auth.register.fullNamePlaceholder')"
             autocomplete="name"
             :disabled="isLoading"
           />
         </div>
 
         <div class="space-y-2">
-          <Label for="username">Username</Label>
+          <Label for="storeName">{{ t('auth.register.storeName') }}</Label>
+          <Input
+            id="storeName"
+            v-model="storeName"
+            type="text"
+            :placeholder="t('auth.register.storeNamePlaceholder')"
+            autocomplete="organization"
+            :disabled="isLoading"
+          />
+          <p class="text-xs text-muted-foreground">{{ t('auth.register.storeHint') }}</p>
+        </div>
+
+        <div class="space-y-2">
+          <Label for="username">{{ t('auth.register.username') }}</Label>
           <Input
             id="username"
             v-model="username"
             type="text"
-            placeholder="Choose a username"
+            :placeholder="t('auth.register.usernamePlaceholder')"
             autocomplete="username"
             :disabled="isLoading"
           />
         </div>
 
         <div class="space-y-2">
-          <Label for="email">Email</Label>
+          <Label for="email">{{ t('auth.register.email') }}</Label>
           <Input
             id="email"
             v-model="email"
             type="email"
-            placeholder="Enter your email"
+            :placeholder="t('auth.register.emailPlaceholder')"
             autocomplete="email"
             :disabled="isLoading"
           />
         </div>
 
         <div class="space-y-2">
-          <Label for="password">Password</Label>
+          <Label for="password">{{ t('auth.register.password') }}</Label>
           <Input
             id="password"
             v-model="password"
             type="password"
-            placeholder="Create a password"
+            :placeholder="t('auth.register.passwordPlaceholder')"
             autocomplete="new-password"
             :disabled="isLoading"
           />
         </div>
 
         <div class="space-y-2">
-          <Label for="confirmPassword">Confirm Password</Label>
+          <Label for="confirmPassword">{{ t('auth.register.confirmPassword') }}</Label>
           <Input
             id="confirmPassword"
             v-model="confirmPassword"
             type="password"
-            placeholder="Confirm your password"
+            :placeholder="t('auth.register.confirmPasswordPlaceholder')"
             autocomplete="new-password"
             :disabled="isLoading"
           />
         </div>
 
         <Button type="submit" class="w-full" :disabled="isLoading">
-          <span v-if="isLoading">Creating account...</span>
-          <span v-else>Create Account</span>
+          <span v-if="isLoading">{{ t('auth.register.creating') }}</span>
+          <span v-else>{{ t('auth.register.create') }}</span>
         </Button>
       </form>
     </CardContent>
     <CardFooter class="justify-center">
       <p class="text-sm text-muted-foreground">
-        Already have an account?
-        <a href="/login" class="text-primary hover:underline">Sign in</a>
+        {{ t('auth.register.hasAccount') }}
+        <a href="/login" class="text-primary hover:underline">{{ t('auth.register.signIn') }}</a>
       </p>
     </CardFooter>
   </Card>

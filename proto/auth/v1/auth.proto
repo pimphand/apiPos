@@ -47,6 +47,10 @@ message RegisterRequest {
   string full_name = 4;
   // Browser/device identifier used to bind the issued refresh token.
   string device_id = 5;
+  // Name of the store to create for the registering user (required for SaaS onboarding).
+  // The store is created inactive/pending until verified by a superadmin, and the
+  // registering user is assigned the admin role for it.
+  string store_name = 6;
 }
 
 message RegisterResponse {

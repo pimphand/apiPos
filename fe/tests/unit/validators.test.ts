@@ -21,6 +21,7 @@ describe('registerSchema', () => {
   it('accepts valid registration', () => {
     const r = registerSchema.safeParse({
       full_name: 'John Doe',
+      store_name: 'Johns Store',
       username: 'johndoe',
       email: 'john@example.com',
       password: 'secret123',
@@ -29,9 +30,23 @@ describe('registerSchema', () => {
     expect(r.success).toBe(true);
   });
 
+  it('rejects missing store name', () => {
+    const r = registerSchema.safeParse({
+      full_name: 'John Doe',
+      store_name: '',
+      username: 'johndoe',
+      email: 'john@example.com',
+      password: 'secret123',
+      confirm_password: 'secret123',
+    });
+    expect(r.success).toBe(false);
+    expect(r.error?.issues[0].path).toContain('store_name');
+  });
+
   it('rejects mismatched passwords', () => {
     const r = registerSchema.safeParse({
       full_name: 'John Doe',
+      store_name: 'Johns Store',
       username: 'johndoe',
       email: 'john@example.com',
       password: 'secret123',
@@ -44,6 +59,7 @@ describe('registerSchema', () => {
   it('rejects invalid email', () => {
     const r = registerSchema.safeParse({
       full_name: 'John Doe',
+      store_name: 'Johns Store',
       username: 'johndoe',
       email: 'not-an-email',
       password: 'secret123',
@@ -56,6 +72,7 @@ describe('registerSchema', () => {
     expect(
       registerSchema.safeParse({
         full_name: 'J',
+        store_name: 'Johns Store',
         username: 'jd',
         email: 'a@b.co',
         password: '123',
@@ -65,6 +82,7 @@ describe('registerSchema', () => {
     expect(
       registerSchema.safeParse({
         full_name: 'John',
+        store_name: 'Johns Store',
         username: 'bad user!',
         email: 'a@b.co',
         password: 'secret123',

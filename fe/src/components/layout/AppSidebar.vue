@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import { useAuthStore } from '@/stores/auth';
+import { useLocaleStore } from '@/stores/locale';
 import { can, type Permission } from '@/lib/rbac';
 import {
   Sidebar,
@@ -43,6 +44,8 @@ import {
 } from '@lucide/vue';
 
 const authStore = useAuthStore();
+const localeStore = useLocaleStore();
+const t = localeStore.t;
 
 interface SubMenuItem {
   label: string;
@@ -61,42 +64,42 @@ interface MenuItem {
 const menuGroups = computed(() => {
   const groups: { label: string; items: MenuItem[] }[] = [
     {
-      label: 'Main',
+      label: t('sidebar.groupMain'),
       items: [
-        { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
-        { label: 'POS Checkout', icon: ShoppingCart, href: '/pos', permission: 'sales.create' },
+        { label: t('sidebar.dashboard'), icon: LayoutDashboard, href: '/dashboard' },
+        { label: t('sidebar.pos'), icon: ShoppingCart, href: '/pos', permission: 'sales.create' },
       ],
     },
     {
-      label: 'Catalog',
+      label: t('sidebar.groupCatalog'),
       items: [
-        { label: 'Products', icon: Package, href: '/admin/products', permission: 'products.read' },
-        { label: 'Categories', icon: Tag, href: '/admin/categories', permission: 'categories.read' },
-        { label: 'Inventory', icon: ClipboardList, href: '/admin/inventory', permission: 'inventory.read' },
+        { label: t('sidebar.products'), icon: Package, href: '/admin/products', permission: 'products.read' },
+        { label: t('sidebar.categories'), icon: Tag, href: '/admin/categories', permission: 'categories.read' },
+        { label: t('sidebar.inventory'), icon: ClipboardList, href: '/admin/inventory', permission: 'inventory.read' },
       ],
     },
     {
-      label: 'Transactions',
+      label: t('sidebar.groupTransactions'),
       items: [
-        { label: 'Customers', icon: Users, href: '/admin/customers', permission: 'customers.read' },
-        { label: 'Sales', icon: DollarSign, href: '/admin/sales', permission: 'sales.read' },
-        { label: 'Payments', icon: CreditCard, href: '/admin/payments', permission: 'payments.read' },
+        { label: t('sidebar.customers'), icon: Users, href: '/admin/customers', permission: 'customers.read' },
+        { label: t('sidebar.sales'), icon: DollarSign, href: '/admin/sales', permission: 'sales.read' },
+        { label: t('sidebar.payments'), icon: CreditCard, href: '/admin/payments', permission: 'payments.read' },
       ],
     },
     {
-      label: 'Operations',
+      label: t('sidebar.groupOperations'),
       items: [
-        { label: 'Cashier Shifts', icon: Clock, href: '/admin/cashier', permission: 'cashier.view_shift' },
-        { label: 'Reports', icon: BarChart3, href: '/reports', permission: 'reports.read' },
+        { label: t('sidebar.cashier'), icon: Clock, href: '/admin/cashier', permission: 'cashier.view_shift' },
+        { label: t('sidebar.reports'), icon: BarChart3, href: '/reports', permission: 'reports.read' },
       ],
     },
     {
-      label: 'Administration',
+      label: t('sidebar.groupAdministration'),
       items: [
-        { label: 'Users', icon: UserCog, href: '/admin/users', permission: 'users.read' },
-        { label: 'Roles', icon: Shield, href: '/admin/roles', permission: 'roles.read' },
-        { label: 'Permissions', icon: KeyRound, href: '/admin/permissions', permission: 'permissions.read' },
-        { label: 'Activity Logs', icon: FileText, href: '/admin/activity-logs', permission: 'activity_logs.read' },
+        { label: t('sidebar.users'), icon: UserCog, href: '/admin/users', permission: 'users.read' },
+        { label: t('sidebar.roles'), icon: Shield, href: '/admin/roles', permission: 'roles.read' },
+        { label: t('sidebar.permissions'), icon: KeyRound, href: '/admin/permissions', permission: 'permissions.read' },
+        { label: t('sidebar.activityLogs'), icon: FileText, href: '/admin/activity-logs', permission: 'activity_logs.read' },
       ],
     },
   ];
@@ -126,8 +129,8 @@ function isActive(href: string): boolean {
               <Store class="size-4" />
             </div>
             <div class="grid flex-1 text-left text-sm leading-tight">
-              <span class="truncate font-semibold">POS App</span>
-              <span class="truncate text-xs">Point of Sale</span>
+              <span class="truncate font-semibold">{{ t('sidebar.appName') }}</span>
+              <span class="truncate text-xs">{{ t('sidebar.appTagline') }}</span>
             </div>
           </SidebarMenuButton>
         </SidebarMenuItem>

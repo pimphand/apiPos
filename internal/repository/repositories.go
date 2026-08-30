@@ -9,6 +9,7 @@ type Repositories struct {
 	db               *gorm.DB
 	User             UserRepository
 	Role             *RoleRepo
+	Store            StoreRepository
 	Permission       PermissionRepository
 	RolePermission   RolePermissionRepository
 	Product          ProductRepository
@@ -31,10 +32,14 @@ func (r *Repositories) DB() *gorm.DB {
 
 // New creates a new Repositories instance with GORM
 func New(db *gorm.DB) *Repositories {
+	// Install automatic store_id scoping for tenant tables.
+	registerStoreScopeCallbacks(db)
+
 	return &Repositories{
 		db:             db,
 		User:           NewUserRepository(db),
 		Role:           NewRoleRepository(db),
+		Store:          NewStoreRepository(db),
 		Permission:     NewPermissionRepository(db),
 		RolePermission: NewRolePermissionRepository(db),
 		Product:        NewProductRepository(db),

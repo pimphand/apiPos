@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import { Eye, EyeOff } from '@lucide/vue';
 import { useAuthStore } from '@/stores/auth';
 import { useUiStore } from '@/stores/ui';
+import { useLocaleStore } from '@/stores/locale';
 import { loginSchema } from '@/lib/validators';
 import Button from '@/components/ui/button/Button.vue';
 import Input from '@/components/ui/input/Input.vue';
@@ -18,6 +19,8 @@ import { Toaster } from '@/components/ui/sonner';
 
 const authStore = useAuthStore();
 const uiStore = useUiStore();
+const localeStore = useLocaleStore();
+const t = localeStore.t;
 
 const username = ref('');
 const password = ref('');
@@ -55,11 +58,11 @@ async function handleLogin() {
 
   try {
     await authStore.login(parsed.data);
-    uiStore.addToast('success', 'Login successful!');
+    uiStore.addToast('success', t('auth.login.loginSuccessful'));
     navigateTo('/dashboard');
   } catch (err: unknown) {
     const apiError = err as { response?: { data?: { message?: string } }; message?: string };
-    const message = apiError.response?.data?.message || apiError.message || 'Login failed';
+    const message = apiError.response?.data?.message || apiError.message || t('auth.login.loginFailed');
     showError(message);
     uiStore.addToast('error', message, 3000);
   } finally {
@@ -71,8 +74,8 @@ async function handleLogin() {
 <template>
   <Card class="w-full max-w-md">
     <CardHeader class="text-center">
-      <CardTitle class="text-2xl">Welcome Back</CardTitle>
-      <CardDescription>Sign in to your account</CardDescription>
+      <CardTitle class="text-2xl">{{ t('auth.login.welcome') }}</CardTitle>
+      <CardDescription>{{ t('auth.login.subtitle') }}</CardDescription>
     </CardHeader>
     <CardContent>
       <form @submit.prevent="handleLogin" class="space-y-4">
@@ -81,32 +84,32 @@ async function handleLogin() {
         </div>
 
         <div class="space-y-2">
-          <Label for="username">Username</Label>
+          <Label for="username">{{ t('auth.login.username') }}</Label>
           <Input
             id="username"
             v-model="username"
             type="text"
-            placeholder="Enter your username"
+            :placeholder="t('auth.login.usernamePlaceholder')"
             autocomplete="username"
             :disabled="isLoading"
           />
         </div>
 
         <div class="space-y-2">
-          <Label for="password">Password</Label>
+          <Label for="password">{{ t('auth.login.password') }}</Label>
           <div class="relative">
             <Input
               id="password"
               v-model="password"
               :type="showPassword ? 'text' : 'password'"
-              placeholder="Enter your password"
+              :placeholder="t('auth.login.passwordPlaceholder')"
               autocomplete="current-password"
               :disabled="isLoading"
               class="pr-10"
             />
             <button
               type="button"
-              aria-label="Toggle password visibility"
+              :aria-label="t('auth.login.togglePassword')"
               class="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground"
               @click="showPassword = !showPassword"
             >
@@ -117,15 +120,15 @@ async function handleLogin() {
         </div>
 
         <Button type="submit" class="w-full" :disabled="isLoading">
-          <span v-if="isLoading">Signing in...</span>
-          <span v-else>Sign In</span>
+          <span v-if="isLoading">{{ t('auth.login.signingIn') }}</span>
+          <span v-else>{{ t('auth.login.signIn') }}</span>
         </Button>
       </form>
     </CardContent>
     <CardFooter class="justify-center">
       <p class="text-sm text-muted-foreground">
-        Don't have an account?
-        <a href="/register" class="text-primary hover:underline">Register</a>
+        {{ t('auth.login.noAccount') }}
+        <a href="/register" class="text-primary hover:underline">{{ t('auth.login.register') }}</a>
       </p>
     </CardFooter>
   </Card>

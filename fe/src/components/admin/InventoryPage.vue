@@ -3,6 +3,7 @@ import { reactive, ref, watch } from 'vue';
 import { inventoryService, type LowStockProduct } from '@/services/inventory';
 import { productService } from '@/services/product';
 import { useUiStore } from '@/stores/ui';
+import { useLocaleStore } from '@/stores/locale';
 import { usePageGuard } from '@/composables/usePageGuard';
 import { can } from '@/lib/rbac';
 import { apiMessage } from '@/lib/apiError';
@@ -20,6 +21,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 const { isReady, allowed, authStore } = usePageGuard('inventory.read');
 const ui = useUiStore();
+const t = useLocaleStore().t;
 
 const canAdjust = ref(false);
 
@@ -46,14 +48,17 @@ const adjustForm = reactive({
   description: '',
 });
 
-const TYPE_LABELS: Record<string, string> = {
-  PURCHASE: 'Purchase',
-  SALE: 'Sale',
-  RETURN: 'Return',
-  ADJUSTMENT: 'Adjustment',
-  DAMAGE: 'Damage',
-  TRANSFER: 'Transfer',
+const typeLabels: Record<string, string> = {
+  PURCHASE: 'admin.inventory.typePurchase',
+  SALE: 'admin.inventory.typeSale',
+  RETURN: 'admin.inventory.typeReturn',
+  ADJUSTMENT: 'admin.inventory.typeAdjustment',
+  DAMAGE: 'admin.inventory.typeDamage',
+  TRANSFER: 'admin.inventory.typeTransfer',
 };
+function typeLabel(key: string): string {
+  return typeLabels[key] ? t(typeLabels[key]) : key;
+}
 
 const REASON_OPTIONS = [
   'ADJUSTMENT',
@@ -150,16 +155,16 @@ async function openAdjust() {
 
 async function saveAdjust() {
   if (!adjustForm.product_id) {
-    ui.addToast('error', 'Please select a product');
+    ui.addToast('error', t('admin.inventory.toastSelectProduct'));
     return;
   }
   const storeId = authStore.user?.store_id ?? '';
   if (!storeId) {
-    ui.addToast('error', 'No store assigned to your account');
+    ui.addToast('error', t('admin.inventory.toastNoStore'));
     return;
   }
   if (adjustForm.quantity <= 0) {
-    ui.addToast('error', 'Quantity must be greater than zero');
+    ui.addToast('error', t('admin.inventory.toastQty'));
     return;
   }
   saving.value = true;
@@ -172,7 +177,7 @@ async function saveAdjust() {
       reason: adjustForm.reason,
       description: adjustForm.description || undefined,
     });
-    ui.addToast('success', 'Stock adjusted');
+    ui.addToast('success', t('admin.inventory.toastAdjusted'));
     adjustOpen.value = false;
     applyFilter();
     loadLowStock();
@@ -199,47 +204,47 @@ watch(isReady, (r) => {
   </div>
 
   <div v-else-if="!allowed" class="flex flex-col items-center justify-center py-24 text-center bg-card rounded-xl border">
-    <h3 class="text-xl font-semibold">Access restricted</h3>
-    <p class="text-muted-foreground mt-2 max-w-sm">You don't have permission to view inventory.</p>
+    <h3 class="text-xl font-semibold">{{ t('admin.shared.accessRestricted') }}</h3>
+    <p class="text-muted-foreground mt-2 max-w-sm">{{ t('admin.shared.noPermission', { action: t('admin.inventory.noPermissionAction') }) }}</p>
   </div>
 
   <div v-else class="flex flex-col gap-4">
     <div class="flex items-start justify-between gap-4">
       <div>
-        <h2 class="text-2xl font-bold">Inventory</h2>
-        <p class="text-muted-foreground mt-1">Track stock movements, adjust quantities, and monitor low-stock items.</p>
+        <h2 class="text-2xl font-bold">{{ t('admin.inventory.title') }}</h2>
+        <p class="text-muted-foreground mt-1">{{ t('admin.inventory.description') }}</p>
       </div>
-      <Button v-if="canAdjust" @click="openAdjust">+ Adjust Stock</Button>
+      <Button v-if="canAdjust" @click="openAdjust">{{ t('admin.inventory.adjustStock') }}</Button>
     </div>
 
     <Card>
       <CardHeader>
         <CardTitle class="text-base flex items-center gap-2">
-          Low Stock Alerts
+          {{ t('admin.inventory.lowStock') }}
           <span v-if="lowStock.length" class="rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300 text-xs px-2 py-0.5">
             {{ lowStock.length }}
           </span>
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div v-if="lowStockLoading" class="text-center py-6 text-muted-foreground">Loading alerts...</div>
+        <div v-if="lowStockLoading" class="text-center py-6 text-muted-foreground">{{ t('admin.inventory.loadingAlerts') }}</div>
         <div v-else-if="lowStock.length === 0" class="text-center py-6 text-muted-foreground">
-          All products are sufficiently stocked.
+          {{ t('admin.inventory.allStocked') }}
         </div>
         <div v-else class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <div v-for="p in lowStock" :key="p.product_id" class="rounded-lg border p-3 space-y-1">
             <div class="font-medium text-sm truncate">{{ p.product_name }}</div>
             <div class="text-xs text-muted-foreground truncate">{{ p.category_name || '—' }}</div>
             <div class="flex items-center justify-between text-sm">
-              <span class="text-muted-foreground">Stock</span>
+              <span class="text-muted-foreground">{{ t('admin.inventory.stock') }}</span>
               <span class="font-semibold tabular-nums text-rose-600 dark:text-rose-400">{{ p.total_stock }}</span>
             </div>
             <div class="flex items-center justify-between text-sm">
-              <span class="text-muted-foreground">Min</span>
+              <span class="text-muted-foreground">{{ t('admin.inventory.min') }}</span>
               <span class="tabular-nums">{{ p.minimum_stock }}</span>
             </div>
             <div class="text-xs text-rose-600 dark:text-rose-400 font-medium">
-              Short by {{ p.deficit }} unit{{ p.deficit === 1 ? '' : 's' }}
+              {{ t('admin.inventory.shortBy', { count: p.deficit }) }}
             </div>
           </div>
         </div>
@@ -250,43 +255,43 @@ watch(isReady, (r) => {
       <CardContent class="p-0">
         <div class="flex flex-wrap items-end gap-3 p-4 border-b">
           <div class="space-y-1">
-            <Label>Transaction type</Label>
+            <Label>{{ t('admin.inventory.transactionType') }}</Label>
             <Select v-model="typeFilter" @update:model-value="applyFilter">
-              <SelectTrigger class="w-48"><SelectValue placeholder="All types" /></SelectTrigger>
+              <SelectTrigger class="w-48"><SelectValue :placeholder="t('admin.inventory.allTypes')" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All types</SelectItem>
-                <SelectItem v-for="(label, key) in TYPE_LABELS" :key="key" :value="key">{{ label }}</SelectItem>
+                <SelectItem value="all">{{ t('admin.inventory.allTypes') }}</SelectItem>
+                <SelectItem v-for="(labelKey, key) in typeLabels" :key="key" :value="key">{{ t(labelKey) }}</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          <Button @click="applyFilter">Filter</Button>
+          <Button @click="applyFilter">{{ t('admin.shared.filter') }}</Button>
         </div>
 
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Type</TableHead>
-              <TableHead>Product</TableHead>
-              <TableHead class="text-right">Qty</TableHead>
-              <TableHead class="text-right">Before</TableHead>
-              <TableHead class="text-right">After</TableHead>
-              <TableHead>Reference</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>By</TableHead>
-              <TableHead>Date</TableHead>
+              <TableHead>{{ t('admin.inventory.type') }}</TableHead>
+              <TableHead>{{ t('admin.inventory.product') }}</TableHead>
+              <TableHead class="text-right">{{ t('admin.inventory.qty') }}</TableHead>
+              <TableHead class="text-right">{{ t('admin.inventory.before') }}</TableHead>
+              <TableHead class="text-right">{{ t('admin.inventory.after') }}</TableHead>
+              <TableHead>{{ t('admin.inventory.reference') }}</TableHead>
+              <TableHead>{{ t('admin.shared.description') }}</TableHead>
+              <TableHead>{{ t('admin.inventory.by') }}</TableHead>
+              <TableHead>{{ t('admin.inventory.date') }}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             <TableRow v-if="loading">
-              <TableCell :colspan="9" class="text-center py-8 text-muted-foreground">Loading...</TableCell>
+              <TableCell :colspan="9" class="text-center py-8 text-muted-foreground">{{ t('admin.shared.loading') }}</TableCell>
             </TableRow>
             <template v-else>
               <TableRow v-if="transactions.length === 0">
-                <TableCell :colspan="9" class="text-center py-8 text-muted-foreground">No transactions found</TableCell>
+                <TableCell :colspan="9" class="text-center py-8 text-muted-foreground">{{ t('admin.inventory.noData') }}</TableCell>
               </TableRow>
               <TableRow v-for="t in transactions" :key="t.id">
                 <TableCell>
-                  <Badge :class="typeBadgeClass(t.type)">{{ TYPE_LABELS[t.type] || t.type }}</Badge>
+                  <Badge :class="typeBadgeClass(t.type)">{{ typeLabel(t.type) }}</Badge>
                 </TableCell>
                 <TableCell class="font-medium">{{ t.product_name || t.product_id.slice(0, 8) }}</TableCell>
                 <TableCell class="text-right font-semibold tabular-nums">
@@ -313,17 +318,17 @@ watch(isReady, (r) => {
     <Dialog v-model:open="adjustOpen">
       <DialogContent class="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Adjust Stock</DialogTitle>
-          <DialogDescription>Increase or decrease the stock level of a product. Every change is recorded as an inventory transaction.</DialogDescription>
+          <DialogTitle>{{ t('admin.inventory.adjustTitle') }}</DialogTitle>
+          <DialogDescription>{{ t('admin.inventory.adjustDescription') }}</DialogDescription>
         </DialogHeader>
 
         <div class="grid gap-4">
           <div class="space-y-2">
-            <Label>Product</Label>
+            <Label>{{ t('admin.inventory.productLabel') }}</Label>
             <Select v-model="adjustForm.product_id">
-              <SelectTrigger class="w-full"><SelectValue placeholder="Select product" /></SelectTrigger>
+              <SelectTrigger class="w-full"><SelectValue :placeholder="t('admin.inventory.selectProduct')" /></SelectTrigger>
               <SelectContent>
-                <SelectItem v-if="productsLoading" value="__loading" disabled>Loading products...</SelectItem>
+                <SelectItem v-if="productsLoading" value="__loading" disabled>{{ t('admin.inventory.loadingProducts') }}</SelectItem>
                 <SelectItem v-for="p in products" :key="p.id" :value="p.id">
                   {{ p.name }} (stock: {{ p.stock }})
                 </SelectItem>
@@ -331,21 +336,21 @@ watch(isReady, (r) => {
             </Select>
           </div>
           <div class="space-y-2">
-            <Label>Direction</Label>
+            <Label>{{ t('admin.inventory.direction') }}</Label>
             <Select v-model="adjustForm.direction">
               <SelectTrigger class="w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="INCREASE">Increase (+)</SelectItem>
-                <SelectItem value="DECREASE">Decrease (−)</SelectItem>
+                <SelectItem value="INCREASE">{{ t('admin.inventory.increase') }}</SelectItem>
+                <SelectItem value="DECREASE">{{ t('admin.inventory.decrease') }}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div class="space-y-2">
-            <Label>Quantity</Label>
+            <Label>{{ t('admin.inventory.quantity') }}</Label>
             <Input v-model.number="adjustForm.quantity" type="number" min="0" :step="1" />
           </div>
           <div class="space-y-2">
-            <Label>Reason</Label>
+            <Label>{{ t('admin.inventory.reason') }}</Label>
             <Select v-model="adjustForm.reason">
               <SelectTrigger class="w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -354,14 +359,14 @@ watch(isReady, (r) => {
             </Select>
           </div>
           <div class="space-y-2">
-            <Label>Description</Label>
-            <Input v-model="adjustForm.description" placeholder="Optional note" autocomplete="off" />
+            <Label>{{ t('admin.shared.description') }}</Label>
+            <Input v-model="adjustForm.description" :placeholder="t('admin.inventory.descriptionPlaceholder')" autocomplete="off" />
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" @click="adjustOpen = false">Cancel</Button>
-          <Button :disabled="saving" @click="saveAdjust">{{ saving ? 'Saving...' : 'Adjust Stock' }}</Button>
+          <Button variant="outline" @click="adjustOpen = false">{{ t('admin.shared.cancel') }}</Button>
+          <Button :disabled="saving" @click="saveAdjust">{{ saving ? t('admin.shared.saving') : t('admin.inventory.adjustTitle') }}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

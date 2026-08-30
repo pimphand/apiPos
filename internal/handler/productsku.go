@@ -56,8 +56,7 @@ func (h *ProductSKUHandler) CreateProductSKU(ctx context.Context, req *productsk
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
 
-	h.logs.Log(ctx, "CREATE", "product_skus", productSKU.ID.String(),
-		`{"sku":"`+productSKU.SKU+`","barcode":"`+productSKU.Barcode+`"}`)
+	h.logs.LogJSON(ctx, "CREATE", "product_skus", productSKU.ID.String(), productSKU)
 
 	return &productskuv1.ProductSKUResponse{
 		ProductSku: toProtoProductSKU(productSKU),
@@ -196,8 +195,7 @@ func (h *ProductSKUHandler) UpdateProductSKU(ctx context.Context, req *productsk
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
 
-	h.logs.Log(ctx, "UPDATE", "product_skus", productSKU.ID.String(),
-		`{"sku":"`+productSKU.SKU+`"}`)
+	h.logs.LogJSON(ctx, "UPDATE", "product_skus", productSKU.ID.String(), productSKU)
 
 	return &productskuv1.ProductSKUResponse{
 		ProductSku: toProtoProductSKU(productSKU),

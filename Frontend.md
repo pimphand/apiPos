@@ -36,7 +36,7 @@ The frontend consumes the following Go backend. All details are authoritative fr
 | Protocol | Port | Client |
 |----------|------|--------|
 | gRPC | `50051` | server-to-server only (**not** used by browser) |
-| HTTP/REST (grpc-gateway) | `8080` | **Frontend uses this** |
+| HTTP/REST (grpc-gateway) | `8990` | **Frontend uses this** |
 
 The Browser ↔ Backend boundary is **strictly HTTP** (REST/JSON via grpc-gateway). A small
 frontend proxy/`vite` dev-server proxy forwards `/api/v1/*` to the gateway to avoid CORS during
@@ -45,17 +45,23 @@ development.
 **Environment Variables:**
 ```bash
 GRPC_PORT=50051      # gRPC server port
-HTTP_PORT=8080       # REST API port (grpc-gateway)
+HTTP_PORT=8990       # REST API port (grpc-gateway)
 ```
 
 ### 2.2 Auth endpoints
 
 | Method | Path | Auth | Notes |
 |--------|------|------|-------|
-| POST | `/api/v1/auth/register` | public | `{username,email,password,full_name}` |
-| POST | `/api/v1/auth/login` | public | `{username,password}` → `{access_token,refresh_token,expires_at,user}` |
+| POST | `/api/v1/auth/register` | public | `{username,email,password,full_name,store_name,device_id}` → **auto-creates a new store** (using the required **`store_name`**) and assigns the **`admin`** role + that `store_id` |
+| POST | `/api/v1/auth/login` | public | `{username,password,device_id}` → `{access_token,refresh_token,expires_at,user}` |
 | POST | `/api/v1/auth/refresh` | public | `{refresh_token}` → new token pair |
 | POST | `/api/v1/auth/logout` | Bearer | revokes refresh token |
+
+> **Multi-tenant registration:** Registering a new user **auto-creates an inactive/pending store**
+> and assigns the registering user the **`admin`** role for that store (`store_id` set in the
+> returned user/token). The store name is a **required** field on the register form (`store_name`).
+> That store remains `inactive` until a `superadmin` verifies it (see the **Stores** module). Do
+> **not** send a `store_id` on register — it is derived server-side.
 
 **Token Strategy:**
 - **Access token** (TTL 15m): JWT in `Authorization: Bearer <token>` header
@@ -90,6 +96,7 @@ return `{ ..., total_count, page, per_page }`.
 | Cashier | `/api/v1/cashier/shifts` | open, close, current, by-id, list, summary |
 | Reports | `/api/v1/reports/*` | daily-sales, by-date, by-cashier, by-product, by-category, payment-summary, inventory-summary, low-stock |
 | Activity Logs | `/api/v1/activity-logs` | list, by-id, by-user, by-resource |
+| Stores | `/api/v1/stores` | list, get, **verify** — **superadmin only** (system-wide, not tenant-scoped) |
 
 ### 2.4 Product SKU Features
 
@@ -122,7 +129,38 @@ PUT /api/v1/products/{id}
 }
 ```
 
-### 2.5 Core business rules the FE must respect
+### 2.5 Stores (Superadmin) — tenant onboarding & verification
+
+These endpoints are **system-wide** (not tenant-scoped) and restricted to the **`superadmin`** role.
+They are used on a dedicated **Stores/Superadmin** admin area that manages registered stores and
+approves pending tenants.
+
+| Method | Path | Auth | Notes |
+|--------|------|------|-------|
+| GET | `/api/v1/stores` | superadmin | list all stores; filters `is_verified` (`"true"`/`"false"`) and `is_active`; pagination |
+| GET | `/api/v1/stores/{id}` | superadmin | get a store by ID |
+| POST | `/api/v1/stores/{id}/verify` | superadmin | approve a pending store (`is_verified=true, is_active=true`) |
+
+**Store status semantics**
+- A store registered via `/auth/register` is created `is_active=false, is_verified=false` (pending).
+- Only a `superadmin` can verify it (`POST /verify`), which activates it.
+- A non-superadmin receives `403 PERMISSION_DENIED` on all `/stores` calls.
+
+**Store object (relevant fields):**
+```json
+{
+  "id": "uuid",
+  "name": "Acme Store",
+  "address": "123 Main St",
+  "phone": "+6281234567890",
+  "is_active": "false",
+  "is_verified": "false",
+  "created_at": "2026-08-30T04:57:55Z",
+  "updated_at": "..."
+}
+```
+
+### 2.6 Core business rules the FE must respect
 
 - **POS checkout is atomic** server-side. The FE submits the whole sale in one request
   (`CreateSale`). Do **not** decrement stock client-side or partially save.
@@ -131,11 +169,16 @@ PUT /api/v1/products/{id}
 - Sale statuses: `PENDING`, `PAID`, `CANCELLED`, `REFUNDED`.
 - Payment methods: `CASH`, `CARD`, `BANK_TRANSFER`, `EWALLET`, `OTHER`.
 - Inventory types: `PURCHASE`, `SALE`, `RETURN`, `ADJUSTMENT`, `DAMAGE`, `TRANSFER`.
-- Roles: `admin`, `manager`, `cashier` (default roles must never be deleted).
+- Roles: `superadmin`, `admin`, `manager`, `cashier` (default roles must never be deleted;
+  `superadmin` is the system-wide role that manages admins and **verifies/approves stores**).
 - Permissions format: `{resource}.{action}` (e.g. `products.create`, `sales.read`).
+- **Store multi-tenancy:** every tenant gets its own `store_id`. The backend automatically scopes
+  all data by the authenticated user's `store_id` (per-token). The FE must **never** try to switch
+  or spoof a `store_id` — it is carried in the JWT and derived server-side. Role/permission-driven
+  UI must show a tenant only its own data.
 - UUID primary keys throughout (string in JSON).
 
-### 2.6 Error contract
+### 2.7 Error contract
 
 Backend returns gRPC status errors mapped to HTTP by the gateway. The FE must interpret
 gRPC-style error codes to drive UI (toasts, form errors, redirects):
@@ -162,7 +205,7 @@ The backend has been fully implemented across 9 phases. The frontend must cover 
 | Go project | ✅ | `cmd/server/main.go` entry point |
 | Docker Compose | ✅ | PostgreSQL + pos-app containers |
 | gRPC server | ✅ | Port `50051` (internal) |
-| HTTP gateway | ✅ | Port `8080` (frontend uses this) |
+| HTTP gateway | ✅ | Port `8990` (frontend uses this) |
 | Configuration | ✅ | Environment variables, typed config package |
 | Health check | ✅ | `/api/v1/health` endpoint |
 
@@ -190,7 +233,9 @@ The backend has been fully implemented across 9 phases. The frontend must cover 
 - JWT access token (15m TTL)
 - Refresh token (30d TTL)
 - Password hashing (bcrypt)
-- Role-based authorization (admin/manager/cashier)
+- **Store-scoped multi-tenancy** (every request auto-filtered by `store_id`)
+- Role-based authorization (`superadmin`/admin/manager/cashier)
+- **Register auto-creates a pending store + assigns `admin` role**
 - Activity logging for all operations
 
 ### Phase 4: Categories & Products
@@ -209,6 +254,17 @@ The backend has been fully implemented across 9 phases. The frontend must cover 
 - Tracking: expiry_date, batch_number, location
 - POS optimization: barcode lookup endpoint
 - Conditional loading: `?get_sku=true` parameter
+
+**Frontend Product Pricing Behavior:**
+- The product **create/edit** form no longer has base **Cost price / Selling price** inputs.
+  Prices are entered **per SKU** only (in the "SKUs / Variants" section).
+- On save, the product-level `cost_price` / `selling_price` are derived server-side from the
+  first active SKU so the backend contract is unaffected.
+- The **Products list** "Selling Price" column shows the SKU price range:
+  - exactly **1 SKU** → single selling price (e.g. `Rp 10.000`)
+  - **more than 1 SKU** → lowest–highest range (e.g. `Rp 8.000 – Rp 12.000`)
+  - no valid SKU price → falls back to the product-level `selling_price`
+- The list/search calls pass `?get_sku=true` so the SKU prices are available to compute the range.
 
 ### Phase 5: Inventory
 
@@ -307,7 +363,8 @@ The backend has been fully implemented across 9 phases. The frontend must cover 
 | Inventory | 6 | `/api/v1/inventory` |
 | Reports | 8 | `/api/v1/reports` |
 | Activity Logs | 4 | `/api/v1/activity-logs` |
-| **Total** | **83** | |
+| Stores | 3 | `/api/v1/stores` |
+| **Total** | **86** | |
 
 ### Frontend Coverage Requirements
 
@@ -322,6 +379,7 @@ The frontend must implement UI for **all 83 endpoints** across these functional 
 | **Inventory Management** | Inventory | P1 |
 | **Customer Management** | Customers | P1 |
 | **User Management** | Users, Roles, Permissions | P2 |
+| **Tenant / Store Management (Superadmin)** | Stores | P2 |
 | **Cashier Management** | Cashier | P2 |
 | **Reports & Analytics** | Reports | P2 |
 | **Activity Logs** | Activity Logs | P3 |
@@ -363,6 +421,7 @@ fe/
 │   │   │   ├── users.astro
 │   │   │   ├── roles.astro
 │   │   │   ├── permissions.astro
+│   │   │   ├── stores.astro          # superadmin: list + verify pending stores
 │   │   │   ├── categories.astro
 │   │   │   ├── products.astro
 │   │   │   ├── inventory.astro
@@ -411,6 +470,7 @@ fe/
 │   │   ├── product.ts
 │   │   ├── sale.ts
 │   │   ├── report.ts
+│   │   ├── store.ts              # list, get, verify stores (superadmin)
 │   │   └── ...
 │   ├── types/                     # TypeScript types mirroring proto messages
 │   │   ├── auth.ts
@@ -544,6 +604,7 @@ Astro middleware decides **page access**; Vue islands enforce **action-level** p
 | `/reports` | `reports.read` |
 | `/admin/users` | `users.read` |
 | `/admin/roles` | `roles.read` |
+| `/admin/stores` | **role `superadmin`** (store approval is superadmin-only) |
 | `/admin/inventory` | `inventory.adjust` / `inventory.read` |
 
 ### 6.2.1 Obfuscation of admin URL (hide admin routes)
@@ -567,6 +628,7 @@ Do **not** expose predictable `/admin/*` paths that make the admin surface trivi
 |-------------------|---------------------|
 | `${PUBLIC_ADMIN_PATH_PREFIX}/users` | `users.read` |
 | `${PUBLIC_ADMIN_PATH_PREFIX}/roles` | `roles.read` |
+| `${PUBLIC_ADMIN_PATH_PREFIX}/stores` | role `superadmin` |
 | `${PUBLIC_ADMIN_PATH_PREFIX}/inventory` | `inventory.adjust` / `inventory.read` |
 
 ### 6.3 Auth guard in Vue (defense-in-depth)
@@ -611,13 +673,22 @@ Error mapping helper (`lib/http.ts`) converts backend gRPC-style errors → type
 
 ```
 GET /login (public)
-  |-- user submits {username,password}
+  |-- user submits {username,password,device_id}
   |-- POST /api/v1/auth/login -> { access_token, refresh_token, expires_at, user }
   |-- access_token kept in memory; refresh_token -> HttpOnly cookie (via backend/proxy)
   |-- push /dashboard
   `-- subsequent requests attach Bearer access_token
 
 On 401 -> interceptor -> POST /api/v1/auth/refresh -> new pair -> retry queue
+```
+
+**Register (self-serve tenant onboarding — store name is required)**
+```
+POST /api/v1/auth/register  {username,email,password,full_name,store_name,device_id}
+  |-- validates store_name (required, max 100 chars) client-side + server-side
+  |-- backend auto-creates a NEW store (inactive/pending) named `store_name` + assigns the `admin` role
+  |-- returns token pair + user (with the new store_id bound to the token)
+  `-- UX: tell the user their store is pending; it will work once superadmin verifies it
 ```
 
 ### 8.2 POS Checkout (atomic)
@@ -638,7 +709,18 @@ On 401 -> interceptor -> POST /api/v1/auth/refresh -> new pair -> retry queue
 ```
 1. List roles (GET /api/v1/roles)
 2. Assign permissions to a role (POST /api/v1/roles/{id}/permissions)
-3. Default roles (admin/manager/cashier) cannot be deleted — UI must disable delete
+3. Default roles (superadmin/admin/manager/cashier) cannot be deleted — UI must disable delete
+```
+
+### 8.5 Store onboarding & verification (superadmin)
+
+```
+1. Login as a `superadmin` (system-wide account seeded by the backend)
+2. Stores area: GET /api/v1/stores?is_verified=false&is_active=false   -> pending tenants
+3. Review a pending store: GET /api/v1/stores/{id}
+4. Approve: POST /api/v1/stores/{id}/verify   -> store becomes is_verified=true, is_active=true
+5. Refresh the list (pending -> verified). Tenant admin can now operate.
+   `-- sessions issued before verification remain valid but the store must be verified to be operational
 ```
 
 ### 8.4 Reports
@@ -652,10 +734,93 @@ Reusable table islands with date-range pickers, pagination, and summary cards fe
 
 | Store | Purpose |
 |-------|---------|
-| `auth` | current user, access token (memory), role, permissions, idle timer |
+| `auth` | current user, access token (memory), role, permissions, `store_id`, idle timer |
 | `cart` | POS line items, totals, discount/tax inputs |
 | `cashier` | current shift info, opening/expected/actual cash |
 | `ui` | theme, sidebar state, toasts, loading |
+| `locale` | current language (`en` / `id`), `t()` translator, language toggling |
+
+---
+
+## 10.1 Bilingual UI (i18n / Localization)
+
+The frontend is **bilingual**: **English** (`en`) and **Indonesian** (`id`). Users switch languages
+from a toggle in the **topbar** (shows `ID` in English mode and `EN` in Indonesian mode). The
+choice is **persisted to `localStorage`** (`locale` key) and applied on next load.
+
+### Locale store
+
+`src/stores/locale.ts` (a Pinia store):
+- `locale` — current locale (`'en'` or `'id'`), seeded from `localStorage`, default `'en'`.
+- `t(key, params?)` — returns the localized string for the current locale.
+- `setLocale(locale)` / `toggleLocale()` — switch language and persist to `localStorage`.
+
+### Translation dictionaries
+
+`src/i18n/messages.ts` defines a nested dictionary for **both** locales:
+
+```ts
+export const messages: Record<Locale, NestedDict> = {
+  en: { sidebar: { dashboard: 'Dashboard', ... }, ... },
+  id: { sidebar: { dashboard: 'Dashboard', products: 'Produk', ... }, ... },
+};
+
+// Resolver
+translate(locale, 'sidebar.products') // -> 'Products' (en) / 'Produk' (id)
+```
+
+Keys are **dot-delimited** and grouped by feature (e.g. `auth.login.welcome`,
+`dashboard.totalSales`, `admin.products.noData`). Nullable placeholders use `{name}` and are
+interpolated via the `params` argument, e.g. `t('dashboard.welcome', { name: userName })`.
+
+### Usage in components
+
+```vue
+<script setup lang="ts">
+import { useLocaleStore } from '@/stores/locale';
+const t = useLocaleStore().t;
+</script>
+
+<template>
+  <h2>{{ t('admin.products.title') }}</h2>
+  <p>{{ t('admin.products.deleteDescription', { name: product.name }) }}</p>
+</template>
+```
+
+`t` keeps the component reactive to language switches because it reads the `locale` ref. Data
+values (API responses, names, SKU codes, permission/resource enums like `p.name`, `r.name`,
+`CREATE`, `products.create`) are **never** run through `t()`.
+
+### Coverage
+
+All user-facing text is localized:
+- **Shell & navigation** — sidebar groups/items, topbar title/profile/logout, dashboard
+  heading/stat cards/quick actions.
+- **Auth** — login and register cards (including the required `store_name` field and its
+  pending-store hint).
+- **Module placeholder pages** — title/description/hint passed via an `i18nKey` prop
+  (e.g. `i18nKey="reports"`) mapped to `modules.<key>.*`.
+- **Admin CRUD pages** — Categories, Products (+ SKU form), Inventory, Users, Roles,
+  Permissions, and Activity Logs: page titles, descriptions, filters, table headers,
+  action buttons, dialogs, delete/activate confirmations, toasts, and placeholders.
+- Common strings (`Cancel`, `Save`, `Delete`, `Loading...`, `Filter`, `Active`/`Inactive`,
+  etc.) live under `admin.shared.*` and are reused across all admin pages.
+
+### Tests
+
+`tests/unit/i18n.test.ts` verifies:
+- deep key resolution for `en` and `id`,
+- fallback to English for unknown locales,
+- parameter interpolation,
+- **key parity** — every key present in `en` must also exist in `id` (and vice-versa), so a
+  language can never show a raw key.
+
+### Adding a new translated string
+
+1. Add the key (and its value) to **both** `messages.en.<group>` and `messages.id.<group>`.
+2. Consume it in the component via `t('group.key', params?)`.
+3. Run `npx vitest run tests/unit/i18n.test.ts` to confirm key parity, then
+   `npx vue-tsc --noEmit` + `npm run build`.
 
 ---
 
@@ -682,7 +847,7 @@ PUBLIC_ADMIN_PATH_PREFIX=           # random admin prefix, set at deploy (never 
 
 ```bash
 pnpm install
-pnpm dev        # astro dev (proxy /api -> http://localhost:8080)
+pnpm dev        # astro dev (proxy /api -> http://localhost:8990)
 pnpm build      # astro build
 pnpm preview
 pnpm test       # vitest + @vue/test-utils
@@ -696,7 +861,7 @@ pnpm typecheck
 ```ts
 server: {
   proxy: {
-    '/api': { target: 'http://localhost:8080', changeOrigin: true },
+    '/api': { target: 'http://localhost:8990', changeOrigin: true },
   },
 }
 ```
@@ -704,7 +869,7 @@ server: {
 ### 11.3 Docker / production
 
 - `nginx.conf` serves the Astro static build and reverse-proxies `/api` + refresh-cookie
-  handling to the Go gateway (port 8080/8990).
+  handling to the Go gateway (port `8990`).
 - Healthcheck on the FE container.
 
 ```bash

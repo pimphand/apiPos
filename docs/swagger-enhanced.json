@@ -65,6 +65,10 @@
     {
       "name": "Reports",
       "description": "Sales and inventory reports"
+    },
+    {
+      "name": "Stores",
+      "description": "Superadmin store management and verification"
     }
   ],
   "host": "localhost:8080",
@@ -85,7 +89,7 @@
           "Authentication"
         ],
         "summary": "Register",
-        "description": "Create a new user account. Default role is Cashier.",
+        "description": "Create a new user account and store (SaaS onboarding). Automatically creates a new pending store using the required `store_name`, assigns the registering user the `admin` role for that store, and binds the user to its `store_id`. The store remains inactive until verified by a superadmin.",
         "operationId": "auth_register",
         "parameters": [
           {
@@ -1984,665 +1988,1644 @@
     },
     "/api/v1/inventory/transactions": {
       "post": {
-        "tags": ["Inventory"],
+        "tags": [
+          "Inventory"
+        ],
         "summary": "Create Inventory Transaction",
         "description": "Create a new inventory transaction and update stock atomically.",
         "operationId": "inventory_create_transaction",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "body",
             "in": "body",
             "required": true,
-            "schema": { "$ref": "#/definitions/CreateTransactionRequest" }
+            "schema": {
+              "$ref": "#/definitions/CreateTransactionRequest"
+            }
           }
         ],
         "responses": {
           "200": {
             "description": "Transaction created",
-            "schema": { "$ref": "#/definitions/TransactionResponse" }
+            "schema": {
+              "$ref": "#/definitions/TransactionResponse"
+            }
           },
-          "400": { "$ref": "#/definitions/ErrorResponse" },
-          "404": { "$ref": "#/definitions/ErrorResponse" }
+          "400": {
+            "$ref": "#/definitions/ErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
         }
       },
       "get": {
-        "tags": ["Inventory"],
+        "tags": [
+          "Inventory"
+        ],
         "summary": "List Inventory Transactions",
         "description": "List inventory transactions with filters.",
         "operationId": "inventory_list_transactions",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "product_id", "in": "query", "type": "string", "description": "Filter by product ID" },
-          { "name": "store_id", "in": "query", "type": "string", "description": "Filter by store ID" },
-          { "name": "type", "in": "query", "type": "string", "description": "Filter by type (PURCHASE, SALE, RETURN, ADJUSTMENT, DAMAGE, TRANSFER)" },
-          { "name": "page", "in": "query", "type": "integer", "default": 1 },
-          { "name": "per_page", "in": "query", "type": "integer", "default": 20 }
+          {
+            "name": "product_id",
+            "in": "query",
+            "type": "string",
+            "description": "Filter by product ID"
+          },
+          {
+            "name": "store_id",
+            "in": "query",
+            "type": "string",
+            "description": "Filter by store ID"
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "type": "string",
+            "description": "Filter by type (PURCHASE, SALE, RETURN, ADJUSTMENT, DAMAGE, TRANSFER)"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          }
         ],
         "responses": {
           "200": {
             "description": "List of transactions",
-            "schema": { "$ref": "#/definitions/ListTransactionsResponse" }
+            "schema": {
+              "$ref": "#/definitions/ListTransactionsResponse"
+            }
           }
         }
       }
     },
     "/api/v1/inventory/transactions/{id}": {
       "get": {
-        "tags": ["Inventory"],
+        "tags": [
+          "Inventory"
+        ],
         "summary": "Get Inventory Transaction",
         "description": "Get an inventory transaction by ID.",
         "operationId": "inventory_get_transaction",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "type": "string", "required": true, "description": "Transaction UUID" }
+          {
+            "name": "id",
+            "in": "path",
+            "type": "string",
+            "required": true,
+            "description": "Transaction UUID"
+          }
         ],
         "responses": {
           "200": {
             "description": "Transaction details",
-            "schema": { "$ref": "#/definitions/TransactionResponse" }
+            "schema": {
+              "$ref": "#/definitions/TransactionResponse"
+            }
           },
-          "404": { "$ref": "#/definitions/ErrorResponse" }
+          "404": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
         }
       }
     },
     "/api/v1/inventory/adjust": {
       "post": {
-        "tags": ["Inventory"],
+        "tags": [
+          "Inventory"
+        ],
         "summary": "Adjust Stock",
         "description": "Adjust stock for a product (increase or decrease).",
         "operationId": "inventory_adjust_stock",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "body",
             "in": "body",
             "required": true,
-            "schema": { "$ref": "#/definitions/AdjustStockRequest" }
+            "schema": {
+              "$ref": "#/definitions/AdjustStockRequest"
+            }
           }
         ],
         "responses": {
           "200": {
             "description": "Stock adjusted",
-            "schema": { "$ref": "#/definitions/TransactionResponse" }
+            "schema": {
+              "$ref": "#/definitions/TransactionResponse"
+            }
           },
-          "400": { "$ref": "#/definitions/ErrorResponse" }
+          "400": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
         }
       }
     },
     "/api/v1/inventory/stock/{product_id}": {
       "get": {
-        "tags": ["Inventory"],
+        "tags": [
+          "Inventory"
+        ],
         "summary": "Get Stock Summary",
         "description": "Get stock summary for a product across all SKUs.",
         "operationId": "inventory_get_stock_summary",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "product_id", "in": "path", "type": "string", "required": true, "description": "Product UUID" }
+          {
+            "name": "product_id",
+            "in": "path",
+            "type": "string",
+            "required": true,
+            "description": "Product UUID"
+          }
         ],
         "responses": {
           "200": {
             "description": "Stock summary",
-            "schema": { "$ref": "#/definitions/StockSummaryResponse" }
+            "schema": {
+              "$ref": "#/definitions/StockSummaryResponse"
+            }
           },
-          "404": { "$ref": "#/definitions/ErrorResponse" }
+          "404": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
         }
       }
     },
     "/api/v1/inventory/low-stock": {
       "get": {
-        "tags": ["Inventory"],
+        "tags": [
+          "Inventory"
+        ],
         "summary": "Get Low Stock Alert",
         "description": "Get products with stock below minimum level.",
         "operationId": "inventory_get_low_stock",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "store_id", "in": "query", "type": "string", "description": "Filter by store ID" },
-          { "name": "page", "in": "query", "type": "integer", "default": 1 },
-          { "name": "per_page", "in": "query", "type": "integer", "default": 20 }
+          {
+            "name": "store_id",
+            "in": "query",
+            "type": "string",
+            "description": "Filter by store ID"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          }
         ],
         "responses": {
           "200": {
             "description": "Low stock products",
-            "schema": { "$ref": "#/definitions/LowStockAlertResponse" }
+            "schema": {
+              "$ref": "#/definitions/LowStockAlertResponse"
+            }
           }
         }
       }
     },
     "/api/v1/customers": {
       "post": {
-        "tags": ["Customers"],
+        "tags": [
+          "Customers"
+        ],
         "summary": "Create Customer",
         "description": "Create a new customer.",
         "operationId": "customer_create",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "body", "in": "body", "required": true, "schema": { "$ref": "#/definitions/CreateCustomerRequest" } }
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CreateCustomerRequest"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "Customer created", "schema": { "$ref": "#/definitions/CustomerResponse" } },
-          "400": { "$ref": "#/definitions/ErrorResponse" }
+          "200": {
+            "description": "Customer created",
+            "schema": {
+              "$ref": "#/definitions/CustomerResponse"
+            }
+          },
+          "400": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
         }
       },
       "get": {
-        "tags": ["Customers"],
+        "tags": [
+          "Customers"
+        ],
         "summary": "List Customers",
         "description": "List customers with filters.",
         "operationId": "customer_list",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "is_active", "in": "query", "type": "string", "description": "Filter: \"\" = all, \"true\" = active, \"false\" = inactive" },
-          { "name": "page", "in": "query", "type": "integer", "default": 1 },
-          { "name": "per_page", "in": "query", "type": "integer", "default": 20 }
+          {
+            "name": "is_active",
+            "in": "query",
+            "type": "string",
+            "description": "Filter: \"\" = all, \"true\" = active, \"false\" = inactive"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          }
         ],
         "responses": {
-          "200": { "description": "List of customers", "schema": { "$ref": "#/definitions/ListCustomersResponse" } }
+          "200": {
+            "description": "List of customers",
+            "schema": {
+              "$ref": "#/definitions/ListCustomersResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/customers/search": {
       "get": {
-        "tags": ["Customers"],
+        "tags": [
+          "Customers"
+        ],
         "summary": "Search Customers",
         "description": "Search customers by name, code, email, or phone.",
         "operationId": "customer_search",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "query", "in": "query", "type": "string", "required": true },
-          { "name": "page", "in": "query", "type": "integer", "default": 1 },
-          { "name": "per_page", "in": "query", "type": "integer", "default": 20 }
+          {
+            "name": "query",
+            "in": "query",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          }
         ],
         "responses": {
-          "200": { "description": "Search results", "schema": { "$ref": "#/definitions/ListCustomersResponse" } }
+          "200": {
+            "description": "Search results",
+            "schema": {
+              "$ref": "#/definitions/ListCustomersResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/customers/{id}": {
       "get": {
-        "tags": ["Customers"],
+        "tags": [
+          "Customers"
+        ],
         "summary": "Get Customer",
         "description": "Get customer by ID.",
         "operationId": "customer_get",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "type": "string", "required": true }
+          {
+            "name": "id",
+            "in": "path",
+            "type": "string",
+            "required": true
+          }
         ],
         "responses": {
-          "200": { "description": "Customer details", "schema": { "$ref": "#/definitions/CustomerResponse" } },
-          "404": { "$ref": "#/definitions/ErrorResponse" }
+          "200": {
+            "description": "Customer details",
+            "schema": {
+              "$ref": "#/definitions/CustomerResponse"
+            }
+          },
+          "404": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
         }
       },
       "put": {
-        "tags": ["Customers"],
+        "tags": [
+          "Customers"
+        ],
         "summary": "Update Customer",
         "description": "Update customer information.",
         "operationId": "customer_update",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "type": "string", "required": true },
-          { "name": "body", "in": "body", "required": true, "schema": { "$ref": "#/definitions/UpdateCustomerRequest" } }
+          {
+            "name": "id",
+            "in": "path",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/UpdateCustomerRequest"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "Customer updated", "schema": { "$ref": "#/definitions/CustomerResponse" } }
+          "200": {
+            "description": "Customer updated",
+            "schema": {
+              "$ref": "#/definitions/CustomerResponse"
+            }
+          }
         }
       },
       "delete": {
-        "tags": ["Customers"],
+        "tags": [
+          "Customers"
+        ],
         "summary": "Delete Customer",
         "description": "Delete a customer.",
         "operationId": "customer_delete",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "type": "string", "required": true }
+          {
+            "name": "id",
+            "in": "path",
+            "type": "string",
+            "required": true
+          }
         ],
         "responses": {
-          "200": { "description": "Customer deleted", "schema": { "$ref": "#/definitions/DeleteCustomerResponse" } }
+          "200": {
+            "description": "Customer deleted",
+            "schema": {
+              "$ref": "#/definitions/DeleteCustomerResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/customers/{id}/deactivate": {
       "post": {
-        "tags": ["Customers"],
+        "tags": [
+          "Customers"
+        ],
         "summary": "Deactivate Customer",
         "description": "Deactivate a customer.",
         "operationId": "customer_deactivate",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "type": "string", "required": true }
+          {
+            "name": "id",
+            "in": "path",
+            "type": "string",
+            "required": true
+          }
         ],
         "responses": {
-          "200": { "description": "Customer deactivated", "schema": { "$ref": "#/definitions/DeleteCustomerResponse" } }
+          "200": {
+            "description": "Customer deactivated",
+            "schema": {
+              "$ref": "#/definitions/DeleteCustomerResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/customers/{id}/purchases": {
       "get": {
-        "tags": ["Customers"],
+        "tags": [
+          "Customers"
+        ],
         "summary": "Get Purchase History",
         "description": "Get customer purchase history.",
         "operationId": "customer_purchases",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "type": "string", "required": true },
-          { "name": "page", "in": "query", "type": "integer", "default": 1 },
-          { "name": "per_page", "in": "query", "type": "integer", "default": 20 }
+          {
+            "name": "id",
+            "in": "path",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          }
         ],
         "responses": {
-          "200": { "description": "Purchase history", "schema": { "$ref": "#/definitions/PurchaseHistoryResponse" } }
+          "200": {
+            "description": "Purchase history",
+            "schema": {
+              "$ref": "#/definitions/PurchaseHistoryResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/sales": {
       "post": {
-        "tags": ["Sales"],
+        "tags": [
+          "Sales"
+        ],
         "summary": "Create Sale (Checkout)",
         "description": "Create a new sale with items and payment. Stock is updated atomically.",
         "operationId": "sale_create",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "body", "in": "body", "required": true, "schema": { "$ref": "#/definitions/CreateSaleRequest" } }
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CreateSaleRequest"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "Sale created", "schema": { "$ref": "#/definitions/SaleResponse" } },
-          "400": { "$ref": "#/definitions/ErrorResponse" }
+          "200": {
+            "description": "Sale created",
+            "schema": {
+              "$ref": "#/definitions/SaleResponse"
+            }
+          },
+          "400": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
         }
       },
       "get": {
-        "tags": ["Sales"],
+        "tags": [
+          "Sales"
+        ],
         "summary": "List Sales",
         "description": "List sales with filters.",
         "operationId": "sale_list",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "store_id", "in": "query", "type": "string" },
-          { "name": "cashier_id", "in": "query", "type": "string" },
-          { "name": "customer_id", "in": "query", "type": "string" },
-          { "name": "status", "in": "query", "type": "string", "description": "PENDING, PAID, CANCELLED, REFUNDED" },
-          { "name": "start_date", "in": "query", "type": "string" },
-          { "name": "end_date", "in": "query", "type": "string" },
-          { "name": "page", "in": "query", "type": "integer", "default": 1 },
-          { "name": "per_page", "in": "query", "type": "integer", "default": 20 }
+          {
+            "name": "store_id",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "cashier_id",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "customer_id",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "type": "string",
+            "description": "PENDING, PAID, CANCELLED, REFUNDED"
+          },
+          {
+            "name": "start_date",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          }
         ],
         "responses": {
-          "200": { "description": "List of sales", "schema": { "$ref": "#/definitions/ListSalesResponse" } }
+          "200": {
+            "description": "List of sales",
+            "schema": {
+              "$ref": "#/definitions/ListSalesResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/sales/{id}": {
       "get": {
-        "tags": ["Sales"],
+        "tags": [
+          "Sales"
+        ],
         "summary": "Get Sale",
         "description": "Get sale details with items and payments.",
         "operationId": "sale_get",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "type": "string", "required": true }
+          {
+            "name": "id",
+            "in": "path",
+            "type": "string",
+            "required": true
+          }
         ],
         "responses": {
-          "200": { "description": "Sale details", "schema": { "$ref": "#/definitions/SaleDetailResponse" } },
-          "404": { "$ref": "#/definitions/ErrorResponse" }
+          "200": {
+            "description": "Sale details",
+            "schema": {
+              "$ref": "#/definitions/SaleDetailResponse"
+            }
+          },
+          "404": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
         }
       }
     },
     "/api/v1/sales/invoice/{invoice_number}": {
       "get": {
-        "tags": ["Sales"],
+        "tags": [
+          "Sales"
+        ],
         "summary": "Get Sale by Invoice",
         "description": "Get sale by invoice number.",
         "operationId": "sale_get_by_invoice",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "invoice_number", "in": "path", "type": "string", "required": true }
+          {
+            "name": "invoice_number",
+            "in": "path",
+            "type": "string",
+            "required": true
+          }
         ],
         "responses": {
-          "200": { "description": "Sale details", "schema": { "$ref": "#/definitions/SaleDetailResponse" } },
-          "404": { "$ref": "#/definitions/ErrorResponse" }
+          "200": {
+            "description": "Sale details",
+            "schema": {
+              "$ref": "#/definitions/SaleDetailResponse"
+            }
+          },
+          "404": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
         }
       }
     },
     "/api/v1/sales/{id}/cancel": {
       "post": {
-        "tags": ["Sales"],
+        "tags": [
+          "Sales"
+        ],
         "summary": "Cancel Sale",
         "description": "Cancel a sale and restore stock.",
         "operationId": "sale_cancel",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "type": "string", "required": true },
-          { "name": "body", "in": "body", "schema": { "$ref": "#/definitions/CancelSaleRequest" } }
+          {
+            "name": "id",
+            "in": "path",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/CancelSaleRequest"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "Sale cancelled", "schema": { "$ref": "#/definitions/SaleResponse" } }
+          "200": {
+            "description": "Sale cancelled",
+            "schema": {
+              "$ref": "#/definitions/SaleResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/sales/{id}/refund": {
       "post": {
-        "tags": ["Sales"],
+        "tags": [
+          "Sales"
+        ],
         "summary": "Refund Sale",
         "description": "Refund a sale and restore stock.",
         "operationId": "sale_refund",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "type": "string", "required": true },
-          { "name": "body", "in": "body", "schema": { "$ref": "#/definitions/RefundSaleRequest" } }
+          {
+            "name": "id",
+            "in": "path",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RefundSaleRequest"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "Sale refunded", "schema": { "$ref": "#/definitions/SaleResponse" } }
+          "200": {
+            "description": "Sale refunded",
+            "schema": {
+              "$ref": "#/definitions/SaleResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/payments": {
       "post": {
-        "tags": ["Payments"],
+        "tags": [
+          "Payments"
+        ],
         "summary": "Create Payment",
         "description": "Create a new payment for a sale.",
         "operationId": "payment_create",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "body", "in": "body", "required": true, "schema": { "$ref": "#/definitions/CreatePaymentRequest" } }
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CreatePaymentRequest"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "Payment created", "schema": { "$ref": "#/definitions/PaymentResponse" } },
-          "400": { "$ref": "#/definitions/ErrorResponse" }
+          "200": {
+            "description": "Payment created",
+            "schema": {
+              "$ref": "#/definitions/PaymentResponse"
+            }
+          },
+          "400": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
         }
       },
       "get": {
-        "tags": ["Payments"],
+        "tags": [
+          "Payments"
+        ],
         "summary": "List Payments",
         "description": "List payments with filters.",
         "operationId": "payment_list",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "sale_id", "in": "query", "type": "string" },
-          { "name": "payment_method", "in": "query", "type": "string", "description": "CASH, CARD, BANK_TRANSFER, EWALLET, OTHER" },
-          { "name": "page", "in": "query", "type": "integer", "default": 1 },
-          { "name": "per_page", "in": "query", "type": "integer", "default": 20 }
+          {
+            "name": "sale_id",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "payment_method",
+            "in": "query",
+            "type": "string",
+            "description": "CASH, CARD, BANK_TRANSFER, EWALLET, OTHER"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          }
         ],
         "responses": {
-          "200": { "description": "List of payments", "schema": { "$ref": "#/definitions/ListPaymentsResponse" } }
+          "200": {
+            "description": "List of payments",
+            "schema": {
+              "$ref": "#/definitions/ListPaymentsResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/payments/{id}": {
       "get": {
-        "tags": ["Payments"],
+        "tags": [
+          "Payments"
+        ],
         "summary": "Get Payment",
         "description": "Get a payment by ID.",
         "operationId": "payment_get",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "type": "string", "required": true }
+          {
+            "name": "id",
+            "in": "path",
+            "type": "string",
+            "required": true
+          }
         ],
         "responses": {
-          "200": { "description": "Payment details", "schema": { "$ref": "#/definitions/PaymentResponse" } },
-          "404": { "$ref": "#/definitions/ErrorResponse" }
+          "200": {
+            "description": "Payment details",
+            "schema": {
+              "$ref": "#/definitions/PaymentResponse"
+            }
+          },
+          "404": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
         }
       },
       "delete": {
-        "tags": ["Payments"],
+        "tags": [
+          "Payments"
+        ],
         "summary": "Delete Payment",
         "description": "Delete a payment.",
         "operationId": "payment_delete",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "type": "string", "required": true }
+          {
+            "name": "id",
+            "in": "path",
+            "type": "string",
+            "required": true
+          }
         ],
         "responses": {
-          "200": { "description": "Payment deleted", "schema": { "$ref": "#/definitions/DeletePaymentResponse" } }
+          "200": {
+            "description": "Payment deleted",
+            "schema": {
+              "$ref": "#/definitions/DeletePaymentResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/sales/{sale_id}/payments": {
       "get": {
-        "tags": ["Payments"],
+        "tags": [
+          "Payments"
+        ],
         "summary": "Get Payments by Sale",
         "description": "Get all payments for a sale.",
         "operationId": "payment_get_by_sale",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "sale_id", "in": "path", "type": "string", "required": true }
+          {
+            "name": "sale_id",
+            "in": "path",
+            "type": "string",
+            "required": true
+          }
         ],
         "responses": {
-          "200": { "description": "List of payments", "schema": { "$ref": "#/definitions/ListPaymentsResponse" } }
+          "200": {
+            "description": "List of payments",
+            "schema": {
+              "$ref": "#/definitions/ListPaymentsResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/sales/{sale_id}/payment-summary": {
       "get": {
-        "tags": ["Payments"],
+        "tags": [
+          "Payments"
+        ],
         "summary": "Get Payment Summary",
         "description": "Get payment summary for a sale.",
         "operationId": "payment_summary",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "sale_id", "in": "path", "type": "string", "required": true }
+          {
+            "name": "sale_id",
+            "in": "path",
+            "type": "string",
+            "required": true
+          }
         ],
         "responses": {
-          "200": { "description": "Payment summary", "schema": { "$ref": "#/definitions/PaymentSummaryResponse" } }
+          "200": {
+            "description": "Payment summary",
+            "schema": {
+              "$ref": "#/definitions/PaymentSummaryResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/cashier/shifts": {
       "get": {
-        "tags": ["Cashier"],
+        "tags": [
+          "Cashier"
+        ],
         "summary": "List Shifts",
         "description": "List cashier shifts with filters.",
         "operationId": "cashier_list_shifts",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "user_id", "in": "query", "type": "string" },
-          { "name": "store_id", "in": "query", "type": "string" },
-          { "name": "status", "in": "query", "type": "string", "description": "OPEN or CLOSED" },
-          { "name": "page", "in": "query", "type": "integer", "default": 1 },
-          { "name": "per_page", "in": "query", "type": "integer", "default": 20 }
+          {
+            "name": "user_id",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "store_id",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "type": "string",
+            "description": "OPEN or CLOSED"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          }
         ],
         "responses": {
-          "200": { "description": "List of shifts", "schema": { "$ref": "#/definitions/ListShiftsResponse" } }
+          "200": {
+            "description": "List of shifts",
+            "schema": {
+              "$ref": "#/definitions/ListShiftsResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/cashier/shifts/open": {
       "post": {
-        "tags": ["Cashier"],
+        "tags": [
+          "Cashier"
+        ],
         "summary": "Open Shift",
         "description": "Open a new cashier shift.",
         "operationId": "cashier_open_shift",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "body", "in": "body", "required": true, "schema": { "$ref": "#/definitions/OpenShiftRequest" } }
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/OpenShiftRequest"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "Shift opened", "schema": { "$ref": "#/definitions/ShiftResponse" } },
-          "400": { "$ref": "#/definitions/ErrorResponse" }
+          "200": {
+            "description": "Shift opened",
+            "schema": {
+              "$ref": "#/definitions/ShiftResponse"
+            }
+          },
+          "400": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
         }
       }
     },
     "/api/v1/cashier/shifts/close": {
       "post": {
-        "tags": ["Cashier"],
+        "tags": [
+          "Cashier"
+        ],
         "summary": "Close Shift",
         "description": "Close a cashier shift.",
         "operationId": "cashier_close_shift",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "body", "in": "body", "required": true, "schema": { "$ref": "#/definitions/CloseShiftRequest" } }
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CloseShiftRequest"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "Shift closed", "schema": { "$ref": "#/definitions/ShiftResponse" } },
-          "400": { "$ref": "#/definitions/ErrorResponse" }
+          "200": {
+            "description": "Shift closed",
+            "schema": {
+              "$ref": "#/definitions/ShiftResponse"
+            }
+          },
+          "400": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
         }
       }
     },
     "/api/v1/cashier/shifts/current": {
       "get": {
-        "tags": ["Cashier"],
+        "tags": [
+          "Cashier"
+        ],
         "summary": "Get Current Shift",
         "description": "Get the current open shift for the logged-in user.",
         "operationId": "cashier_get_current_shift",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "responses": {
-          "200": { "description": "Current shift", "schema": { "$ref": "#/definitions/ShiftResponse" } },
-          "404": { "$ref": "#/definitions/ErrorResponse" }
+          "200": {
+            "description": "Current shift",
+            "schema": {
+              "$ref": "#/definitions/ShiftResponse"
+            }
+          },
+          "404": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
         }
       }
     },
     "/api/v1/cashier/shifts/{id}": {
       "get": {
-        "tags": ["Cashier"],
+        "tags": [
+          "Cashier"
+        ],
         "summary": "Get Shift",
         "description": "Get a shift by ID.",
         "operationId": "cashier_get_shift",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "type": "string", "required": true }
+          {
+            "name": "id",
+            "in": "path",
+            "type": "string",
+            "required": true
+          }
         ],
         "responses": {
-          "200": { "description": "Shift details", "schema": { "$ref": "#/definitions/ShiftResponse" } },
-          "404": { "$ref": "#/definitions/ErrorResponse" }
+          "200": {
+            "description": "Shift details",
+            "schema": {
+              "$ref": "#/definitions/ShiftResponse"
+            }
+          },
+          "404": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
         }
       }
     },
     "/api/v1/cashier/shifts/{id}/summary": {
       "get": {
-        "tags": ["Cashier"],
+        "tags": [
+          "Cashier"
+        ],
         "summary": "Get Shift Summary",
         "description": "Get shift summary with sales and cash info.",
         "operationId": "cashier_get_shift_summary",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "type": "string", "required": true }
+          {
+            "name": "id",
+            "in": "path",
+            "type": "string",
+            "required": true
+          }
         ],
         "responses": {
-          "200": { "description": "Shift summary", "schema": { "$ref": "#/definitions/ShiftSummaryResponse" } }
+          "200": {
+            "description": "Shift summary",
+            "schema": {
+              "$ref": "#/definitions/ShiftSummaryResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/reports/daily-sales": {
       "get": {
-        "tags": ["Reports"],
+        "tags": [
+          "Reports"
+        ],
         "summary": "Daily Sales Report",
         "description": "Get daily sales report.",
         "operationId": "report_daily_sales",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "start_date", "in": "query", "type": "string", "description": "Start date (YYYY-MM-DD)" },
-          { "name": "end_date", "in": "query", "type": "string", "description": "End date (YYYY-MM-DD)" },
-          { "name": "store_id", "in": "query", "type": "string" }
+          {
+            "name": "start_date",
+            "in": "query",
+            "type": "string",
+            "description": "Start date (YYYY-MM-DD)"
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "type": "string",
+            "description": "End date (YYYY-MM-DD)"
+          },
+          {
+            "name": "store_id",
+            "in": "query",
+            "type": "string"
+          }
         ],
         "responses": {
-          "200": { "description": "Daily sales report", "schema": { "$ref": "#/definitions/DailySalesReportResponse" } }
+          "200": {
+            "description": "Daily sales report",
+            "schema": {
+              "$ref": "#/definitions/DailySalesReportResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/reports/sales-by-date": {
       "get": {
-        "tags": ["Reports"],
+        "tags": [
+          "Reports"
+        ],
         "summary": "Sales by Date Range",
         "description": "Get sales by date range.",
         "operationId": "report_sales_by_date",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "start_date", "in": "query", "type": "string" },
-          { "name": "end_date", "in": "query", "type": "string" },
-          { "name": "store_id", "in": "query", "type": "string" },
-          { "name": "cashier_id", "in": "query", "type": "string" }
+          {
+            "name": "start_date",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "store_id",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "cashier_id",
+            "in": "query",
+            "type": "string"
+          }
         ],
         "responses": {
-          "200": { "description": "Sales report", "schema": { "$ref": "#/definitions/SalesByDateRangeResponse" } }
+          "200": {
+            "description": "Sales report",
+            "schema": {
+              "$ref": "#/definitions/SalesByDateRangeResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/reports/sales-by-cashier": {
       "get": {
-        "tags": ["Reports"],
+        "tags": [
+          "Reports"
+        ],
         "summary": "Sales by Cashier",
         "description": "Get sales grouped by cashier.",
         "operationId": "report_sales_by_cashier",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "start_date", "in": "query", "type": "string" },
-          { "name": "end_date", "in": "query", "type": "string" },
-          { "name": "store_id", "in": "query", "type": "string" }
+          {
+            "name": "start_date",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "store_id",
+            "in": "query",
+            "type": "string"
+          }
         ],
         "responses": {
-          "200": { "description": "Sales by cashier", "schema": { "$ref": "#/definitions/SalesByCashierResponse" } }
+          "200": {
+            "description": "Sales by cashier",
+            "schema": {
+              "$ref": "#/definitions/SalesByCashierResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/reports/sales-by-product": {
       "get": {
-        "tags": ["Reports"],
+        "tags": [
+          "Reports"
+        ],
         "summary": "Sales by Product",
         "description": "Get top selling products.",
         "operationId": "report_sales_by_product",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "start_date", "in": "query", "type": "string" },
-          { "name": "end_date", "in": "query", "type": "string" },
-          { "name": "limit", "in": "query", "type": "integer", "default": 10 }
+          {
+            "name": "start_date",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "type": "integer",
+            "default": 10
+          }
         ],
         "responses": {
-          "200": { "description": "Sales by product", "schema": { "$ref": "#/definitions/SalesByProductResponse" } }
+          "200": {
+            "description": "Sales by product",
+            "schema": {
+              "$ref": "#/definitions/SalesByProductResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/reports/sales-by-category": {
       "get": {
-        "tags": ["Reports"],
+        "tags": [
+          "Reports"
+        ],
         "summary": "Sales by Category",
         "description": "Get sales grouped by category.",
         "operationId": "report_sales_by_category",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "start_date", "in": "query", "type": "string" },
-          { "name": "end_date", "in": "query", "type": "string" }
+          {
+            "name": "start_date",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "type": "string"
+          }
         ],
         "responses": {
-          "200": { "description": "Sales by category", "schema": { "$ref": "#/definitions/SalesByCategoryResponse" } }
+          "200": {
+            "description": "Sales by category",
+            "schema": {
+              "$ref": "#/definitions/SalesByCategoryResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/reports/payment-summary": {
       "get": {
-        "tags": ["Reports"],
+        "tags": [
+          "Reports"
+        ],
         "summary": "Payment Method Summary",
         "description": "Get payment method summary.",
         "operationId": "report_payment_summary",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "start_date", "in": "query", "type": "string" },
-          { "name": "end_date", "in": "query", "type": "string" }
+          {
+            "name": "start_date",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "type": "string"
+          }
         ],
         "responses": {
-          "200": { "description": "Payment summary", "schema": { "$ref": "#/definitions/PaymentMethodSummaryResponse" } }
+          "200": {
+            "description": "Payment summary",
+            "schema": {
+              "$ref": "#/definitions/PaymentMethodSummaryResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/reports/inventory-summary": {
       "get": {
-        "tags": ["Reports"],
+        "tags": [
+          "Reports"
+        ],
         "summary": "Inventory Summary",
         "description": "Get inventory summary by category.",
         "operationId": "report_inventory_summary",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "responses": {
-          "200": { "description": "Inventory summary", "schema": { "$ref": "#/definitions/InventorySummaryResponse" } }
+          "200": {
+            "description": "Inventory summary",
+            "schema": {
+              "$ref": "#/definitions/InventorySummaryResponse"
+            }
+          }
         }
       }
     },
     "/api/v1/reports/low-stock": {
       "get": {
-        "tags": ["Reports"],
+        "tags": [
+          "Reports"
+        ],
         "summary": "Low Stock Products",
         "description": "Get products with low stock.",
         "operationId": "report_low_stock",
-        "security": [{"BearerAuth": []}],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "limit", "in": "query", "type": "integer", "default": 20 }
+          {
+            "name": "limit",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          }
         ],
         "responses": {
-          "200": { "description": "Low stock products", "schema": { "$ref": "#/definitions/LowStockProductsResponse" } }
+          "200": {
+            "description": "Low stock products",
+            "schema": {
+              "$ref": "#/definitions/LowStockProductsResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stores": {
+      "get": {
+        "tags": [
+          "Stores"
+        ],
+        "summary": "List Stores",
+        "description": "List all stores with optional is_verified / is_active filters. Superadmin only.",
+        "operationId": "store_list",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "is_verified",
+            "in": "query",
+            "type": "string",
+            "enum": [
+              "true",
+              "false"
+            ],
+            "description": "Filter by verification status"
+          },
+          {
+            "name": "is_active",
+            "in": "query",
+            "type": "string",
+            "enum": [
+              "true",
+              "false"
+            ],
+            "description": "Filter by active status"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "format": "int32",
+            "default": 1
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "type": "integer",
+            "format": "int32",
+            "default": 20
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of stores",
+            "schema": {
+              "$ref": "#/definitions/ListStoresResponse"
+            }
+          },
+          "403": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
+        }
+      }
+    },
+    "/api/v1/stores/{id}": {
+      "get": {
+        "tags": [
+          "Stores"
+        ],
+        "summary": "Get Store",
+        "description": "Get a store by ID. Superadmin only.",
+        "operationId": "store_get",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "Store ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Store details",
+            "schema": {
+              "$ref": "#/definitions/StoreResponse"
+            }
+          },
+          "404": {
+            "$ref": "#/definitions/ErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
+        }
+      }
+    },
+    "/api/v1/stores/{id}/verify": {
+      "post": {
+        "tags": [
+          "Stores"
+        ],
+        "summary": "Verify Store",
+        "description": "Verify/approve a pending store (sets is_verified=true and is_active=true). Superadmin only.",
+        "operationId": "store_verify",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "Store ID"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": false,
+            "schema": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Verified store",
+            "schema": {
+              "$ref": "#/definitions/StoreResponse"
+            }
+          },
+          "404": {
+            "$ref": "#/definitions/ErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
         }
       }
     }
@@ -2680,7 +3663,8 @@
         "username",
         "email",
         "password",
-        "full_name"
+        "full_name",
+        "store_name"
       ],
       "properties": {
         "username": {
@@ -2700,6 +3684,11 @@
         "full_name": {
           "type": "string",
           "example": "John Doe"
+        },
+        "store_name": {
+          "type": "string",
+          "description": "Name of the store to create for the registering user (required for SaaS onboarding). The store is created inactive/pending until verified by a superadmin, and the registering user is assigned the admin role for it.",
+          "example": "Acme Store"
         }
       }
     },
@@ -3891,7 +4880,12 @@
     },
     "CreateTransactionRequest": {
       "type": "object",
-      "required": ["product_id", "store_id", "type", "quantity"],
+      "required": [
+        "product_id",
+        "store_id",
+        "type",
+        "quantity"
+      ],
       "properties": {
         "product_id": {
           "type": "string",
@@ -3904,7 +4898,14 @@
         "type": {
           "type": "string",
           "description": "Transaction type: PURCHASE, SALE, RETURN, ADJUSTMENT, DAMAGE, TRANSFER",
-          "enum": ["PURCHASE", "SALE", "RETURN", "ADJUSTMENT", "DAMAGE", "TRANSFER"]
+          "enum": [
+            "PURCHASE",
+            "SALE",
+            "RETURN",
+            "ADJUSTMENT",
+            "DAMAGE",
+            "TRANSFER"
+          ]
         },
         "quantity": {
           "type": "integer",
@@ -3927,7 +4928,12 @@
     },
     "AdjustStockRequest": {
       "type": "object",
-      "required": ["product_id", "store_id", "direction", "quantity"],
+      "required": [
+        "product_id",
+        "store_id",
+        "direction",
+        "quantity"
+      ],
       "properties": {
         "product_id": {
           "type": "string",
@@ -3940,7 +4946,10 @@
         "direction": {
           "type": "string",
           "description": "INCREASE or DECREASE",
-          "enum": ["INCREASE", "DECREASE"]
+          "enum": [
+            "INCREASE",
+            "DECREASE"
+          ]
         },
         "quantity": {
           "type": "integer",
@@ -4140,466 +5149,1120 @@
     },
     "CreateCustomerRequest": {
       "type": "object",
-      "required": ["code", "name"],
+      "required": [
+        "code",
+        "name"
+      ],
       "properties": {
-        "code": { "type": "string", "description": "Customer code (unique)" },
-        "name": { "type": "string", "description": "Customer name" },
-        "email": { "type": "string", "description": "Email address" },
-        "phone": { "type": "string", "description": "Phone number" },
-        "address": { "type": "string", "description": "Address" }
+        "code": {
+          "type": "string",
+          "description": "Customer code (unique)"
+        },
+        "name": {
+          "type": "string",
+          "description": "Customer name"
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address"
+        },
+        "phone": {
+          "type": "string",
+          "description": "Phone number"
+        },
+        "address": {
+          "type": "string",
+          "description": "Address"
+        }
       }
     },
     "UpdateCustomerRequest": {
       "type": "object",
       "properties": {
-        "code": { "type": "string" },
-        "name": { "type": "string" },
-        "email": { "type": "string" },
-        "phone": { "type": "string" },
-        "address": { "type": "string" },
-        "is_active": { "type": "boolean" }
+        "code": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "is_active": {
+          "type": "boolean"
+        }
       }
     },
     "Customer": {
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "code": { "type": "string" },
-        "name": { "type": "string" },
-        "email": { "type": "string" },
-        "phone": { "type": "string" },
-        "address": { "type": "string" },
-        "is_active": { "type": "boolean" },
-        "created_at": { "type": "string", "format": "date-time" },
-        "updated_at": { "type": "string", "format": "date-time" }
+        "id": {
+          "type": "string"
+        },
+        "code": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "is_active": {
+          "type": "boolean"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
       }
     },
     "CustomerResponse": {
       "type": "object",
       "properties": {
-        "customer": { "$ref": "#/definitions/Customer" }
+        "customer": {
+          "$ref": "#/definitions/Customer"
+        }
       }
     },
     "ListCustomersResponse": {
       "type": "object",
       "properties": {
-        "customers": { "type": "array", "items": { "$ref": "#/definitions/Customer" } },
-        "total_count": { "type": "integer" },
-        "page": { "type": "integer" },
-        "per_page": { "type": "integer" }
+        "customers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Customer"
+          }
+        },
+        "total_count": {
+          "type": "integer"
+        },
+        "page": {
+          "type": "integer"
+        },
+        "per_page": {
+          "type": "integer"
+        }
       }
     },
     "DeleteCustomerResponse": {
       "type": "object",
       "properties": {
-        "success": { "type": "boolean" },
-        "message": { "type": "string" }
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        }
       }
     },
     "PurchaseHistoryResponse": {
       "type": "object",
       "properties": {
-        "purchases": { "type": "array", "items": { "$ref": "#/definitions/SaleSummary" } },
-        "total_count": { "type": "integer" },
-        "page": { "type": "integer" },
-        "per_page": { "type": "integer" }
+        "purchases": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SaleSummary"
+          }
+        },
+        "total_count": {
+          "type": "integer"
+        },
+        "page": {
+          "type": "integer"
+        },
+        "per_page": {
+          "type": "integer"
+        }
       }
     },
     "SaleSummary": {
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "invoice_number": { "type": "string" },
-        "grand_total": { "type": "number" },
-        "status": { "type": "string" },
-        "created_at": { "type": "string", "format": "date-time" }
+        "id": {
+          "type": "string"
+        },
+        "invoice_number": {
+          "type": "string"
+        },
+        "grand_total": {
+          "type": "number"
+        },
+        "status": {
+          "type": "string"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        }
       }
     },
     "CreateSaleRequest": {
       "type": "object",
-      "required": ["store_id", "items", "payment_method", "amount_paid"],
+      "required": [
+        "store_id",
+        "items",
+        "payment_method",
+        "amount_paid"
+      ],
       "properties": {
-        "store_id": { "type": "string", "description": "Store UUID" },
-        "customer_id": { "type": "string", "description": "Customer UUID (optional)" },
+        "store_id": {
+          "type": "string",
+          "description": "Store UUID"
+        },
+        "customer_id": {
+          "type": "string",
+          "description": "Customer UUID (optional)"
+        },
         "items": {
           "type": "array",
-          "items": { "$ref": "#/definitions/SaleItemInput" },
+          "items": {
+            "$ref": "#/definitions/SaleItemInput"
+          },
           "description": "Sale items"
         },
-        "discount": { "type": "number", "description": "Total discount" },
-        "tax_rate": { "type": "number", "description": "Tax rate in percentage (e.g., 10 for 10%)" },
-        "payment_method": { "type": "string", "description": "CASH, CARD, BANK_TRANSFER, EWALLET, OTHER" },
-        "amount_paid": { "type": "number", "description": "Amount paid by customer" },
-        "payment_reference": { "type": "string", "description": "Payment reference (for non-cash)" }
+        "discount": {
+          "type": "number",
+          "description": "Total discount"
+        },
+        "tax_rate": {
+          "type": "number",
+          "description": "Tax rate in percentage (e.g., 10 for 10%)"
+        },
+        "payment_method": {
+          "type": "string",
+          "description": "CASH, CARD, BANK_TRANSFER, EWALLET, OTHER"
+        },
+        "amount_paid": {
+          "type": "number",
+          "description": "Amount paid by customer"
+        },
+        "payment_reference": {
+          "type": "string",
+          "description": "Payment reference (for non-cash)"
+        }
       }
     },
     "SaleItemInput": {
       "type": "object",
-      "required": ["product_id", "quantity", "unit_price"],
+      "required": [
+        "product_id",
+        "quantity",
+        "unit_price"
+      ],
       "properties": {
-        "product_id": { "type": "string" },
-        "sku_id": { "type": "string", "description": "SKU ID (optional)" },
-        "quantity": { "type": "integer", "format": "int32" },
-        "unit_price": { "type": "number" },
-        "discount": { "type": "number" }
+        "product_id": {
+          "type": "string"
+        },
+        "sku_id": {
+          "type": "string",
+          "description": "SKU ID (optional)"
+        },
+        "quantity": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "unit_price": {
+          "type": "number"
+        },
+        "discount": {
+          "type": "number"
+        }
       }
     },
     "SaleResponse": {
       "type": "object",
       "properties": {
-        "sale": { "$ref": "#/definitions/Sale" }
+        "sale": {
+          "$ref": "#/definitions/Sale"
+        }
       }
     },
     "SaleDetailResponse": {
       "type": "object",
       "properties": {
-        "sale": { "$ref": "#/definitions/Sale" },
-        "items": { "type": "array", "items": { "$ref": "#/definitions/SaleItem" } },
-        "payments": { "type": "array", "items": { "$ref": "#/definitions/Payment" } },
-        "amount_paid": { "type": "number" },
-        "change": { "type": "number" }
+        "sale": {
+          "$ref": "#/definitions/Sale"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SaleItem"
+          }
+        },
+        "payments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Payment"
+          }
+        },
+        "amount_paid": {
+          "type": "number"
+        },
+        "change": {
+          "type": "number"
+        }
       }
     },
     "Sale": {
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "invoice_number": { "type": "string" },
-        "store_id": { "type": "string" },
-        "store_name": { "type": "string" },
-        "cashier_id": { "type": "string" },
-        "cashier_name": { "type": "string" },
-        "customer_id": { "type": "string" },
-        "customer_name": { "type": "string" },
-        "subtotal": { "type": "number" },
-        "discount": { "type": "number" },
-        "tax": { "type": "number" },
-        "grand_total": { "type": "number" },
-        "status": { "type": "string", "description": "PENDING, PAID, CANCELLED, REFUNDED" },
-        "item_count": { "type": "integer", "format": "int32" },
-        "created_at": { "type": "string", "format": "date-time" },
-        "updated_at": { "type": "string", "format": "date-time" }
+        "id": {
+          "type": "string"
+        },
+        "invoice_number": {
+          "type": "string"
+        },
+        "store_id": {
+          "type": "string"
+        },
+        "store_name": {
+          "type": "string"
+        },
+        "cashier_id": {
+          "type": "string"
+        },
+        "cashier_name": {
+          "type": "string"
+        },
+        "customer_id": {
+          "type": "string"
+        },
+        "customer_name": {
+          "type": "string"
+        },
+        "subtotal": {
+          "type": "number"
+        },
+        "discount": {
+          "type": "number"
+        },
+        "tax": {
+          "type": "number"
+        },
+        "grand_total": {
+          "type": "number"
+        },
+        "status": {
+          "type": "string",
+          "description": "PENDING, PAID, CANCELLED, REFUNDED"
+        },
+        "item_count": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
       }
     },
     "SaleItem": {
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "sale_id": { "type": "string" },
-        "product_id": { "type": "string" },
-        "product_name": { "type": "string" },
-        "quantity": { "type": "integer", "format": "int32" },
-        "unit_price": { "type": "number" },
-        "discount": { "type": "number" },
-        "subtotal": { "type": "number" },
-        "created_at": { "type": "string", "format": "date-time" }
+        "id": {
+          "type": "string"
+        },
+        "sale_id": {
+          "type": "string"
+        },
+        "product_id": {
+          "type": "string"
+        },
+        "product_name": {
+          "type": "string"
+        },
+        "quantity": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "unit_price": {
+          "type": "number"
+        },
+        "discount": {
+          "type": "number"
+        },
+        "subtotal": {
+          "type": "number"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        }
       }
     },
     "Payment": {
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "sale_id": { "type": "string" },
-        "payment_method": { "type": "string" },
-        "amount": { "type": "number" },
-        "reference": { "type": "string" },
-        "paid_at": { "type": "string", "format": "date-time" }
+        "id": {
+          "type": "string"
+        },
+        "sale_id": {
+          "type": "string"
+        },
+        "payment_method": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "number"
+        },
+        "reference": {
+          "type": "string"
+        },
+        "paid_at": {
+          "type": "string",
+          "format": "date-time"
+        }
       }
     },
     "ListSalesResponse": {
       "type": "object",
       "properties": {
-        "sales": { "type": "array", "items": { "$ref": "#/definitions/Sale" } },
-        "total_count": { "type": "integer" },
-        "page": { "type": "integer" },
-        "per_page": { "type": "integer" }
+        "sales": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Sale"
+          }
+        },
+        "total_count": {
+          "type": "integer"
+        },
+        "page": {
+          "type": "integer"
+        },
+        "per_page": {
+          "type": "integer"
+        }
       }
     },
     "CancelSaleRequest": {
       "type": "object",
       "properties": {
-        "reason": { "type": "string" }
+        "reason": {
+          "type": "string"
+        }
       }
     },
     "RefundSaleRequest": {
       "type": "object",
       "properties": {
-        "reason": { "type": "string" }
+        "reason": {
+          "type": "string"
+        }
       }
     },
     "CreatePaymentRequest": {
       "type": "object",
-      "required": ["sale_id", "payment_method", "amount"],
+      "required": [
+        "sale_id",
+        "payment_method",
+        "amount"
+      ],
       "properties": {
-        "sale_id": { "type": "string", "description": "Sale UUID" },
-        "payment_method": { "type": "string", "description": "CASH, CARD, BANK_TRANSFER, EWALLET, OTHER" },
-        "amount": { "type": "number", "description": "Payment amount" },
-        "reference": { "type": "string", "description": "Payment reference (for non-cash)" }
+        "sale_id": {
+          "type": "string",
+          "description": "Sale UUID"
+        },
+        "payment_method": {
+          "type": "string",
+          "description": "CASH, CARD, BANK_TRANSFER, EWALLET, OTHER"
+        },
+        "amount": {
+          "type": "number",
+          "description": "Payment amount"
+        },
+        "reference": {
+          "type": "string",
+          "description": "Payment reference (for non-cash)"
+        }
       }
     },
     "PaymentResponse": {
       "type": "object",
       "properties": {
-        "payment": { "$ref": "#/definitions/PaymentDetail" }
+        "payment": {
+          "$ref": "#/definitions/PaymentDetail"
+        }
       }
     },
     "PaymentDetail": {
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "sale_id": { "type": "string" },
-        "payment_method": { "type": "string" },
-        "amount": { "type": "number" },
-        "reference": { "type": "string" },
-        "paid_at": { "type": "string", "format": "date-time" },
-        "created_at": { "type": "string", "format": "date-time" }
+        "id": {
+          "type": "string"
+        },
+        "sale_id": {
+          "type": "string"
+        },
+        "payment_method": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "number"
+        },
+        "reference": {
+          "type": "string"
+        },
+        "paid_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        }
       }
     },
     "ListPaymentsResponse": {
       "type": "object",
       "properties": {
-        "payments": { "type": "array", "items": { "$ref": "#/definitions/PaymentDetail" } },
-        "total_count": { "type": "integer" },
-        "page": { "type": "integer" },
-        "per_page": { "type": "integer" }
+        "payments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PaymentDetail"
+          }
+        },
+        "total_count": {
+          "type": "integer"
+        },
+        "page": {
+          "type": "integer"
+        },
+        "per_page": {
+          "type": "integer"
+        }
       }
     },
     "DeletePaymentResponse": {
       "type": "object",
       "properties": {
-        "success": { "type": "boolean" },
-        "message": { "type": "string" }
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        }
       }
     },
     "PaymentSummaryResponse": {
       "type": "object",
       "properties": {
-        "sale_id": { "type": "string" },
-        "grand_total": { "type": "number" },
-        "total_paid": { "type": "number" },
-        "remaining": { "type": "number" },
-        "change": { "type": "number" },
-        "status": { "type": "string", "description": "PENDING, PARTIAL, PAID" },
-        "payments": { "type": "array", "items": { "$ref": "#/definitions/PaymentDetail" } }
+        "sale_id": {
+          "type": "string"
+        },
+        "grand_total": {
+          "type": "number"
+        },
+        "total_paid": {
+          "type": "number"
+        },
+        "remaining": {
+          "type": "number"
+        },
+        "change": {
+          "type": "number"
+        },
+        "status": {
+          "type": "string",
+          "description": "PENDING, PARTIAL, PAID"
+        },
+        "payments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PaymentDetail"
+          }
+        }
       }
     },
     "OpenShiftRequest": {
       "type": "object",
-      "required": ["store_id", "opening_cash"],
+      "required": [
+        "store_id",
+        "opening_cash"
+      ],
       "properties": {
-        "store_id": { "type": "string", "description": "Store UUID" },
-        "opening_cash": { "type": "number", "description": "Opening cash amount" }
+        "store_id": {
+          "type": "string",
+          "description": "Store UUID"
+        },
+        "opening_cash": {
+          "type": "number",
+          "description": "Opening cash amount"
+        }
       }
     },
     "CloseShiftRequest": {
       "type": "object",
-      "required": ["shift_id", "closing_cash", "actual_cash"],
+      "required": [
+        "shift_id",
+        "closing_cash",
+        "actual_cash"
+      ],
       "properties": {
-        "shift_id": { "type": "string", "description": "Shift UUID" },
-        "closing_cash": { "type": "number", "description": "Closing cash amount" },
-        "actual_cash": { "type": "number", "description": "Actual cash counted" }
+        "shift_id": {
+          "type": "string",
+          "description": "Shift UUID"
+        },
+        "closing_cash": {
+          "type": "number",
+          "description": "Closing cash amount"
+        },
+        "actual_cash": {
+          "type": "number",
+          "description": "Actual cash counted"
+        }
       }
     },
     "ShiftResponse": {
       "type": "object",
       "properties": {
-        "shift": { "$ref": "#/definitions/CashierShift" }
+        "shift": {
+          "$ref": "#/definitions/CashierShift"
+        }
       }
     },
     "CashierShift": {
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "user_id": { "type": "string" },
-        "user_name": { "type": "string" },
-        "store_id": { "type": "string" },
-        "store_name": { "type": "string" },
-        "opening_cash": { "type": "number" },
-        "closing_cash": { "type": "number" },
-        "cash_sales": { "type": "number" },
-        "cash_refund": { "type": "number" },
-        "expected_cash": { "type": "number" },
-        "actual_cash": { "type": "number" },
-        "cash_difference": { "type": "number" },
-        "status": { "type": "string", "description": "OPEN or CLOSED" },
-        "opened_at": { "type": "string", "format": "date-time" },
-        "closed_at": { "type": "string", "format": "date-time" },
-        "created_at": { "type": "string", "format": "date-time" }
+        "id": {
+          "type": "string"
+        },
+        "user_id": {
+          "type": "string"
+        },
+        "user_name": {
+          "type": "string"
+        },
+        "store_id": {
+          "type": "string"
+        },
+        "store_name": {
+          "type": "string"
+        },
+        "opening_cash": {
+          "type": "number"
+        },
+        "closing_cash": {
+          "type": "number"
+        },
+        "cash_sales": {
+          "type": "number"
+        },
+        "cash_refund": {
+          "type": "number"
+        },
+        "expected_cash": {
+          "type": "number"
+        },
+        "actual_cash": {
+          "type": "number"
+        },
+        "cash_difference": {
+          "type": "number"
+        },
+        "status": {
+          "type": "string",
+          "description": "OPEN or CLOSED"
+        },
+        "opened_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "closed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        }
       }
     },
     "ListShiftsResponse": {
       "type": "object",
       "properties": {
-        "shifts": { "type": "array", "items": { "$ref": "#/definitions/CashierShift" } },
-        "total_count": { "type": "integer" },
-        "page": { "type": "integer" },
-        "per_page": { "type": "integer" }
+        "shifts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CashierShift"
+          }
+        },
+        "total_count": {
+          "type": "integer"
+        },
+        "page": {
+          "type": "integer"
+        },
+        "per_page": {
+          "type": "integer"
+        }
       }
     },
     "ShiftSummaryResponse": {
       "type": "object",
       "properties": {
-        "shift_id": { "type": "string" },
-        "cashier_name": { "type": "string" },
-        "store_name": { "type": "string" },
-        "opening_cash": { "type": "number" },
-        "cash_sales": { "type": "number" },
-        "cash_refund": { "type": "number" },
-        "expected_cash": { "type": "number" },
-        "actual_cash": { "type": "number" },
-        "cash_difference": { "type": "number" },
-        "total_transactions": { "type": "integer" },
-        "total_sales_amount": { "type": "number" },
-        "status": { "type": "string" },
-        "opened_at": { "type": "string", "format": "date-time" },
-        "closed_at": { "type": "string", "format": "date-time" },
-        "sales": { "type": "array", "items": { "$ref": "#/definitions/ShiftSale" } }
+        "shift_id": {
+          "type": "string"
+        },
+        "cashier_name": {
+          "type": "string"
+        },
+        "store_name": {
+          "type": "string"
+        },
+        "opening_cash": {
+          "type": "number"
+        },
+        "cash_sales": {
+          "type": "number"
+        },
+        "cash_refund": {
+          "type": "number"
+        },
+        "expected_cash": {
+          "type": "number"
+        },
+        "actual_cash": {
+          "type": "number"
+        },
+        "cash_difference": {
+          "type": "number"
+        },
+        "total_transactions": {
+          "type": "integer"
+        },
+        "total_sales_amount": {
+          "type": "number"
+        },
+        "status": {
+          "type": "string"
+        },
+        "opened_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "closed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "sales": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ShiftSale"
+          }
+        }
       }
     },
     "ShiftSale": {
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "invoice_number": { "type": "string" },
-        "grand_total": { "type": "number" },
-        "payment_method": { "type": "string" },
-        "created_at": { "type": "string", "format": "date-time" }
+        "id": {
+          "type": "string"
+        },
+        "invoice_number": {
+          "type": "string"
+        },
+        "grand_total": {
+          "type": "number"
+        },
+        "payment_method": {
+          "type": "string"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        }
       }
     },
     "DailySalesReportResponse": {
       "type": "object",
       "properties": {
-        "reports": { "type": "array", "items": { "$ref": "#/definitions/DailySalesReport" } },
-        "total_sales": { "type": "number" },
-        "total_amount": { "type": "number" }
+        "reports": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/DailySalesReport"
+          }
+        },
+        "total_sales": {
+          "type": "number"
+        },
+        "total_amount": {
+          "type": "number"
+        }
       }
     },
     "DailySalesReport": {
       "type": "object",
       "properties": {
-        "date": { "type": "string" },
-        "total_sales": { "type": "integer" },
-        "total_amount": { "type": "number" }
+        "date": {
+          "type": "string"
+        },
+        "total_sales": {
+          "type": "integer"
+        },
+        "total_amount": {
+          "type": "number"
+        }
       }
     },
     "SalesByDateRangeResponse": {
       "type": "object",
       "properties": {
-        "sales": { "type": "array", "items": { "$ref": "#/definitions/SaleReport" } },
-        "total_count": { "type": "integer" },
-        "total_amount": { "type": "number" }
+        "sales": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SaleReport"
+          }
+        },
+        "total_count": {
+          "type": "integer"
+        },
+        "total_amount": {
+          "type": "number"
+        }
       }
     },
     "SaleReport": {
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "invoice_number": { "type": "string" },
-        "store_name": { "type": "string" },
-        "cashier_name": { "type": "string" },
-        "customer_name": { "type": "string" },
-        "subtotal": { "type": "number" },
-        "discount": { "type": "number" },
-        "tax": { "type": "number" },
-        "grand_total": { "type": "number" },
-        "status": { "type": "string" },
-        "created_at": { "type": "string", "format": "date-time" }
+        "id": {
+          "type": "string"
+        },
+        "invoice_number": {
+          "type": "string"
+        },
+        "store_name": {
+          "type": "string"
+        },
+        "cashier_name": {
+          "type": "string"
+        },
+        "customer_name": {
+          "type": "string"
+        },
+        "subtotal": {
+          "type": "number"
+        },
+        "discount": {
+          "type": "number"
+        },
+        "tax": {
+          "type": "number"
+        },
+        "grand_total": {
+          "type": "number"
+        },
+        "status": {
+          "type": "string"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        }
       }
     },
     "SalesByCashierResponse": {
       "type": "object",
       "properties": {
-        "reports": { "type": "array", "items": { "$ref": "#/definitions/CashierSalesReport" } }
+        "reports": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CashierSalesReport"
+          }
+        }
       }
     },
     "CashierSalesReport": {
       "type": "object",
       "properties": {
-        "cashier_id": { "type": "string" },
-        "cashier_name": { "type": "string" },
-        "total_transactions": { "type": "integer" },
-        "total_amount": { "type": "number" }
+        "cashier_id": {
+          "type": "string"
+        },
+        "cashier_name": {
+          "type": "string"
+        },
+        "total_transactions": {
+          "type": "integer"
+        },
+        "total_amount": {
+          "type": "number"
+        }
       }
     },
     "SalesByProductResponse": {
       "type": "object",
       "properties": {
-        "reports": { "type": "array", "items": { "$ref": "#/definitions/ProductSalesReport" } }
+        "reports": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ProductSalesReport"
+          }
+        }
       }
     },
     "ProductSalesReport": {
       "type": "object",
       "properties": {
-        "product_id": { "type": "string" },
-        "product_name": { "type": "string" },
-        "quantity_sold": { "type": "integer" },
-        "total_amount": { "type": "number" }
+        "product_id": {
+          "type": "string"
+        },
+        "product_name": {
+          "type": "string"
+        },
+        "quantity_sold": {
+          "type": "integer"
+        },
+        "total_amount": {
+          "type": "number"
+        }
       }
     },
     "SalesByCategoryResponse": {
       "type": "object",
       "properties": {
-        "reports": { "type": "array", "items": { "$ref": "#/definitions/CategorySalesReport" } }
+        "reports": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CategorySalesReport"
+          }
+        }
       }
     },
     "CategorySalesReport": {
       "type": "object",
       "properties": {
-        "category_id": { "type": "string" },
-        "category_name": { "type": "string" },
-        "product_count": { "type": "integer" },
-        "quantity_sold": { "type": "integer" },
-        "total_amount": { "type": "number" }
+        "category_id": {
+          "type": "string"
+        },
+        "category_name": {
+          "type": "string"
+        },
+        "product_count": {
+          "type": "integer"
+        },
+        "quantity_sold": {
+          "type": "integer"
+        },
+        "total_amount": {
+          "type": "number"
+        }
       }
     },
     "PaymentMethodSummaryResponse": {
       "type": "object",
       "properties": {
-        "reports": { "type": "array", "items": { "$ref": "#/definitions/PaymentMethodReport" } },
-        "total_amount": { "type": "number" }
+        "reports": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PaymentMethodReport"
+          }
+        },
+        "total_amount": {
+          "type": "number"
+        }
       }
     },
     "PaymentMethodReport": {
       "type": "object",
       "properties": {
-        "payment_method": { "type": "string" },
-        "count": { "type": "integer" },
-        "total_amount": { "type": "number" }
+        "payment_method": {
+          "type": "string"
+        },
+        "count": {
+          "type": "integer"
+        },
+        "total_amount": {
+          "type": "number"
+        }
       }
     },
     "InventorySummaryResponse": {
       "type": "object",
       "properties": {
-        "reports": { "type": "array", "items": { "$ref": "#/definitions/InventoryReport" } },
-        "total_products": { "type": "integer" },
-        "total_stock": { "type": "integer" },
-        "total_value": { "type": "number" }
+        "reports": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/InventoryReport"
+          }
+        },
+        "total_products": {
+          "type": "integer"
+        },
+        "total_stock": {
+          "type": "integer"
+        },
+        "total_value": {
+          "type": "number"
+        }
       }
     },
     "InventoryReport": {
       "type": "object",
       "properties": {
-        "category_name": { "type": "string" },
-        "product_count": { "type": "integer" },
-        "total_stock": { "type": "integer" },
-        "total_value": { "type": "number" }
+        "category_name": {
+          "type": "string"
+        },
+        "product_count": {
+          "type": "integer"
+        },
+        "total_stock": {
+          "type": "integer"
+        },
+        "total_value": {
+          "type": "number"
+        }
       }
     },
     "LowStockProductsResponse": {
       "type": "object",
       "properties": {
-        "products": { "type": "array", "items": { "$ref": "#/definitions/LowStockReport" } }
+        "products": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/LowStockReport"
+          }
+        }
       }
     },
     "LowStockReport": {
       "type": "object",
       "properties": {
-        "product_id": { "type": "string" },
-        "product_name": { "type": "string" },
-        "category_name": { "type": "string" },
-        "current_stock": { "type": "integer", "format": "int32" },
-        "minimum_stock": { "type": "integer", "format": "int32" },
-        "deficit": { "type": "integer", "format": "int32" }
+        "product_id": {
+          "type": "string"
+        },
+        "product_name": {
+          "type": "string"
+        },
+        "category_name": {
+          "type": "string"
+        },
+        "current_stock": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "minimum_stock": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "deficit": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "Store": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "example": "785bf8e2-1c84-4d88-9236-bc359b973d18"
+        },
+        "name": {
+          "type": "string",
+          "example": "Tenant One Store"
+        },
+        "address": {
+          "type": "string",
+          "example": "123 Main St"
+        },
+        "phone": {
+          "type": "string",
+          "example": "+6281234567890"
+        },
+        "is_active": {
+          "type": "string",
+          "example": "false"
+        },
+        "is_verified": {
+          "type": "string",
+          "example": "false"
+        },
+        "created_at": {
+          "type": "string",
+          "example": "2026-08-30T04:57:55Z"
+        },
+        "updated_at": {
+          "type": "string",
+          "example": "2026-08-30T04:57:55Z"
+        }
+      }
+    },
+    "GetStoreRequest": {
+      "type": "object",
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "example": "785bf8e2-1c84-4d88-9236-bc359b973d18"
+        }
+      }
+    },
+    "VerifyStoreRequest": {
+      "type": "object",
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "example": "785bf8e2-1c84-4d88-9236-bc359b973d18"
+        }
+      }
+    },
+    "StoreResponse": {
+      "type": "object",
+      "properties": {
+        "store": {
+          "$ref": "#/definitions/Store"
+        }
+      }
+    },
+    "ListStoresResponse": {
+      "type": "object",
+      "properties": {
+        "stores": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Store"
+          }
+        },
+        "total_count": {
+          "type": "integer",
+          "format": "int64",
+          "example": 2
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32",
+          "example": 1
+        },
+        "per_page": {
+          "type": "integer",
+          "format": "int32",
+          "example": 20
+        }
       }
     }
   },

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useUiStore } from '@/stores/ui';
+import { useLocaleStore } from '@/stores/locale';
 import { navigateTo } from '@/lib/navigation';
 import AppSidebar from './AppSidebar.vue';
 import AppTopbar from './AppTopbar.vue';
@@ -9,15 +10,17 @@ import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 
 const authStore = useAuthStore();
 const uiStore = useUiStore();
+const localeStore = useLocaleStore();
+const t = localeStore.t;
 const isReady = ref(false);
 
 const userName = ref('User');
 
-const stats = ref([
-  { label: 'Total Sales', value: 'Rp 0', icon: '💰', href: '/admin/sales' },
-  { label: 'Products', value: '0', icon: '📦', href: '/admin/products' },
-  { label: 'Customers', value: '0', icon: '👥', href: '/admin/customers' },
-  { label: 'Low Stock', value: '0', icon: '⚠️', href: '/admin/inventory' },
+const stats = computed(() => [
+  { label: t('dashboard.totalSales'), value: 'Rp 0', icon: '💰', href: '/admin/sales' },
+  { label: t('dashboard.products'), value: '0', icon: '📦', href: '/admin/products' },
+  { label: t('dashboard.customers'), value: '0', icon: '👥', href: '/admin/customers' },
+  { label: t('dashboard.lowStock'), value: '0', icon: '⚠️', href: '/admin/inventory' },
 ]);
 
 onMounted(async () => {
@@ -47,8 +50,8 @@ onMounted(async () => {
       <main class="flex-1 overflow-y-auto p-6">
         <!-- Welcome Header -->
         <div class="mb-8">
-          <h2 class="text-2xl font-bold">Welcome back, {{ userName }}! 👋</h2>
-          <p class="text-muted-foreground mt-1">Here's what's happening with your store today.</p>
+          <h2 class="text-2xl font-bold">{{ t('dashboard.welcome', { name: userName }) }}</h2>
+          <p class="text-muted-foreground mt-1">{{ t('dashboard.subtitle') }}</p>
         </div>
 
         <!-- Stats Grid -->
@@ -71,7 +74,7 @@ onMounted(async () => {
 
         <!-- Quick Actions -->
         <div class="mb-8">
-          <h3 class="text-lg font-semibold mb-4">Quick Actions</h3>
+          <h3 class="text-lg font-semibold mb-4">{{ t('dashboard.quickActions') }}</h3>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <a
               href="/pos"
@@ -79,8 +82,8 @@ onMounted(async () => {
             >
               <span class="text-3xl">🛒</span>
               <div>
-                <h4 class="font-semibold">POS Checkout</h4>
-                <p class="text-sm text-muted-foreground">Start a new sale transaction</p>
+                <h4 class="font-semibold">{{ t('dashboard.posCheckout') }}</h4>
+                <p class="text-sm text-muted-foreground">{{ t('dashboard.posCheckoutDesc') }}</p>
               </div>
             </a>
 
@@ -90,8 +93,8 @@ onMounted(async () => {
             >
               <span class="text-3xl">📊</span>
               <div>
-                <h4 class="font-semibold">Reports</h4>
-                <p class="text-sm text-muted-foreground">View sales and inventory reports</p>
+                <h4 class="font-semibold">{{ t('dashboard.reports') }}</h4>
+                <p class="text-sm text-muted-foreground">{{ t('dashboard.reportsDesc') }}</p>
               </div>
             </a>
 
@@ -101,8 +104,8 @@ onMounted(async () => {
             >
               <span class="text-3xl">📦</span>
               <div>
-                <h4 class="font-semibold">Products</h4>
-                <p class="text-sm text-muted-foreground">Manage products and inventory</p>
+                <h4 class="font-semibold">{{ t('dashboard.productsShort') }}</h4>
+                <p class="text-sm text-muted-foreground">{{ t('dashboard.productsDesc') }}</p>
               </div>
             </a>
           </div>
@@ -110,10 +113,10 @@ onMounted(async () => {
 
         <!-- Recent Activity Placeholder -->
         <div class="bg-card rounded-xl border shadow-sm p-6">
-          <h3 class="text-lg font-semibold mb-4">Recent Activity</h3>
+          <h3 class="text-lg font-semibold mb-4">{{ t('dashboard.recentActivity') }}</h3>
           <div class="text-center py-8 text-muted-foreground">
-            <p>No recent activity to display.</p>
-            <p class="text-sm mt-2">Activity will appear here as you use the system.</p>
+            <p>{{ t('dashboard.noActivity') }}</p>
+            <p class="text-sm mt-2">{{ t('dashboard.activityHint') }}</p>
           </div>
         </div>
       </main>
@@ -123,7 +126,7 @@ onMounted(async () => {
   <div v-else class="flex items-center justify-center h-screen">
     <div class="text-center">
       <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-      <p class="mt-4 text-muted-foreground">Loading...</p>
+      <p class="mt-4 text-muted-foreground">{{ t('common.loading') }}</p>
     </div>
   </div>
 </template>
