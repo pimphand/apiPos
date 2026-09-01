@@ -72,12 +72,15 @@ func assignStoreIDOnCreate(db *gorm.DB) {
 }
 
 // scopeQuery injects a store_id filter into SELECT queries against tenant tables.
+// Uses COALESCE so that rows with NULL store_id are still visible within the
+// default tenant scope.
 func scopeQuery(db *gorm.DB) {
 	storeID := storeIDFromContext(db.Statement.Context)
 	if storeID == "" || !isTenantTable(db) {
 		return
 	}
-	db.Where(db.Statement.Schema.Table + ".store_id = ?", storeID)
+	tbl := db.Statement.Schema.Table
+	db.Where(tbl+".store_id = ? OR "+tbl+".store_id IS NULL", storeID)
 }
 
 // scopeUpdate injects a store_id filter into UPDATE queries against tenant tables.
@@ -86,7 +89,8 @@ func scopeUpdate(db *gorm.DB) {
 	if storeID == "" || !isTenantTable(db) {
 		return
 	}
-	db.Where(db.Statement.Schema.Table + ".store_id = ?", storeID)
+	tbl := db.Statement.Schema.Table
+	db.Where(tbl+".store_id = ? OR "+tbl+".store_id IS NULL", storeID)
 }
 
 // scopeDelete injects a store_id filter into DELETE queries against tenant tables.
@@ -95,7 +99,8 @@ func scopeDelete(db *gorm.DB) {
 	if storeID == "" || !isTenantTable(db) {
 		return
 	}
-	db.Where(db.Statement.Schema.Table + ".store_id = ?", storeID)
+	tbl := db.Statement.Schema.Table
+	db.Where(tbl+".store_id = ? OR "+tbl+".store_id IS NULL", storeID)
 }
 
 // registerStoreScopeCallbacks installs the automatic store_id scoping and

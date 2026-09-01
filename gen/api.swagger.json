@@ -3604,6 +3604,45 @@
         ]
       }
     },
+    "/api/v1/users/{id}/active": {
+      "patch": {
+        "summary": "ToggleUserActive toggles a user's active status",
+        "operationId": "UserService_ToggleUserActive",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1UserResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/UserServiceToggleUserActiveBody"
+            }
+          }
+        ],
+        "tags": [
+          "UserService"
+        ]
+      }
+    },
     "/api/v1/users/{id}/role": {
       "patch": {
         "summary": "UpdateUserRole updates a user's role",
@@ -3938,6 +3977,15 @@
     },
     "StoreServiceVerifyStoreBody": {
       "type": "object"
+    },
+    "UserServiceToggleUserActiveBody": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "title": "\"activate\" or \"deactivate\""
+        }
+      }
     },
     "UserServiceUpdateUserBody": {
       "type": "object",

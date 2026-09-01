@@ -132,6 +132,22 @@ func (h *UserHandler) UpdateUserRole(ctx context.Context, req *userv1.UpdateUser
 	}, nil
 }
 
+// ToggleUserActive toggles a user's active status
+func (h *UserHandler) ToggleUserActive(ctx context.Context, req *userv1.ToggleUserActiveRequest) (*userv1.UserResponse, error) {
+	isActive := req.Action == "activate"
+	u, err := h.service.ToggleUserActive(ctx, req.Id, isActive)
+	if err != nil {
+		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
+	h.logs.Log(ctx, "UPDATE", "users", u.ID.String(),
+		`{"username":"`+u.Username+`","is_active":`+boolStr(u.IsActive)+`}`)
+
+	return &userv1.UserResponse{
+		User: toProtoUserFromGORM(u, ""),
+	}, nil
+}
+
 // toProtoUserFromGORM converts a GORM User model to proto User
 func toProtoUserFromGORM(u *gormdb.User, _ string) *userv1.User {
 	roleName := u.Role.Name

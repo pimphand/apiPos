@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { categoryService } from '@/services/category';
 import { useUiStore } from '@/stores/ui';
 import { useLocaleStore } from '@/stores/locale';
 import { usePageGuard } from '@/composables/usePageGuard';
 import { apiMessage } from '@/lib/apiError';
+import { can } from '@/lib/rbac';
 import type { Category } from '@/types';
 import DashboardShell from '@/components/layout/DashboardShell.vue';
 import Button from '@/components/ui/button/Button.vue';
@@ -20,7 +21,7 @@ import PaginationBar from '@/components/ui/PaginationBar.vue';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
 
-const { isReady, allowed } = usePageGuard('categories.read');
+const { isReady, allowed, authStore } = usePageGuard('categories.read');
 const ui = useUiStore();
 const t = useLocaleStore().t;
 
@@ -114,6 +115,10 @@ async function removeCategory(c: Category) {
   }
 }
 
+const canCreate = computed(() => can(authStore.currentUser, 'categories.create'));
+const canUpdate = computed(() => can(authStore.currentUser, 'categories.update'));
+const canDelete = computed(() => can(authStore.currentUser, 'categories.delete'));
+
 watch(isReady, (r) => { if (r) load(); }, { immediate: true });
 </script>
 
@@ -134,7 +139,7 @@ watch(isReady, (r) => { if (r) load(); }, { immediate: true });
         <h2 class="text-2xl font-bold">{{ t('admin.categories.title') }}</h2>
         <p class="text-muted-foreground mt-1">{{ t('admin.categories.description') }}</p>
       </div>
-      <Button @click="openCreate">{{ t('admin.categories.newCategory') }}</Button>
+      <Button v-if="canCreate" @click="openCreate">{{ t('admin.categories.newCategory') }}</Button>
     </div>
 
     <Card>
@@ -182,11 +187,11 @@ watch(isReady, (r) => { if (r) load(); }, { immediate: true });
                 <TableCell class="text-right">
                   <div class="flex justify-end items-center gap-3">
                     <div class="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Switch :model-value="c.is_active" @update:model-value="toggleActive(c)" />
+                      <Switch v-if="canUpdate" :model-value="c.is_active" @update:model-value="toggleActive(c)" />
                       {{ c.is_active ? t('admin.shared.active') : t('admin.shared.inactive') }}
                     </div>
-                    <Button variant="outline" size="sm" @click="openEdit(c)">{{ t('admin.shared.edit') }}</Button>
-                    <AlertDialog>
+                    <Button v-if="canUpdate" variant="outline" size="sm" @click="openEdit(c)">{{ t('admin.shared.edit') }}</Button>
+                    <AlertDialog v-if="canDelete">
                       <AlertDialogTrigger as-child>
                         <Button variant="destructive" size="sm">{{ t('admin.shared.delete') }}</Button>
                       </AlertDialogTrigger>

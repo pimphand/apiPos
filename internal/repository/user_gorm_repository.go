@@ -16,6 +16,7 @@ type UserRepository interface {
 	GetByEmail(ctx context.Context, email string) (*gormdb.User, error)
 	List(ctx context.Context, params UserListParams) ([]gormdb.User, int64, error)
 	Update(ctx context.Context, user *gormdb.User) error
+	UpdateFields(ctx context.Context, id string, fields map[string]interface{}) error
 	UpdatePassword(ctx context.Context, id, passwordHash string) error
 	UpdateLastLogin(ctx context.Context, id string) error
 	Delete(ctx context.Context, id string) error
@@ -110,9 +111,14 @@ func (r *UserRepo) List(ctx context.Context, params UserListParams) ([]gormdb.Us
 	return users, totalCount, err
 }
 
-// Update updates a user
+// Update updates a user (full save — use UpdateFields for targeted updates)
 func (r *UserRepo) Update(ctx context.Context, user *gormdb.User) error {
 	return r.WithContext(ctx).Save(user).Error
+}
+
+// UpdateFields updates specific columns on a user by ID.
+func (r *UserRepo) UpdateFields(ctx context.Context, id string, fields map[string]interface{}) error {
+	return r.WithContext(ctx).Model(&gormdb.User{}).Where("id = ?", id).Updates(fields).Error
 }
 
 // UpdatePassword updates a user's password

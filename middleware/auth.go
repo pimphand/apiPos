@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"log/slog"
 	"strings"
 
 	"google.golang.org/grpc"
@@ -11,6 +12,7 @@ import (
 
 	"apiPos/internal/apperror"
 	"apiPos/internal/auth"
+	"apiPos/internal/repository"
 )
 
 // UnaryServerAuthInterceptor returns a new unary server interceptor for authentication
@@ -118,4 +120,72 @@ func hasRole(userRole string, allowedRoles []string) bool {
 		}
 	}
 	return false
+}
+
+// UnaryServerPermissionInterceptor returns a new unary server interceptor for
+// permission-based authorization.  It looks up the user's role in the
+// role_permissions table and verifies the role holds the required permission.
+//
+// endpointPermissions maps full gRPC method paths (e.g.
+// "/customer.v1.CustomerService/CreateCustomer") to the permission string
+// required to invoke them (e.g. "customers.create").  Methods not present
+// in the map are NOT gated and pass through freely.
+func UnaryServerPermissionInterceptor(repos *repository.Repositories, endpointPermissions map[string]string) grpc.UnaryServerInterceptor {
+	return func(
+		ctx context.Context,
+		req interface{},
+		info *grpc.UnaryServerInfo,
+		handler grpc.UnaryHandler,
+	) (interface{}, error) {
+		requiredPerm, needsCheck := endpointPermissions[info.FullMethod]
+		if !needsCheck {
+			return handler(ctx, req)
+		}
+
+		claims, ok := auth.ClaimsFromContext(ctx)
+		if !ok {
+			return nil, status.Error(codes.Unauthenticated, "Missing claims")
+		}
+
+		// superadmin bypasses all permission checks
+		if claims.RoleName == "superadmin" {
+			slog.Info("permission check: superadmin bypass",
+				"method", info.FullMethod,
+				"role", claims.RoleName,
+			)
+			return handler(ctx, req)
+		}
+
+		// Look up the permissions granted to this user's role from the DB.
+		var permNames []string
+		err := repos.DB().
+			Table("permissions").
+			Joins("JOIN role_permissions ON role_permissions.permission_id = permissions.id").
+			Where("role_permissions.role_id = ?", claims.RoleID).
+			Pluck("permissions.name", &permNames).Error
+		if err != nil {
+			slog.Error("permission check: db query failed",
+				"method", info.FullMethod,
+				"role_id", claims.RoleID,
+				"error", err,
+			)
+			return nil, status.Error(codes.Internal, "Failed to check permissions")
+		}
+
+		for _, name := range permNames {
+			if name == requiredPerm {
+				return handler(ctx, req)
+			}
+		}
+
+		slog.Warn("permission check: DENIED",
+			"method", info.FullMethod,
+			"required", requiredPerm,
+			"role_id", claims.RoleID,
+			"role_name", claims.RoleName,
+			"actual_perms", permNames,
+		)
+
+		return nil, status.Error(codes.PermissionDenied, "Insufficient permissions")
+	}
 }

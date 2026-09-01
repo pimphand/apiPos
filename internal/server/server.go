@@ -159,6 +159,7 @@ func (s *Server) startGRPC() error {
 			middleware.UnaryServerLoggingInterceptor(),
 			middleware.UnaryServerRequestIDInterceptor(),
 			middleware.UnaryServerAuthInterceptor(s.authService),
+			middleware.UnaryServerPermissionInterceptor(s.repositories, endpointPermissions()),
 		),
 	)
 
@@ -390,6 +391,139 @@ func enableCORS(h http.Handler) http.Handler {
 		}
 		h.ServeHTTP(w, r)
 	})
+}
+
+// endpointPermissions maps gRPC method paths to the permission required to
+// invoke them.  Methods not present in this map are NOT permission-gated
+// (only the JWT auth interceptor runs).
+func endpointPermissions() map[string]string {
+	return map[string]string{
+		// ── Customer ──────────────────────────────────────────────
+		"/customer.v1.CustomerService/CreateCustomer":     "customers.create",
+		"/customer.v1.CustomerService/GetCustomer":        "customers.read",
+		"/customer.v1.CustomerService/ListCustomers":      "customers.read",
+		"/customer.v1.CustomerService/SearchCustomers":    "customers.read",
+		"/customer.v1.CustomerService/UpdateCustomer":     "customers.update",
+		"/customer.v1.CustomerService/DeleteCustomer":     "customers.delete",
+		"/customer.v1.CustomerService/DeactivateCustomer": "customers.update",
+		"/customer.v1.CustomerService/GetPurchaseHistory": "customers.read",
+
+		// ── Product ───────────────────────────────────────────────
+		"/product.v1.ProductService/CreateProduct":       "products.create",
+		"/product.v1.ProductService/GetProduct":          "products.read",
+		"/product.v1.ProductService/ListProducts":        "products.read",
+		"/product.v1.ProductService/SearchProducts":      "products.read",
+		"/product.v1.ProductService/UpdateProduct":       "products.update",
+		"/product.v1.ProductService/DeleteProduct":       "products.delete",
+		"/product.v1.ProductService/ActivateProduct":     "products.update",
+		"/product.v1.ProductService/DeactivateProduct":   "products.update",
+		"/product.v1.ProductService/GetLowStockProducts": "products.read",
+
+		// ── ProductSKU ────────────────────────────────────────────
+		"/productsku.v1.ProductServiceSKUService/CreateProductSKU":       "products.create",
+		"/productsku.v1.ProductServiceSKUService/GetProductSKU":          "products.read",
+		"/productsku.v1.ProductServiceSKUService/GetProductSKUByBarcode": "products.read",
+		"/productsku.v1.ProductServiceSKUService/GetProductSKUBySKUCode": "products.read",
+		"/productsku.v1.ProductServiceSKUService/ListProductSKUs":        "products.read",
+		"/productsku.v1.ProductServiceSKUService/ListAllProductSKUs":     "products.read",
+		"/productsku.v1.ProductServiceSKUService/UpdateProductSKU":       "products.update",
+		"/productsku.v1.ProductServiceSKUService/DeleteProductSKU":       "products.delete",
+
+		// ── Category ──────────────────────────────────────────────
+		"/category.v1.CategoryService/CreateCategory":     "categories.create",
+		"/category.v1.CategoryService/GetCategory":        "categories.read",
+		"/category.v1.CategoryService/ListCategories":     "categories.read",
+		"/category.v1.CategoryService/UpdateCategory":     "categories.update",
+		"/category.v1.CategoryService/DeleteCategory":     "categories.delete",
+		"/category.v1.CategoryService/DeactivateCategory": "categories.update",
+
+		// ── Inventory ─────────────────────────────────────────────
+		"/inventory.v1.InventoryService/CreateTransaction": "inventory.adjust",
+		"/inventory.v1.InventoryService/GetTransaction":    "inventory.read",
+		"/inventory.v1.InventoryService/ListTransactions":  "inventory.read",
+		"/inventory.v1.InventoryService/AdjustStock":       "inventory.adjust",
+		"/inventory.v1.InventoryService/GetStockSummary":   "inventory.read",
+		"/inventory.v1.InventoryService/GetLowStockAlert":  "inventory.read",
+
+		// ── Sale ──────────────────────────────────────────────────
+		"/sale.v1.SaleService/CreateSale":       "sales.create",
+		"/sale.v1.SaleService/GetSale":          "sales.read",
+		"/sale.v1.SaleService/GetSaleByInvoice": "sales.read",
+		"/sale.v1.SaleService/ListSales":        "sales.read",
+		"/sale.v1.SaleService/CancelSale":       "sales.cancel",
+		"/sale.v1.SaleService/RefundSale":       "sales.refund",
+
+		// ── Payment ───────────────────────────────────────────────
+		"/payment.v1.PaymentService/CreatePayment":      "payments.create",
+		"/payment.v1.PaymentService/GetPayment":         "payments.read",
+		"/payment.v1.PaymentService/GetPaymentsBySale":  "payments.read",
+		"/payment.v1.PaymentService/ListPayments":       "payments.read",
+		"/payment.v1.PaymentService/DeletePayment":      "payments.delete",
+		"/payment.v1.PaymentService/GetPaymentSummary":  "payments.read",
+
+		// ── Cashier ───────────────────────────────────────────────
+		"/cashier.v1.CashierService/OpenShift":       "cashier.open_shift",
+		"/cashier.v1.CashierService/CloseShift":      "cashier.close_shift",
+		"/cashier.v1.CashierService/GetCurrentShift": "cashier.view_shift",
+		"/cashier.v1.CashierService/GetShift":        "cashier.view_shift",
+		"/cashier.v1.CashierService/ListShifts":      "cashier.view_shift",
+		"/cashier.v1.CashierService/GetShiftSummary": "cashier.view_shift",
+
+		// ── Report ────────────────────────────────────────────────
+		"/report.v1.ReportService/GetDailySalesReport":     "reports.read",
+		"/report.v1.ReportService/GetSalesByCashier":       "reports.read",
+		"/report.v1.ReportService/GetSalesByProduct":       "reports.read",
+		"/report.v1.ReportService/GetSalesByCategory":      "reports.read",
+		"/report.v1.ReportService/GetSalesByDateRange":     "reports.read",
+		"/report.v1.ReportService/GetPaymentMethodSummary": "reports.read",
+		"/report.v1.ReportService/GetInventorySummary":     "reports.read",
+		"/report.v1.ReportService/GetLowStockProducts":     "reports.read",
+
+		// ── Role management ──────────────────────────────────────
+		// NOTE: GetRole, ListRoles, GetRolePermissions are intentionally NOT
+		// permission-gated. The frontend needs them to bootstrap the permission
+		// system (fetchAndAttachPermissions). They are read-only and already
+		// protected by JWT auth.
+		"/role.v1.RoleService/CreateRole":        "roles.create",
+		"/role.v1.RoleService/UpdateRole":        "roles.update",
+		"/role.v1.RoleService/DeleteRole":        "roles.delete",
+		"/role.v1.RoleService/AssignPermissions": "roles.assign",
+		"/role.v1.RoleService/RemovePermission":  "roles.assign",
+
+		// ── Permission management ─────────────────────────────────
+		// NOTE: ListPermissions is intentionally NOT permission-gated. The frontend
+		// needs it to show the permissions management UI. It is read-only and
+		// already protected by JWT auth.
+		"/permission.v1.PermissionService/CreatePermission":          "permissions.create",
+		"/permission.v1.PermissionService/GetPermission":             "permissions.read",
+		"/permission.v1.PermissionService/ListPermissionsByResource": "permissions.read",
+		"/permission.v1.PermissionService/UpdatePermission":          "permissions.update",
+		"/permission.v1.PermissionService/DeletePermission":          "permissions.delete",
+
+		// ── User management ──────────────────────────────────────
+		// NOTE: GetUser is intentionally NOT permission-gated. The frontend
+		// needs it to refresh the user profile on session restore (bootstrap).
+		// It is read-only and already protected by JWT auth.
+		"/user.v1.UserService/CreateUser":     "users.create",
+		"/user.v1.UserService/ListUsers":      "users.read",
+		"/user.v1.UserService/UpdateUser":     "users.update",
+		"/user.v1.UserService/DeleteUser":     "users.delete",
+		"/user.v1.UserService/UpdateUserRole": "users.update",
+
+		// ── Store (superadmin only) ──────────────────────────────
+		"/store.v1.StoreService/CreateStore":  "roles.create",
+		"/store.v1.StoreService/GetStore":     "roles.read",
+		"/store.v1.StoreService/ListStores":   "roles.read",
+		"/store.v1.StoreService/UpdateStore":  "roles.update",
+		"/store.v1.StoreService/DeleteStore":  "roles.delete",
+		"/store.v1.StoreService/VerifyStore":  "roles.update",
+
+		// ── Activity logs ─────────────────────────────────────────
+		"/activitylog.v1.ActivityLogService/ListActivityLogs":           "activity_logs.read",
+		"/activitylog.v1.ActivityLogService/GetActivityLog":             "activity_logs.read",
+		"/activitylog.v1.ActivityLogService/GetActivityLogsByResource":  "activity_logs.read",
+		"/activitylog.v1.ActivityLogService/GetActivityLogsByUser":      "activity_logs.read",
+	}
 }
 
 func readFile(path string) ([]byte, error) {

@@ -279,6 +279,42 @@ The backend has been fully implemented across 9 phases. The frontend must cover 
 - Low stock alerts
 - User tracking for all adjustments
 
+#### Frontend Phase 5: Inventory (implemented)
+
+**Route:** `/admin/inventory` → `src/pages/admin/inventory.astro` → `src/components/admin/InventoryPage.vue`
+**Guard:** `inventory.read` (page), `inventory.adjust` (adjust button/action).
+
+The Inventory admin page provides:
+
+- **Low Stock Alerts card** — lists products where `stock <= minimum_stock`, showing name,
+  category, current `stock`, `min`, and `short by N`. Auto-refreshes after an adjustment.
+- **Transactions table** — every inventory movement as a row with type badge
+  (PURCHASE/SALE/RETURN/ADJUSTMENT/DAMAGE/TRANSFER), product, signed quantity
+  (`+`/`−` by type), before/after stock, reference, description, actor, and date.
+  Supports a **type filter** dropdown and **pagination** (`total_count`, `page`, `per_page`).
+- **Adjust Stock dialog** — select a product, choose direction (`INCREASE`/`DECREASE`),
+  enter quantity, pick a reason (ADJUSTMENT/DAMAGE/RETURN/TRANSFER), optional note.
+  Submits `POST /api/v1/inventory/adjust` using the current user's `store_id`; every change
+  is recorded as an inventory transaction and the list + low-stock card refresh.
+
+**API client:** `src/services/inventory.ts` exposes all 6 endpoints:
+`listTransactions`, `getTransaction`, `adjustStock`, `createTransaction`,
+`getLowStockAlert`, `getStockSummary`. Response normalization maps both
+snake_case and camelCase into the typed `InventoryTransaction` / `LowStockProduct` /
+`StockSummary` models in `src/types`.
+
+**Flow (aligns with server atomicity):**
+```
+Open Inventory -> (auto) load low-stock + transactions
+  |-- filter by type -> reload transactions (pagination)
+  `-- Adjust Stock -> pick product/direction/qty -> POST /inventory/adjust
+        -> toast success -> refresh transactions + low-stock
+```
+
+All copy is localized via `t('admin.inventory.*')` (EN + ID in parity).
+
+
+
 ### Phase 6: Customers & Sales
 
 | Module | Endpoints | Features |

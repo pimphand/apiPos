@@ -1,16 +1,8 @@
 ---
 import DashboardLayout from '@/layouts/DashboardLayout.astro';
-import ModulePlaceholder from '@/components/layout/ModulePlaceholder.vue';
+import SalesPage from '@/components/admin/SalesPage.vue';
 ---
 
 <DashboardLayout title="Sales - POS Application">
-  <ModulePlaceholder
-    client:only="vue"
-    i18nKey="sales"
-    title="Sales"
-    description="View and manage all sales transactions, cancellations, and refunds."
-    icon="💵"
-    permission="sales.read"
-    hint="Sales list, invoice detail, cancellation, and refund will be implemented here in a later phase."
-  />
+  <SalesPage client:only="vue" />
 </DashboardLayout>

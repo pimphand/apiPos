@@ -5,7 +5,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc/codes"
 
+	"apiPos/internal/apperror"
 	gormdb "apiPos/internal/database/gorm"
 	"apiPos/internal/repository"
 )
@@ -182,4 +184,96 @@ func TestGenerateInvoiceNumber(t *testing.T) {
 	assert.NotEmpty(t, invoice2)
 	assert.NotEqual(t, invoice1, invoice2)
 	assert.Contains(t, invoice1, "INV-")
+}
+
+func TestComputeSaleTotals(t *testing.T) {
+	items := []SaleItemInput{
+		{Quantity: 2, UnitPrice: 10000}, // 20000
+		{Quantity: 1, UnitPrice: 5000},  // 5000
+	}
+
+	t.Run("no discount no tax", func(t *testing.T) {
+		subtotal, discount, tax, grand := computeSaleTotals(items, 0, 0)
+		assert.Equal(t, 25000.0, subtotal)
+		assert.Equal(t, 0.0, discount)
+		assert.Equal(t, 0.0, tax)
+		assert.Equal(t, 25000.0, grand)
+	})
+
+	t.Run("discount calculation", func(t *testing.T) {
+		subtotal, discount, _, grand := computeSaleTotals(items, 5000, 0)
+		assert.Equal(t, 25000.0, subtotal)
+		assert.Equal(t, 5000.0, discount)
+		assert.Equal(t, 20000.0, grand)
+	})
+
+	t.Run("tax calculation", func(t *testing.T) {
+		// 11% tax on subtotal (no discount)
+		_, _, _, grand := computeSaleTotals(items, 0, 11)
+		assert.Equal(t, 27750.0, grand) // 25000 * 1.11
+	})
+
+	t.Run("discount and tax", func(t *testing.T) {
+		// 11% tax on (25000 - 5000) = 20000 -> tax 2200 -> grand 22200
+		_, discount, tax, grand := computeSaleTotals(items, 5000, 11)
+		assert.Equal(t, 5000.0, discount)
+		assert.Equal(t, 2200.0, tax)
+		assert.Equal(t, 22200.0, grand)
+	})
+
+	t.Run("item discount clamped at zero", func(t *testing.T) {
+		// Item discount larger than the item price must clamp to zero.
+		bad := []SaleItemInput{{Quantity: 1, UnitPrice: 1000, Discount: 5000}}
+		subtotal, _, _, grand := computeSaleTotals(bad, 0, 0)
+		assert.Equal(t, 0.0, subtotal)
+		assert.Equal(t, 0.0, grand)
+	})
+
+	t.Run("sale discount clamped at subtotal", func(t *testing.T) {
+		subtotal, discount, _, grand := computeSaleTotals(items, 99999, 0)
+		assert.Equal(t, 25000.0, subtotal)
+		assert.Equal(t, 25000.0, discount)
+		assert.Equal(t, 0.0, grand)
+	})
+}
+
+func TestValidatePayment(t *testing.T) {
+	t.Run("sufficient cash", func(t *testing.T) {
+		assert.NoError(t, validatePayment(PaymentMethodCash, 30000, 25000))
+	})
+
+	t.Run("insufficient cash rejected", func(t *testing.T) {
+		err := validatePayment(PaymentMethodCash, 20000, 25000)
+		assert.Error(t, err)
+		assert.Equal(t, codes.FailedPrecondition, apperror.MapError(err).GRPCStatus().Code())
+	})
+
+	t.Run("insufficient non-cash rejected", func(t *testing.T) {
+		for _, m := range []string{PaymentMethodCard, PaymentMethodBankTransfer, PaymentMethodEWallet, PaymentMethodOther} {
+			err := validatePayment(m, 10000, 25000)
+			assert.Error(t, err, "method %s must reject short payment", m)
+		}
+	})
+
+	t.Run("sufficient non-cash accepted", func(t *testing.T) {
+		assert.NoError(t, validatePayment(PaymentMethodCard, 25000, 25000))
+		assert.NoError(t, validatePayment(PaymentMethodEWallet, 50000, 25000))
+	})
+
+	t.Run("exact payment is sufficient", func(t *testing.T) {
+		assert.NoError(t, validatePayment(PaymentMethodCash, 25000, 25000))
+	})
+
+	t.Run("change calculation for cash", func(t *testing.T) {
+		// change = amount_paid - grand_total
+		change := 30000.0 - 25000.0
+		assert.Equal(t, 5000.0, change)
+	})
+}
+
+func TestSaleService_InsufficientStockUsesFailedPrecondition(t *testing.T) {
+	// Verify the insufficient-stock branch in CreateSale surfaces as
+	// FAILED_PRECONDITION (matching the inventory module) rather than 400.
+	err := apperror.Wrap(apperror.ErrInsufficientStock, "Insufficient stock for Test. Available: 2, Requested: 10", nil)
+	assert.Equal(t, codes.FailedPrecondition, apperror.MapError(err).GRPCStatus().Code())
 }

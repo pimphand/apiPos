@@ -6,6 +6,7 @@ import { useUiStore } from '@/stores/ui';
 import { useLocaleStore } from '@/stores/locale';
 import { usePageGuard } from '@/composables/usePageGuard';
 import { apiMessage } from '@/lib/apiError';
+import { can } from '@/lib/rbac';
 import type { User } from '@/types';
 import Button from '@/components/ui/button/Button.vue';
 import DashboardShell from '@/components/layout/DashboardShell.vue';
@@ -20,7 +21,7 @@ import PaginationBar from '@/components/ui/PaginationBar.vue';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
 
-const { isReady, allowed } = usePageGuard('users.read');
+const { isReady, allowed, authStore } = usePageGuard('users.read');
 const ui = useUiStore();
 const t = useLocaleStore().t;
 
@@ -111,10 +112,8 @@ async function save() {
         username: form.value.username,
         email: form.value.email,
         full_name: form.value.full_name,
+        role_id: form.value.role_id || undefined,
       });
-      if (form.value.role_id && form.value.role_id !== editing.value.role_id) {
-        await userService.updateRole(editing.value.id, form.value.role_id);
-      }
       ui.addToast('success', t('admin.users.toastUpdated'));
     } else {
       await userService.create({
@@ -138,7 +137,7 @@ async function save() {
 
 async function toggleActive(u: User) {
   try {
-    await userService.update(u.id, { is_active: !u.is_active });
+    await userService.toggleActive(u.id, !u.is_active);
     ui.addToast('success', u.is_active ? t('admin.users.toastDeactivated') : t('admin.users.toastActivated'));
     load();
   } catch (err) {
@@ -155,6 +154,10 @@ async function removeUser(u: User) {
     ui.addToast('error', apiMessage(err));
   }
 }
+
+const canCreate = computed(() => can(authStore.currentUser, 'users.create'));
+const canUpdate = computed(() => can(authStore.currentUser, 'users.update'));
+const canDelete = computed(() => can(authStore.currentUser, 'users.delete'));
 
 watch(isReady, async (r) => {
   if (r) {
@@ -183,7 +186,7 @@ watch(isReady, async (r) => {
         <h2 class="text-2xl font-bold">{{ t('admin.users.title') }}</h2>
         <p class="text-muted-foreground mt-1">{{ t('admin.users.description') }}</p>
       </div>
-      <Button @click="openCreate">{{ t('admin.users.newUser') }}</Button>
+      <Button v-if="canCreate" @click="openCreate">{{ t('admin.users.newUser') }}</Button>
     </div>
 
     <Card>
@@ -237,14 +240,14 @@ watch(isReady, async (r) => {
                 </TableCell>
                 <TableCell>
                   <div class="flex items-center gap-2">
-                    <Switch :model-value="u.is_active" size="sm" @update:model-value="toggleActive(u)" />
+                    <Switch v-if="canUpdate" :model-value="u.is_active" size="sm" @update:model-value="toggleActive(u)" />
                     <span class="text-xs text-muted-foreground">{{ u.is_active ? t('admin.shared.active') : t('admin.shared.inactive') }}</span>
                   </div>
                 </TableCell>
                 <TableCell class="text-right">
                   <div class="flex justify-end gap-2">
-                    <Button variant="outline" size="sm" @click="openEdit(u)">{{ t('admin.shared.edit') }}</Button>
-                    <AlertDialog>
+                    <Button v-if="canUpdate" variant="outline" size="sm" @click="openEdit(u)">{{ t('admin.shared.edit') }}</Button>
+                    <AlertDialog v-if="canDelete">
                       <AlertDialogTrigger as-child>
                         <Button variant="destructive" size="sm">{{ t('admin.shared.delete') }}</Button>
                       </AlertDialogTrigger>

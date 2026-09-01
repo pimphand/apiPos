@@ -1,16 +1,8 @@
 ---
 import DashboardLayout from '@/layouts/DashboardLayout.astro';
-import ModulePlaceholder from '@/components/layout/ModulePlaceholder.vue';
+import POSCheckoutPage from '@/components/pos/POSCheckoutPage.vue';
 ---
 
 <DashboardLayout title="POS Checkout - POS Application">
-  <ModulePlaceholder
-    client:only="vue"
-    i18nKey="pos"
-    title="POS Checkout"
-    description="Start a new sale, scan barcodes, and process payments."
-    icon="🛒"
-    permission="sales.create"
-    hint="The full checkout flow — cart, barcode scanner, product lookup, and payment modal — will be implemented here in a later phase."
-  />
+  <POSCheckoutPage client:only="vue" />
 </DashboardLayout>

@@ -1,16 +1,8 @@
 ---
 import DashboardLayout from '@/layouts/DashboardLayout.astro';
-import ModulePlaceholder from '@/components/layout/ModulePlaceholder.vue';
+import PaymentsPage from '@/components/admin/PaymentsPage.vue';
 ---
 
 <DashboardLayout title="Payments - POS Application">
-  <ModulePlaceholder
-    client:only="vue"
-    i18nKey="payments"
-    title="Payments"
-    description="Review payment methods, transactions, and settlement summaries."
-    icon="💳"
-    permission="payments.read"
-    hint="Payment transactions by method (cash, card, bank transfer, e-wallet) and summaries will be implemented here in a later phase."
-  />
+  <PaymentsPage client:only="vue" />
 </DashboardLayout>

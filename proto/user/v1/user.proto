@@ -51,6 +51,14 @@ service UserService {
       body: "*"
     };
   }
+
+  // ToggleUserActive toggles a user's active status
+  rpc ToggleUserActive(ToggleUserActiveRequest) returns (UserResponse) {
+    option (google.api.http) = {
+      patch: "/api/v1/users/{id}/active"
+      body: "*"
+    };
+  }
 }
 
 message CreateUserRequest {
@@ -102,6 +110,11 @@ message DeleteUserResponse {
 message UpdateUserRoleRequest {
   string id = 1;
   string role_id = 2;
+}
+
+message ToggleUserActiveRequest {
+  string id = 1;
+  string action = 2; // "activate" or "deactivate"
 }
 
 message UserResponse {

@@ -122,41 +122,45 @@ func (s *Service) ListUsers(ctx context.Context, roleIDStr string, isActiveStr s
 	return users, totalCount, nil
 }
 
-// UpdateUser updates a user
+// UpdateUser updates a user — uses targeted Updates to avoid overwriting
+// fields that weren't loaded (e.g. Store relation) which would cause
+// foreign-key violations.
 func (s *Service) UpdateUser(ctx context.Context, idStr, email, fullName, roleIDStr, storeIDStr string, isActive bool) (*gormdb.User, error) {
 	if !isValidUUID(idStr) {
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Invalid user ID format", fmt.Errorf("id: %s", idStr))
 	}
 
 	// Check if user exists
-	user, err := s.repos.User.GetByID(ctx, idStr)
-	if err != nil {
+	if _, err := s.repos.User.GetByID(ctx, idStr); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperror.ErrUserNotFound
 		}
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to get user", err)
 	}
 
-	// Update fields
+	// Build a map of fields to update so we only touch columns that were
+	// explicitly provided, avoiding zero-value overwrites (especially StoreID
+	// which is not preloaded by GetByID).
+	updates := map[string]interface{}{"is_active": isActive}
 	if email != "" {
-		user.Email = email
+		updates["email"] = email
 	}
 	if fullName != "" {
-		user.FullName = fullName
+		updates["full_name"] = fullName
 	}
 	if roleIDStr != "" {
-		user.RoleID = parseUUIDToUUID(roleIDStr)
+		updates["role_id"] = parseUUIDToUUID(roleIDStr)
 	}
 	if storeIDStr != "" {
-		user.StoreID = parseUUIDToUUID(storeIDStr)
+		updates["store_id"] = parseUUIDToUUID(storeIDStr)
 	}
-	user.IsActive = isActive
 
-	if err := s.repos.User.Update(ctx, user); err != nil {
+	if err := s.repos.User.UpdateFields(ctx, idStr, updates); err != nil {
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to update user", err)
 	}
 
-	return user, nil
+	// Re-fetch so returned user has fresh data
+	return s.repos.User.GetByID(ctx, idStr)
 }
 
 // DeleteUser deletes a user
@@ -177,33 +181,54 @@ func (s *Service) DeleteUser(ctx context.Context, idStr string) error {
 	return s.repos.User.Delete(ctx, idStr)
 }
 
-// UpdateUserRole updates a user's role
-func (s *Service) UpdateUserRole(ctx context.Context, idStr, roleIDStr string) (*gormdb.User, error) {
+// ToggleUserActive toggles a user's active status.
+func (s *Service) ToggleUserActive(ctx context.Context, idStr string, isActive bool) (*gormdb.User, error) {
 	if !isValidUUID(idStr) {
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Invalid user ID format", fmt.Errorf("id: %s", idStr))
 	}
 
-	// Check if user exists
-	user, err := s.repos.User.GetByID(ctx, idStr)
-	if err != nil {
+	if _, err := s.repos.User.GetByID(ctx, idStr); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperror.ErrUserNotFound
 		}
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to get user", err)
 	}
 
+	if err := s.repos.User.UpdateFields(ctx, idStr, map[string]interface{}{
+		"is_active": isActive,
+	}); err != nil {
+		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to update user", err)
+	}
+
+	return s.repos.User.GetByID(ctx, idStr)
+}
+
+// UpdateUserRole updates a user's role using targeted updates.
+func (s *Service) UpdateUserRole(ctx context.Context, idStr, roleIDStr string) (*gormdb.User, error) {
+	if !isValidUUID(idStr) {
+		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Invalid user ID format", fmt.Errorf("id: %s", idStr))
+	}
+
 	if !isValidUUID(roleIDStr) {
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Invalid role_id format", fmt.Errorf("role_id: %s", roleIDStr))
 	}
 
-	// Update user role
-	user.RoleID = parseUUIDToUUID(roleIDStr)
+	// Check if user exists
+	if _, err := s.repos.User.GetByID(ctx, idStr); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, apperror.ErrUserNotFound
+		}
+		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to get user", err)
+	}
 
-	if err := s.repos.User.Update(ctx, user); err != nil {
+	// Use targeted update to avoid foreign-key issues with Store relation
+	if err := s.repos.User.UpdateFields(ctx, idStr, map[string]interface{}{
+		"role_id": parseUUIDToUUID(roleIDStr),
+	}); err != nil {
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to update user role", err)
 	}
 
-	return user, nil
+	return s.repos.User.GetByID(ctx, idStr)
 }
 
 // Register creates a new user with default role (Cashier)

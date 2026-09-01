@@ -104,26 +104,12 @@ func (s *Service) CreateSale(ctx context.Context, req CreateSaleRequest) (*SaleD
 		customerID, _ = uuid.Parse(req.CustomerID)
 	}
 
-	// Calculate totals
-	var subtotal float64
-	for _, item := range req.Items {
-		itemSubtotal := (item.UnitPrice * float64(item.Quantity)) - item.Discount
-		if itemSubtotal < 0 {
-			itemSubtotal = 0
-		}
-		subtotal += itemSubtotal
-	}
+	// Calculate totals (subtotal, discount, tax, grand total).
+	subtotal, discount, taxAmount, grandTotal := computeSaleTotals(req.Items, req.Discount, req.TaxRate)
 
-	discount := req.Discount
-	taxAmount := (subtotal - discount) * req.TaxRate / 100
-	grandTotal := subtotal - discount + taxAmount
-
-	// Validate payment
-	if req.PaymentMethod == PaymentMethodCash {
-		if req.AmountPaid < grandTotal {
-			return nil, apperror.Wrap(apperror.ErrInvalidRequest,
-				fmt.Sprintf("Insufficient payment. Grand total: %.2f, Amount paid: %.2f", grandTotal, req.AmountPaid), nil)
-		}
+	// Validate payment: total paid must be sufficient regardless of method.
+	if err := validatePayment(req.PaymentMethod, req.AmountPaid, grandTotal); err != nil {
+		return nil, err
 	}
 
 	// Generate invoice number
@@ -163,7 +149,7 @@ func (s *Service) CreateSale(ctx context.Context, req CreateSaleRequest) (*SaleD
 
 			// Validate stock
 			if product.Stock < item.Quantity {
-				return apperror.Wrap(apperror.ErrInvalidRequest,
+				return apperror.Wrap(apperror.ErrInsufficientStock,
 					fmt.Sprintf("Insufficient stock for %s. Available: %d, Requested: %d", product.Name, product.Stock, item.Quantity), nil)
 			}
 
@@ -196,9 +182,8 @@ func (s *Service) CreateSale(ctx context.Context, req CreateSaleRequest) (*SaleD
 				if err := tx.Model(&gormdb.ProductSKU{}).
 					Where("id = ?", skuID).
 					Update("stock", gorm.Expr("stock - ?", item.Quantity)).Error; err != nil {
-					// Non-critical, continue
+					return apperror.Wrap(apperror.ErrInternal, "Failed to update SKU stock", err)
 				}
-				_ = skuID
 			}
 
 			if err := tx.Create(saleItem).Error; err != nil {
@@ -222,7 +207,7 @@ func (s *Service) CreateSale(ctx context.Context, req CreateSaleRequest) (*SaleD
 				CreatedBy:     cashierID,
 			}
 			if err := tx.Create(inventoryTxn).Error; err != nil {
-				// Non-critical, continue
+				return apperror.Wrap(apperror.ErrInternal, "Failed to create inventory transaction", err)
 			}
 		}
 
@@ -482,5 +467,38 @@ func isValidUUID(s string) bool {
 	return err == nil
 }
 
-// Ensure fmt is used
-var _ = fmt.Sprintf
+// computeSaleTotals computes the item subtotal, discount, tax and grand total
+// for a set of sale items. Item-level discounts are clamped at zero. The
+// returned values are: subtotal, discount, tax, grandTotal.
+func computeSaleTotals(items []SaleItemInput, discount, taxRate float64) (subtotal, discountOut, tax, grandTotal float64) {
+	for _, item := range items {
+		itemSubtotal := (item.UnitPrice * float64(item.Quantity)) - item.Discount
+		if itemSubtotal < 0 {
+			itemSubtotal = 0
+		}
+		subtotal += itemSubtotal
+	}
+
+	// Sale-level discount must not exceed the subtotal.
+	if discount > subtotal {
+		discount = subtotal
+	}
+	discountOut = discount
+
+	tax = (subtotal - discount) * taxRate / 100
+	grandTotal = subtotal - discount + tax
+	return subtotal, discountOut, tax, grandTotal
+}
+
+// validatePayment rejects a sale when the amount paid is insufficient to cover
+// the grand total, regardless of payment method.
+func validatePayment(paymentMethod string, amountPaid, grandTotal float64) error {
+	if paymentMethod == "" {
+		return nil
+	}
+	if amountPaid < grandTotal {
+		return apperror.Wrap(apperror.ErrPaymentInsufficient,
+			fmt.Sprintf("Payment amount insufficient. Grand total: %.2f, Amount paid: %.2f", grandTotal, amountPaid), nil)
+	}
+	return nil
+}

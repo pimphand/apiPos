@@ -33,9 +33,39 @@ export const useAuthStore = defineStore('auth', () => {
       role_name: raw.role_name ?? raw.roleName ?? '',
       store_id: raw.store_id ?? raw.storeId ?? '',
       is_active: raw.is_active ?? raw.isActive ?? true,
+      permissions: Array.isArray(raw.permissions) ? raw.permissions : undefined,
       created_at: raw.created_at ?? raw.createdAt,
       updated_at: raw.updated_at ?? raw.updatedAt,
     };
+  }
+
+  /**
+   * Fetch the actual permissions for the user's role from the backend and
+   * attach them to the user object so that `can()` uses the real
+   * role-permission assignment instead of the hardcoded defaults.
+   */
+  async function fetchAndAttachPermissions(): Promise<void> {
+    if (!user.value?.role_id) return;
+    try {
+      const { roleService } = await import('@/services/role');
+      const perms = await roleService.getPermissions(user.value.role_id);
+      user.value = {
+        ...user.value,
+        permissions: perms.map((p) => p.name),
+      };
+      await authStorage.setUser(user.value);
+    } catch (err) {
+      // Log for debugging — the RBAC system depends on these permissions.
+      // If this fails, can() falls back to hardcoded ROLE_PERMISSIONS which
+      // may grant more access than intended.
+      console.warn('[auth] fetchAndAttachPermissions failed:', err);
+      // Set empty permissions array so can() knows we tried but got nothing,
+      // rather than falling back to the hardcoded role map.
+      if (user.value) {
+        user.value = { ...user.value, permissions: [] };
+        await authStorage.setUser(user.value);
+      }
+    }
   }
 
   // Actions
@@ -63,6 +93,9 @@ export const useAuthStore = defineStore('auth', () => {
       // Store user data
       user.value = userData;
       await authStorage.setUser(userData);
+
+      // Fetch actual permissions from backend so can() uses real role-permission assignment
+      await fetchAndAttachPermissions();
 
       return userData;
     } catch (err: unknown) {
@@ -98,6 +131,9 @@ export const useAuthStore = defineStore('auth', () => {
       // Store user data
       user.value = userData;
       await authStorage.setUser(userData);
+
+      // Fetch actual permissions from backend so can() uses real role-permission assignment
+      await fetchAndAttachPermissions();
 
       return userData;
     } catch (err: unknown) {
@@ -164,10 +200,19 @@ export const useAuthStore = defineStore('auth', () => {
             }
             user.value = freshUser;
             await authStorage.setUser(user.value);
-          } catch {
+          } catch (err) {
             // Profile refresh is best-effort; token refresh above still succeeded.
+            // Keep the cached user so the app is still usable.
+            console.warn('[auth] Failed to refresh user profile:', err);
           }
         }
+
+        // Fetch actual permissions from backend so can() uses real
+        // role-permission assignment instead of hardcoded defaults.
+        // If this fails (e.g. network), fetchAndAttachPermissions sets
+        // permissions to [] so can() correctly denies access rather than
+        // falling back to the hardcoded role map.
+        await fetchAndAttachPermissions();
 
         return access_token;
       } catch (err) {

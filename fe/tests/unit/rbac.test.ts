@@ -28,6 +28,15 @@ describe('rbac can()', () => {
     expect(can(admin, 'products.read')).toBe(true);
   });
 
+  it('gives superadmin full access', () => {
+    const superadmin = user('superadmin');
+    expect(can(superadmin, 'users.delete')).toBe(true);
+    expect(can(superadmin, 'roles.update')).toBe(true);
+    expect(can(superadmin, 'roles.create')).toBe(true);
+    expect(can(superadmin, 'permissions.read')).toBe(true);
+    expect(can(superadmin, 'activity_logs.read')).toBe(true);
+  });
+
   it('gives manager product/inventory/sales/reports access but not user admin', () => {
     const manager = user('manager');
     expect(can(manager, 'products.create')).toBe(true);
@@ -51,12 +60,14 @@ describe('rbac can()', () => {
 });
 
 describe('rbac role helpers', () => {
-  it('isAdmin true only for admin', () => {
+  it('isAdmin true for admin and superadmin', () => {
     expect(isAdmin(user('admin'))).toBe(true);
+    expect(isAdmin(user('superadmin'))).toBe(true);
     expect(isAdmin(user('manager'))).toBe(false);
   });
 
-  it('isManagerOrAbove true for admin and manager', () => {
+  it('isManagerOrAbove true for superadmin, admin, and manager', () => {
+    expect(isManagerOrAbove(user('superadmin'))).toBe(true);
     expect(isManagerOrAbove(user('admin'))).toBe(true);
     expect(isManagerOrAbove(user('manager'))).toBe(true);
     expect(isManagerOrAbove(user('cashier'))).toBe(false);

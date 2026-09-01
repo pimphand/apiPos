@@ -20,6 +20,8 @@ export interface User {
   role_name?: string;
   store_id: string;
   is_active: boolean;
+  /** Actual permissions granted to this user's role from the backend. */
+  permissions?: string[];
   created_at?: string;
   updated_at?: string;
 }

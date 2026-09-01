@@ -21,6 +21,8 @@ interface UpdateUserRequest {
   username?: string;
   email?: string;
   full_name?: string;
+  role_id?: string;
+  store_id?: string;
   is_active?: boolean;
 }
 
@@ -57,6 +59,13 @@ export const userService = {
   async updateRole(id: string, roleId: string): Promise<User> {
     const response = await http.patch<{ user: User }>(`/v1/users/${id}/role`, {
       role_id: roleId,
+    });
+    return response.data.user;
+  },
+
+  async toggleActive(id: string, isActive: boolean): Promise<User> {
+    const response = await http.patch<{ user: User }>(`/v1/users/${id}/active`, {
+      action: isActive ? 'activate' : 'deactivate',
     });
     return response.data.user;
   },

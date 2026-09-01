@@ -2,7 +2,6 @@ package customer
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/google/uuid"
 
@@ -257,6 +256,3 @@ func isValidUUID(s string) bool {
 	_, err := uuid.Parse(s)
 	return err == nil
 }
-
-// Ensure fmt is used
-var _ = fmt.Sprintf

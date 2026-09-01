@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { reactive, ref, watch } from 'vue';
+import { reactive, ref, computed, watch } from 'vue';
 import { productService } from '@/services/product';
 import { categoryService } from '@/services/category';
 import { useUiStore } from '@/stores/ui';
 import { useLocaleStore } from '@/stores/locale';
 import { usePageGuard } from '@/composables/usePageGuard';
 import { apiMessage } from '@/lib/apiError';
+import { can } from '@/lib/rbac';
 import type { Product, ProductSKU, Category } from '@/types';
 import DashboardShell from '@/components/layout/DashboardShell.vue';
 import Button from '@/components/ui/button/Button.vue';
@@ -19,7 +20,7 @@ import PaginationBar from '@/components/ui/PaginationBar.vue';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
 
-const { isReady, allowed } = usePageGuard('products.read');
+const { isReady, allowed, authStore } = usePageGuard('products.read');
 const ui = useUiStore();
 const t = useLocaleStore().t;
 
@@ -307,6 +308,10 @@ function formatPriceRange(p: Product): string {
   return `${formatCurrency(min)} – ${formatCurrency(max)}`;
 }
 
+const canCreate = computed(() => can(authStore.currentUser, 'products.create'));
+const canUpdate = computed(() => can(authStore.currentUser, 'products.update'));
+const canDelete = computed(() => can(authStore.currentUser, 'products.delete'));
+
 watch(isReady, (r) => {
   if (r) {
     loadCategories();
@@ -331,7 +336,7 @@ watch(isReady, (r) => {
       <div>
         <h2 class="text-2xl font-bold">{{ t('admin.products.title') }}</h2>
       </div>
-      <Button @click="openCreate">{{ t('admin.products.newProduct') }}</Button>
+      <Button v-if="canCreate" @click="openCreate">{{ t('admin.products.newProduct') }}</Button>
     </div>
 
     <Card>
@@ -407,8 +412,8 @@ watch(isReady, (r) => {
                 </TableCell>
                 <TableCell class="text-right">
                   <div class="flex justify-end items-center gap-2">
-                    <Button variant="outline" size="sm" @click="openEdit(p)">{{ t('admin.shared.edit') }}</Button>
-                    <AlertDialog>
+                    <Button v-if="canUpdate" variant="outline" size="sm" @click="openEdit(p)">{{ t('admin.shared.edit') }}</Button>
+                    <AlertDialog v-if="canDelete">
                       <AlertDialogTrigger as-child>
                         <Button variant="destructive" size="sm">{{ t('admin.shared.delete') }}</Button>
                       </AlertDialogTrigger>

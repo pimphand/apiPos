@@ -6,6 +6,7 @@ import { useUiStore } from '@/stores/ui';
 import { useLocaleStore } from '@/stores/locale';
 import { usePageGuard } from '@/composables/usePageGuard';
 import { apiMessage } from '@/lib/apiError';
+import { can } from '@/lib/rbac';
 import type { Role, Permission } from '@/types';
 import Button from '@/components/ui/button/Button.vue';
 import DashboardShell from '@/components/layout/DashboardShell.vue';
@@ -20,11 +21,11 @@ import PaginationBar from '@/components/ui/PaginationBar.vue';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
 
-const { isReady, allowed } = usePageGuard('roles.read');
+const { isReady, allowed, authStore } = usePageGuard('roles.read');
 const ui = useUiStore();
 const t = useLocaleStore().t;
 
-const DEFAULT_ROLES = new Set(['admin', 'manager', 'cashier']);
+const DEFAULT_ROLES = new Set(['superadmin', 'admin', 'manager', 'cashier']);
 
 const roles = ref<Role[]>([]);
 const loading = ref(false);
@@ -148,6 +149,11 @@ async function savePermissions() {
   }
 }
 
+const canCreate = computed(() => can(authStore.currentUser, 'roles.create'));
+const canUpdate = computed(() => can(authStore.currentUser, 'roles.update'));
+const canDelete = computed(() => can(authStore.currentUser, 'roles.delete'));
+const canAssign = computed(() => can(authStore.currentUser, 'permissions.assign'));
+
 watch(isReady, (r) => { if (r) load(); }, { immediate: true });
 </script>
 
@@ -168,7 +174,7 @@ watch(isReady, (r) => { if (r) load(); }, { immediate: true });
         <h2 class="text-2xl font-bold">{{ t('admin.roles.title') }}</h2>
         <p class="text-muted-foreground mt-1">{{ t('admin.roles.description') }}</p>
       </div>
-      <Button @click="openCreate">+ {{ t('admin.roles.newRole') }}</Button>
+      <Button v-if="canCreate" @click="openCreate">+ {{ t('admin.roles.newRole') }}</Button>
     </div>
 
     <Card>
@@ -199,12 +205,12 @@ watch(isReady, (r) => { if (r) load(); }, { immediate: true });
                 </TableCell>
                 <TableCell class="text-muted-foreground">{{ r.description || '—' }}</TableCell>
                 <TableCell>
-                  <Button variant="outline" size="sm" @click="openPermissions(r)">{{ t('admin.roles.assignPermissions') }}</Button>
+                  <Button v-if="canAssign" variant="outline" size="sm" @click="openPermissions(r)">{{ t('admin.roles.assignPermissions') }}</Button>
                 </TableCell>
                 <TableCell class="text-right">
                   <div class="flex justify-end gap-2">
-                    <Button variant="outline" size="sm" @click="openEdit(r)">{{ t('admin.shared.edit') }}</Button>
-                    <AlertDialog v-if="!DEFAULT_ROLES.has(r.name)">
+                    <Button v-if="canUpdate" variant="outline" size="sm" @click="openEdit(r)">{{ t('admin.shared.edit') }}</Button>
+                    <AlertDialog v-if="canDelete && !DEFAULT_ROLES.has(r.name)">
                       <AlertDialogTrigger as-child>
                         <Button variant="destructive" size="sm">{{ t('admin.shared.delete') }}</Button>
                       </AlertDialogTrigger>
