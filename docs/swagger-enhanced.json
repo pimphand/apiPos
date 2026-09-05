@@ -69,6 +69,10 @@
     {
       "name": "Stores",
       "description": "Superadmin store management and verification"
+    },
+    {
+      "name": "Settings",
+      "description": "Per-store settings (default tax & receipt/nota format)"
     }
   ],
   "host": "localhost:8080",
@@ -3628,6 +3632,60 @@
           }
         }
       }
+    },
+    "/api/v1/settings": {
+      "get": {
+        "summary": "GetSettings returns the current store's settings (defaults when the\nstore has not customized them yet).",
+        "operationId": "SettingsService_GetSettings",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1SettingsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "SettingsService"
+        ]
+      },
+      "put": {
+        "summary": "UpdateSettings saves the current store's settings (upsert).",
+        "operationId": "SettingsService_UpdateSettings",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1SettingsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1UpdateSettingsRequest"
+            }
+          }
+        ],
+        "tags": [
+          "SettingsService"
+        ]
+      }
     }
   },
   "definitions": {
@@ -6262,6 +6320,79 @@
           "type": "integer",
           "format": "int32",
           "example": 20
+        }
+      }
+    },
+    "v1UpdateSettingsRequest": {
+      "type": "object",
+      "properties": {
+        "taxRate": {
+          "type": "number",
+          "format": "double",
+          "description": "tax_rate percent (0-100). Ignored when 0 is treated as unset? No: 0 is\na valid tax rate, so field presence is conveyed by the update request\nalways carrying the full desired state."
+        },
+        "receiptHeader": {
+          "type": "string"
+        },
+        "receiptFooter": {
+          "type": "string"
+        },
+        "showStoreName": {
+          "type": "boolean"
+        },
+        "showStoreContact": {
+          "type": "boolean"
+        },
+        "showCashier": {
+          "type": "boolean"
+        },
+        "showCustomer": {
+          "type": "boolean"
+        },
+        "showItemSku": {
+          "type": "boolean"
+        },
+        "showItemBarcode": {
+          "type": "boolean"
+        },
+        "showDiscount": {
+          "type": "boolean"
+        },
+        "showTax": {
+          "type": "boolean"
+        },
+        "showPayment": {
+          "type": "boolean"
+        },
+        "showChange": {
+          "type": "boolean"
+        }
+      }
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1SettingsResponse": {
+      "type": "object",
+      "properties": {
+        "settings": {
+          "$ref": "#/definitions/v1StoreSettings"
         }
       }
     }

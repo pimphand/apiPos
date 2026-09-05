@@ -574,6 +574,26 @@ export interface Store {
   updated_at: string;
 }
 
+// Per-store settings (docs/pos-store-settings.md)
+export interface StoreSettings {
+  store_id: string;
+  tax_rate: number; // default tax % for new POS carts
+  receipt_header: string;
+  receipt_footer: string;
+  show_store_name: boolean;
+  show_store_contact: boolean;
+  show_cashier: boolean;
+  show_customer: boolean;
+  show_item_sku: boolean;
+  show_item_barcode: boolean;
+  show_discount: boolean;
+  show_tax: boolean;
+  show_payment: boolean;
+  show_change: boolean;
+  updated_by: string;
+  updated_at: string;
+}
+
 // Error types
 export interface ApiError {
   code: string;

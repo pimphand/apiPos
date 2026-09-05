@@ -50,6 +50,10 @@
       "name": "SaleService"
     },
     {
+      "name": "SettingsService",
+      "description": "SettingsService manages per-store settings (tax default and receipt/nota\nformat). Tenant-scoped: the authenticated user's store determines which\nsettings row is read or written."
+    },
+    {
       "name": "StoreService",
       "description": "StoreService manages stores. Intended for superadmin users who verify and\nmanage tenant stores."
     },
@@ -3376,6 +3380,60 @@
         ]
       }
     },
+    "/api/v1/settings": {
+      "get": {
+        "summary": "GetSettings returns the current store's settings (defaults when the\nstore has not customized them yet).",
+        "operationId": "SettingsService_GetSettings",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1SettingsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "SettingsService"
+        ]
+      },
+      "put": {
+        "summary": "UpdateSettings saves the current store's settings (upsert).",
+        "operationId": "SettingsService_UpdateSettings",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1SettingsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1UpdateSettingsRequest"
+            }
+          }
+        ],
+        "tags": [
+          "SettingsService"
+        ]
+      }
+    },
     "/api/v1/stores": {
       "get": {
         "summary": "ListStores lists all stores (with optional status filter)",
@@ -6433,6 +6491,14 @@
         }
       }
     },
+    "v1SettingsResponse": {
+      "type": "object",
+      "properties": {
+        "settings": {
+          "$ref": "#/definitions/v1StoreSettings"
+        }
+      }
+    },
     "v1ShiftItem": {
       "type": "object",
       "properties": {
@@ -6639,11 +6705,125 @@
         }
       }
     },
+    "v1StoreSettings": {
+      "type": "object",
+      "properties": {
+        "storeId": {
+          "type": "string"
+        },
+        "taxRate": {
+          "type": "number",
+          "format": "double",
+          "description": "Default tax rate (%) applied to new sales in the POS."
+        },
+        "receiptHeader": {
+          "type": "string",
+          "description": "Free-form nota header lines (e.g. thank-you note, address)."
+        },
+        "receiptFooter": {
+          "type": "string",
+          "description": "Free-form nota footer lines (e.g. returns policy, contact)."
+        },
+        "showStoreName": {
+          "type": "boolean",
+          "description": "Whether the nota header prints the store name."
+        },
+        "showStoreContact": {
+          "type": "boolean",
+          "description": "Whether the nota header prints store address \u0026 phone."
+        },
+        "showCashier": {
+          "type": "boolean",
+          "description": "Whether the nota prints the cashier name."
+        },
+        "showCustomer": {
+          "type": "boolean",
+          "description": "Whether the nota prints the customer name."
+        },
+        "showItemSku": {
+          "type": "boolean",
+          "description": "Whether item rows print the product SKU."
+        },
+        "showItemBarcode": {
+          "type": "boolean",
+          "description": "Whether item rows print the product barcode."
+        },
+        "showDiscount": {
+          "type": "boolean",
+          "description": "Whether the nota shows the discount row."
+        },
+        "showTax": {
+          "type": "boolean",
+          "description": "Whether the nota shows the tax row."
+        },
+        "showPayment": {
+          "type": "boolean",
+          "description": "Whether the nota shows the payment method row."
+        },
+        "showChange": {
+          "type": "boolean",
+          "description": "Whether the nota shows the change row (cash payments)."
+        },
+        "updatedBy": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      },
+      "description": "StoreSettings holds per-store business settings used by the POS."
+    },
     "v1TransactionResponse": {
       "type": "object",
       "properties": {
         "transaction": {
           "$ref": "#/definitions/v1InventoryTransaction"
+        }
+      }
+    },
+    "v1UpdateSettingsRequest": {
+      "type": "object",
+      "properties": {
+        "taxRate": {
+          "type": "number",
+          "format": "double",
+          "description": "tax_rate percent (0-100). Ignored when 0 is treated as unset? No: 0 is\na valid tax rate, so field presence is conveyed by the update request\nalways carrying the full desired state."
+        },
+        "receiptHeader": {
+          "type": "string"
+        },
+        "receiptFooter": {
+          "type": "string"
+        },
+        "showStoreName": {
+          "type": "boolean"
+        },
+        "showStoreContact": {
+          "type": "boolean"
+        },
+        "showCashier": {
+          "type": "boolean"
+        },
+        "showCustomer": {
+          "type": "boolean"
+        },
+        "showItemSku": {
+          "type": "boolean"
+        },
+        "showItemBarcode": {
+          "type": "boolean"
+        },
+        "showDiscount": {
+          "type": "boolean"
+        },
+        "showTax": {
+          "type": "boolean"
+        },
+        "showPayment": {
+          "type": "boolean"
+        },
+        "showChange": {
+          "type": "boolean"
         }
       }
     },

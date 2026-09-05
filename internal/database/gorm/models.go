@@ -410,3 +410,33 @@ type ActivityLog struct {
 func (ActivityLog) TableName() string {
 	return "activity_logs"
 }
+
+// StoreSetting holds per-store business settings (default tax rate and
+// receipt/nota format). One row per store (store_id is the primary key).
+type StoreSetting struct {
+	StoreID          uuid.UUID  `gorm:"type:uuid;primaryKey" json:"store_id"`
+	TaxRate          float64    `gorm:"type:numeric(5,2);not null;default:11.00" json:"tax_rate"`
+	ReceiptHeader    string     `gorm:"type:text;not null;default:''" json:"receipt_header"`
+	ReceiptFooter    string     `gorm:"type:text;not null;default:''" json:"receipt_footer"`
+	ShowStoreName    bool       `gorm:"not null;default:true" json:"show_store_name"`
+	ShowStoreContact bool       `gorm:"not null;default:true" json:"show_store_contact"`
+	ShowCashier      bool       `gorm:"not null;default:true" json:"show_cashier"`
+	ShowCustomer     bool       `gorm:"not null;default:true" json:"show_customer"`
+	ShowItemSKU      bool       `gorm:"not null;default:false" json:"show_item_sku"`
+	ShowItemBarcode  bool       `gorm:"not null;default:false" json:"show_item_barcode"`
+	ShowDiscount     bool       `gorm:"not null;default:true" json:"show_discount"`
+	ShowTax          bool       `gorm:"not null;default:true" json:"show_tax"`
+	ShowPayment      bool       `gorm:"not null;default:true" json:"show_payment"`
+	ShowChange       bool       `gorm:"not null;default:true" json:"show_change"`
+	UpdatedBy        *uuid.UUID `gorm:"type:uuid" json:"updated_by"`
+	CreatedAt        time.Time  `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt        time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
+
+	// Relations
+	Store Store `gorm:"foreignKey:StoreID" json:"store,omitempty"`
+}
+
+// TableName returns the table name for StoreSetting
+func (StoreSetting) TableName() string {
+	return "store_settings"
+}

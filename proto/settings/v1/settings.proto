@@ -1,0 +1,86 @@
+syntax = "proto3";
+
+package settings.v1;
+
+option go_package = "apiPos/gen/settings/v1;settingsv1";
+
+import "google/api/annotations.proto";
+
+// SettingsService manages per-store settings (tax default and receipt/nota
+// format). Tenant-scoped: the authenticated user's store determines which
+// settings row is read or written.
+service SettingsService {
+  // GetSettings returns the current store's settings (defaults when the
+  // store has not customized them yet).
+  rpc GetSettings(GetSettingsRequest) returns (SettingsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/settings"
+    };
+  }
+
+  // UpdateSettings saves the current store's settings (upsert).
+  rpc UpdateSettings(UpdateSettingsRequest) returns (SettingsResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/settings"
+      body: "*"
+    };
+  }
+}
+
+// StoreSettings holds per-store business settings used by the POS.
+message StoreSettings {
+  string store_id = 1;
+  // Default tax rate (%) applied to new sales in the POS.
+  double tax_rate = 2;
+  // Free-form nota header lines (e.g. thank-you note, address).
+  string receipt_header = 3;
+  // Free-form nota footer lines (e.g. returns policy, contact).
+  string receipt_footer = 4;
+  // Whether the nota header prints the store name.
+  bool show_store_name = 5;
+  // Whether the nota header prints store address & phone.
+  bool show_store_contact = 6;
+  // Whether the nota prints the cashier name.
+  bool show_cashier = 7;
+  // Whether the nota prints the customer name.
+  bool show_customer = 8;
+  // Whether item rows print the product SKU.
+  bool show_item_sku = 9;
+  // Whether item rows print the product barcode.
+  bool show_item_barcode = 10;
+  // Whether the nota shows the discount row.
+  bool show_discount = 11;
+  // Whether the nota shows the tax row.
+  bool show_tax = 12;
+  // Whether the nota shows the payment method row.
+  bool show_payment = 13;
+  // Whether the nota shows the change row (cash payments).
+  bool show_change = 14;
+  string updated_by = 15;
+  string updated_at = 16;
+}
+
+message GetSettingsRequest {}
+
+message UpdateSettingsRequest {
+  // tax_rate percent (0-100). Ignored when 0 is treated as unset? No: 0 is
+  // a valid tax rate, so field presence is conveyed by the update request
+  // always carrying the full desired state.
+  double tax_rate = 1;
+  string receipt_header = 2;
+  string receipt_footer = 3;
+  bool show_store_name = 4;
+  bool show_store_contact = 5;
+  bool show_cashier = 6;
+  bool show_customer = 7;
+  bool show_item_sku = 8;
+  bool show_item_barcode = 9;
+  bool show_discount = 10;
+  bool show_tax = 11;
+  bool show_payment = 12;
+  bool show_change = 13;
+}
+
+message SettingsResponse {
+  StoreSettings settings = 1;
+}

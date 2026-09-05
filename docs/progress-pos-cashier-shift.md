@@ -4,8 +4,8 @@
 > pekerjaan **terekam** dan bisa diverifikasi ulang kapan pun.
 > Spesifikasi lengkap: [`pos-cashier-shift.md`](./pos-cashier-shift.md).
 
-- Status umum: **MILESTONE INTI SELESAI + SIKLUS PERBAIKAN** ✅ (backend + UI `/pos` terverifikasi live)
-- Tanggal mulai: 2026-09-05 · Update terakhir: 2026-09-05 (putaran perbaikan: migrasi `000012` + 3 perbaikan bug)
+- Status umum: **MILESTONE INTI SELESAI + SIKLUS PERBAIKAN + AUDIT** ✅ (backend + UI `/pos` terverifikasi live)
+- Tanggal mulai: 2026-09-05 · Update terakhir: 2026-09-05 (B11 tuntas; `/pos` dipecah menjadi 4 komponen anak)
 - Lingkup: backend (gRPC/REST) + frontend (Vue `/pos`) + migrasi DB.
 
 ---
@@ -37,7 +37,7 @@
 - [x] **B8** — `sales.shift_id` nullable FK + index; diisi otomatis saat `CreateSale` (diverifikasi di `summary`/DB).
 - [x] **B9** — Tabel `shift_items` (ledger insert-only OUT/IN) ditulis **dalam transaksi DB yang sama** dengan sale/refund; detail sampai SKU + snapshot nama/harga.
 - [x] **B10** — `GetShiftSummary` berbasis `shift_id` (+ fallback window lama yang dibatasi `closed_at`) & backfill data lama di migrasi.
-- [ ] **B11** — Validasi silang saat close tahap-2 (anti-mismatch ketat: OUT vs inventory SALE, tidak ada baris setelah close). Saat ini agregat dihitung server & di-snapshot; pemeriksaan ketat menyusul.
+- [x] **B11** — Validasi silang saat close tahap-2 (anti-mismatch ketat: OUT vs inventory SALE, tidak ada baris setelah close). **Selesai 2026-09-05:** `CloseShift` kini menjalankan reconcile → validasi → close dalam **satu transaksi** yang mengunci baris shift `FOR UPDATE` (penulis sale/refund sudah mengunci baris yang sama via `openShiftOfActor`, jadi terserialisasi — mustahil ada baris `sales`/`shift_items` yang ditulis di antara snapshot & close). `validateShiftIntegrity` menolak close bila ada sale ter-link yang ledger OUT-nya ≠ SALE inventory (per-sale), error `FAILED_PRECONDITION` + nomor invoice. Unit test `TestValidateSaleMovementConsistency` hijau.
 
 ## Checklist Frontend (peta dari §8 spesifikasi)
 
@@ -50,8 +50,8 @@
 - [x] Daftar barang OUT/IN dari `GET /shifts/{id}/items` (toggle OUT/IN, 50 baris teratas).
 - [x] Gate ulang sebelum `createSale` (`ensureShiftOpen`) + keranjang dipertahankan saat shift tertutup.
 - [x] i18n EN/ID `posShift.*` (parity test lolos).
-- [ ] Refactor `/admin/cashier` memakai composable yang sama (mengurangi duplikasi).
-- [ ] Halaman admin: tampilkan item detail shift (opsional, pasca-utuh).
+- [ ] Refactor `/admin/cashier` memakai composable yang sama (mengurangi duplikasi). **Audit 2026-09-05:** masih terbuka — `CashierPage.vue` memakai `cashierService` + state/dialog sendiri (`openShiftOpen`, `closeShiftOpen`, `currentShift`, dsb.), belum `useCashierShift`.
+- [ ] Halaman admin: tampilkan item detail shift (opsional, pasca-utuh). **Audit 2026-09-05:** masih belum (opsional).
 
 ---
 
@@ -64,9 +64,26 @@
 5. `GET /shifts/{id}/items?direction=OUT` → baris detail `(product_name, sku_code 'TEST-SHIFT-1', variant 'Regular', qty 2, 30000)` ✅ ("tertulis detail").
 6. Tutup shift dgn `actual=expected` → `CLOSED`, snapshot `expected_cash=130000`, `cash_sales=30000`; **tutup ulang → sukses idempoten** ✅.
 7. Buka shift baru (opening 0) → `POST /sales/{id}/refund` sale lama (CASH 30.000) → sukses; shift baru `cash_refund=30000, items_in_total=2` + baris IN; `expected=-30000`; tutup shift menyimpan refund ✅. Angka shift lama yang sudah ditutup **tidak** berubah.
-8. `go build` ✓, `go test ./internal/...` ✓, `vue-tsc --noEmit` ✓, vitest 24/24 ✓, `npm run build` (Astro 20 halaman) ✓.
+8. `go build` ✓, `go test ./internal/...` ✓, `vue-tsc --noEmit` ✓, vitest 24/24 ✓, `npm run build` (Astro 20 halaman) ✓.## Log Perubahan / Keputusan
 
-## Log Perubahan / Keputusan
+### 2026-09-05 — implementasi B11 (validasi silang ketat saat close)
+
+- **Lokasi:** `internal/cashier/service.go` — `CloseShift`, `computeReconciliationWith`,
+  `validateShiftIntegrity` + `loadSaleMovementRows` + `validateSaleMovementConsistency` (murni).
+- **Serialisasi:** whole `reconcile → validate → close` sekarang berjalan dalam satu transaksi DB
+  yang mengunci baris shift `FOR UPDATE`. Penulis sale/refund (`CreateSale`, refund/cancel) memakai
+  kunci yang sama lewat `openShiftOfActor`, sehingga tidak ada `sales`/`shift_items` baru yang bisa
+  masuk di antara snapshot rekonsiliasi dan update `CLOSED` — close tidak pernah "kehilangan"
+  transaksi dan shift tertutup tidak pernah menerima baris baru (B11 check 3).
+- **Cek silang OUT vs SALE inventory (B11 check 2):** untuk tiap sale ter-link `shift_id`,
+  `SUM(quantity)` ledger `shift_items(direction=OUT)` harus sama dgn `SUM(quantity)`
+  `inventory_transactions(reference_type='SALE')` — keduanya ditulis dalam transaksi sale yang sama.
+  Mismatch → `ErrFailedPrecondition` ("Cannot close shift: sale …") berisi nomor invoice.
+- **Idempotensi tetap:** status `CLOSED` dicek ulang di dalam lock; double-close tetap sukses tanpa error.
+- **Catatan:** `computeReconciliation` di-refactor jadi `computeReconciliationWith(ctx, db, shift)`
+  (db = handle tx saat close); query payment dipindah ke handle yang sama (bukan repo terpisah).
+  `repository.CloseShift` (metode lama) tidak lagi dipakai service tapi dipertahankan di interface.
+- Verifikasi: `go vet` ✓, `go test ./internal/...` ✓ (termasuk test baru cashier), `go build ./...` ✓.
 
 ### 2026-09-05 — putaran perbaikan ("fix sekalian jika ada issue")
 
@@ -90,6 +107,28 @@
 
 Verifikasi putaran: `go build`/`go test ./internal/...` ✅, `vue-tsc` ✅, vitest 24/24 ✅,
 `npm run build` ✅, migrasi `000012` terpasang (version 12), log FK/product_sk_uid = 0 ✅.
+
+### 2026-09-05 — putaran audit (cek checklist vs kode aktual)
+
+Pemeriksaan ulang seluruh checklist `pos-cashier-shift.md` terhadap kode sekarang:
+
+1. **Backend B1–B10 semua terverifikasi** di kode: index anti-double-open, close milik
+   sendiri + idempoten (`RowsAffected`), rekonsiliasi berbasis `shift_id`, gate `CreateSale`
+   tanpa shift, ledger `shift_items` dlm transaksi sama, `GetShiftSummary`/backfill.
+   **B11 masih terbuka** (tidak ada pemeriksaan ketat mismatch saat close — detail di checklist).
+2. **Frontend `/pos` item shift**: semua [x] di checklist valid. Implementasi dialog shift
+   kini tinggal di `PosShiftDialogs.vue` (buka/tutup/rekonsiliasi + daftar barang OUT/IN),
+   induk `POSCheckoutPage.vue` hanya menyimpan status & aksi (composable `useCashierShift`).
+3. **Pecahan komponen `/pos`** (refactor 2026-09-05, bukan ubah perilaku):
+   `POSCheckoutPage.vue` (1221 → 732 baris) → `PosHeldOrders.vue`, `PosPaymentDialog.vue`,
+   `PosProductBrowser.vue`, `PosShiftDialogs.vue`. Verifikasi: `vue-tsc`, vitest 31/31,
+   `npm run build` (20 halaman) hijau.
+4. **Fitur hold order** (fitur baru terkait `/pos`, spec `docs/pos-hold-order.md`):
+   localStorage `pos.held_orders.v1`, composable `useHeldOrders.ts`, UI di `PosHeldOrders.vue`,
+   unit test `tests/unit/posHold.test.ts` (7 test) — tidak menyentuh backend shift.
+5. **Masih terbuka setelah audit:** refactor `/admin/cashier` → `useCashierShift`;
+   swagger `ListShiftItems` & field summary baru; unit test composable shift; E2E shift/refund;
+   B11. (detail di checklist & backlog bawah).
 
 ### 2026-09-05 — implementasi inti
 
@@ -115,11 +154,11 @@ Verifikasi putaran: `go build`/`go test ./internal/...` ✅, `vue-tsc` ✅, vite
 ## Pekerjaan Berikutnya (backlog)
 
 - [ ] Refactor `/admin/cashier` ke `useCashierShift` (hapus duplikasi state open/close).
-- [ ] B11: validasi silang ketat saat close + uji mismatch.
-- [ ] Test unit Vitest untuk composable & i18n baru (gate `assertShiftOpen`, recovery idempoten).
-- [ ] Uji E2E Playwright shift (matriks §9 spesifikasi).
-- [ ] Perbaiki `activity_logs.store_id` utk user tanpa store (opsional, audit lengkap).
-- [ ] Update `docs/swagger-enhanced.json` utk `ListShiftItems` & field summary baru.
-- [ ] Migrasi `000012` sudah ditulis & terpasang (sale_items.product_sku_id) — ikut uji E2E refund.
+- [x] B11: validasi silang ketat saat close + uji mismatch — **selesai 2026-09-05** (lihat checklist B11 & log implementasi). Uji mismatch unit (`TestValidateSaleMovementConsistency`) + integrasi menyusul via E2E/DB test.
+- [ ] Test unit Vitest utk composable shift (`useCashierShift`: recovery idempoten, `ensureShiftOpen`, gate) — saat ini baru ada unit test `posHold` (fitur hold), `i18n`, `validators`, `rbac`.
+- [ ] Uji E2E Playwright shift (matriks §9 spesifikasi) — `tests/e2e/` baru berisi `reload-check.spec.ts`; refund + matriks shift belum ada.
+- [x] Perbaiki `activity_logs.store_id` utk user tanpa store — **selesai** di putaran perbaikan (claims `store_id` dipakai bila ada; selain itu `NULL`; tidak ada lagi error FK).
+- [ ] Update `docs/swagger-enhanced.json` utk `ListShiftItems` (`/shifts/{id}/items`) & field summary baru (`items_out_total`, `items_in_total`, `revenue_by_method`, …) — audit: belum ada.
+- [x] Migrasi `000012` (sale_items.product_sku_id) — **sudah ditulis & terpasang** (version 12); tinggal ikut matriks E2E refund di atas.
 
 <!-- di-update manual tiap milestone -->

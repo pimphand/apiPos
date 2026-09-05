@@ -189,6 +189,41 @@ func TestCashierService_GetShiftSummary(t *testing.T) {
 	})
 }
 
+func TestValidateSaleMovementConsistency(t *testing.T) {
+	t.Run("consistent rows produce no issues", func(t *testing.T) {
+		rows := []saleMovementRow{
+			{Invoice: "INV-1", LedgerOutQty: 2, InventoryQty: 2},
+			{Invoice: "INV-2", LedgerOutQty: 5, InventoryQty: 5},
+		}
+		issues := validateSaleMovementConsistency(rows)
+		assert.Empty(t, issues)
+	})
+
+	t.Run("mismatch is reported with invoice and quantities", func(t *testing.T) {
+		rows := []saleMovementRow{
+			{Invoice: "INV-A", LedgerOutQty: 3, InventoryQty: 3},
+			{Invoice: "INV-B", LedgerOutQty: 1, InventoryQty: 4},
+		}
+		issues := validateSaleMovementConsistency(rows)
+		assert.Len(t, issues, 1)
+		assert.Contains(t, issues[0], "INV-B")
+		assert.Contains(t, issues[0], "ledger OUT 1.000 != inventory SALE 4.000")
+	})
+
+	t.Run("missing ledger rows are a mismatch too", func(t *testing.T) {
+		rows := []saleMovementRow{
+			{Invoice: "INV-C", LedgerOutQty: 0, InventoryQty: 2},
+		}
+		issues := validateSaleMovementConsistency(rows)
+		assert.Len(t, issues, 1)
+		assert.Contains(t, issues[0], "INV-C")
+	})
+
+	t.Run("empty input is fine", func(t *testing.T) {
+		assert.Empty(t, validateSaleMovementConsistency(nil))
+	})
+}
+
 func TestIsValidUUID(t *testing.T) {
 	assert.True(t, isValidUUID(uuid.New().String()))
 	assert.False(t, isValidUUID("invalid"))

@@ -4,6 +4,7 @@ import { productService } from '@/services/product';
 import { customerService } from '@/services/customer';
 import { saleService } from '@/services/sale';
 import { cashierService } from '@/services/cashier';
+import { settingsService } from '@/services/settings';
 import { useCashierShift } from '@/composables/useCashierShift';
 import { useHeldOrders } from '@/composables/useHeldOrders';
 import { useUiStore } from '@/stores/ui';
@@ -20,10 +21,13 @@ import type {
   ShiftSummary,
   HeldOrder,
   HeldOrderItem,
+  StoreSettings,
 } from '@/types';
+import type { ReceiptData } from '@/components/pos/PosReceiptPaper.vue';
 import DashboardShell from '@/components/layout/DashboardShell.vue';
 import PosHeldOrders from '@/components/pos/PosHeldOrders.vue';
 import PosPaymentDialog from '@/components/pos/PosPaymentDialog.vue';
+import PosReceiptDialog from '@/components/pos/PosReceiptDialog.vue';
 import PosProductBrowser from '@/components/pos/PosProductBrowser.vue';
 import PosShiftDialogs from '@/components/pos/PosShiftDialogs.vue';
 import Button from '@/components/ui/button/Button.vue';
@@ -131,6 +135,36 @@ const customersLoading = ref(false);
 const paymentOpen = ref(false);
 const processing = ref(false);
 
+// ---- Store settings (docs/pos-store-settings.md) -------------------------
+const settings = ref<StoreSettings | null>(null);
+/** Default tax % for fresh carts — from store settings, fallback 11. */
+const defaultTaxRate = computed(() => {
+  const v = settings.value?.tax_rate;
+  return typeof v === 'number' && Number.isFinite(v) ? v : 11;
+});
+
+/** Last successful sale → receipt/struk dialog after payment. */
+const receiptOpen = ref(false);
+const lastReceipt = ref<ReceiptData | null>(null);
+
+/** Map payment-method code to a localized label (reuses admin.payments keys). */
+const PAY_METHOD_KEYS: Record<string, string> = {
+  CASH: 'cash',
+  CARD: 'card',
+  BANK_TRANSFER: 'bankTransfer',
+  EWALLET: 'ewallet',
+  OTHER: 'other',
+};
+
+async function loadStoreSettings() {
+  try {
+    settings.value = await settingsService.get();
+  } catch {
+    // Best-effort only — POS keeps working with the built-in 11% default.
+    settings.value = null;
+  }
+}
+
 const subtotal = computed(() => cart.value.reduce((sum, item) => sum + item.unit_price * item.quantity, 0));
 const taxAmount = computed(() => Math.round(subtotal.value * (taxRate.value / 100)));
 const grandTotal = computed(() => subtotal.value + taxAmount.value - discount.value);
@@ -227,7 +261,7 @@ function removeItem(item: CartItem) {
 function clearCart() {
   cart.value = [];
   discount.value = 0;
-  taxRate.value = 11;
+  taxRate.value = defaultTaxRate.value;
   selectedCustomerId.value = '';
 }
 
@@ -466,9 +500,19 @@ async function submitSale(payload: {
     ui.addToast('error', 'No store assigned');
     return;
   }
+  // Snapshot the sale line for the struk before the cart is cleared.
+  const saleLines = cart.value.map(i => ({
+    name: i.name,
+    sku_code: i.sku_code,
+    quantity: i.quantity,
+    unit_price: i.unit_price,
+  }));
+  const customer = customers.value.find(c => c.id === payload.customer_id);
+  const paidAmount = payload.amount_paid;
+
   processing.value = true;
   try {
-    await saleService.create({
+    const detail = await saleService.create({
       store_id: storeId,
       customer_id: payload.customer_id && payload.customer_id !== NO_CUSTOMER ? payload.customer_id : undefined,
       items: cart.value.map(i => ({
@@ -480,13 +524,44 @@ async function submitSale(payload: {
       discount: discount.value,
       tax_rate: taxRate.value,
       payment_method: payload.payment_method,
-      amount_paid: payload.amount_paid,
+      amount_paid: paidAmount,
     });
     ui.addToast('success', t('admin.pos.toastSaleCreated'));
     paymentOpen.value = false;
+
+    // Server numbers are authoritative; fall back to local math when missing.
+    const subtotalN = Number(detail.sale.subtotal) || subtotal.value;
+    const discountN = detail.sale.discount !== undefined && Number(detail.sale.discount) ? Number(detail.sale.discount) : discount.value;
+    const taxN = detail.sale.tax !== undefined && Number(detail.sale.tax) ? Number(detail.sale.tax) : taxAmount.value;
+    const totalN = Number(detail.sale.grand_total) || grandTotal.value;
+    const methodLabelKey = PAY_METHOD_KEYS[payload.payment_method] ?? 'other';
+    const storeAny = authStore.currentUser as any;
+
+    lastReceipt.value = {
+      store_name: storeAny?.store_name || storeAny?.store?.name || '',
+      store_address: storeAny?.store?.address || '',
+      store_phone: storeAny?.store?.phone || '',
+      invoice_number: detail.sale.invoice_number || '',
+      created_at: detail.sale.created_at || new Date().toISOString(),
+      cashier_name: authStore.userName,
+      customer_name: payload.customer_id && payload.customer_id !== NO_CUSTOMER
+        ? (customer?.name || '')
+        : '',
+      tax_rate: taxRate.value,
+      payment_method_label: t(`admin.payments.${methodLabelKey}`),
+      items: saleLines,
+      subtotal: subtotalN,
+      discount: discountN,
+      tax: taxN,
+      total: totalN,
+      paid: paidAmount,
+      change: Math.max(0, paidAmount - totalN),
+    };
+
     clearCart();
     searchProducts(); // Refresh stock levels shown in the product list
     loadSummary(); // Live sync: totals in the shift status bar
+    receiptOpen.value = true;
   } catch (err) {
     ui.addToast('error', apiMessage(err));
     // The shift may have been closed from another tab/device while the
@@ -506,6 +581,9 @@ watch(isReady, async (r) => {
     // flash of "checkout allowed" while the shift is actually closed.
     checkingShift.value = true;
     try {
+      await loadStoreSettings();
+      // Fresh carts adopt the store's default tax rate (settings).
+      if (cart.value.length === 0) taxRate.value = defaultTaxRate.value;
       await refreshLive();
       heldOrdersApi.reload();
       if (currentShift.value) searchProducts();
@@ -728,6 +806,15 @@ watch(isReady, async (r) => {
       @update:customer-id="selectedCustomerId = $event"
       @cancel="paymentOpen = false"
       @submit="submitSale"
+    />
+
+    <!-- Receipt/struk dialog after a successful payment (PosReceiptDialog.vue) -->
+    <PosReceiptDialog
+      :open="receiptOpen"
+      :settings="settings"
+      :data="lastReceipt"
+      @update:open="receiptOpen = $event"
+      @new-sale="receiptOpen = false"
     />
   </DashboardShell>
 </template>

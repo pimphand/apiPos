@@ -6,23 +6,24 @@ import (
 
 // Repositories holds all repository instances
 type Repositories struct {
-	db               *gorm.DB
-	User             UserRepository
-	Role             *RoleRepo
-	Store            StoreRepository
-	Permission       PermissionRepository
-	RolePermission   RolePermissionRepository
-	Product          ProductRepository
-	ProductSKU       ProductSKURepository
-	Category         CategoryRepository
-	Customer         CustomerRepository
-	Sale             SaleRepository
-	Payment          PaymentRepository
-	Inventory        InventoryRepository
-	Cashier          CashierRepository
-	Report           ReportRepository
-	ActivityLog      ActivityLogRepository
-	RefreshToken     RefreshTokenRepository
+	db             *gorm.DB
+	User           UserRepository
+	Role           *RoleRepo
+	Store          StoreRepository
+	Settings       SettingsRepository
+	Permission     PermissionRepository
+	RolePermission RolePermissionRepository
+	Product        ProductRepository
+	ProductSKU     ProductSKURepository
+	Category       CategoryRepository
+	Customer       CustomerRepository
+	Sale           SaleRepository
+	Payment        PaymentRepository
+	Inventory      InventoryRepository
+	Cashier        CashierRepository
+	Report         ReportRepository
+	ActivityLog    ActivityLogRepository
+	RefreshToken   RefreshTokenRepository
 }
 
 // DB returns the underlying GORM DB instance
@@ -40,6 +41,7 @@ func New(db *gorm.DB) *Repositories {
 		User:           NewUserRepository(db),
 		Role:           NewRoleRepository(db),
 		Store:          NewStoreRepository(db),
+		Settings:       NewSettingsRepository(db),
 		Permission:     NewPermissionRepository(db),
 		RolePermission: NewRolePermissionRepository(db),
 		Product:        NewProductRepository(db),

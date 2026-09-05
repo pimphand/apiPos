@@ -12,10 +12,10 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	activitylogv1 "apiPos/gen/activitylog/v1"
 	authv1 "apiPos/gen/auth/v1"
@@ -30,6 +30,7 @@ import (
 	reportv1 "apiPos/gen/report/v1"
 	rolev1 "apiPos/gen/role/v1"
 	salev1 "apiPos/gen/sale/v1"
+	settingsv1 "apiPos/gen/settings/v1"
 	storev1 "apiPos/gen/store/v1"
 	userv1 "apiPos/gen/user/v1"
 	"apiPos/internal/activitylog"
@@ -49,6 +50,7 @@ import (
 	"apiPos/internal/repository"
 	"apiPos/internal/role"
 	"apiPos/internal/sale"
+	"apiPos/internal/settings"
 	"apiPos/internal/store"
 	"apiPos/internal/user"
 	"apiPos/middleware"
@@ -56,25 +58,26 @@ import (
 
 // Server holds the gRPC server and its dependencies
 type Server struct {
-	grpcServer          *grpc.Server
-	config              *config.Config
-	db                  *gormdb.DB
-	repositories        *repository.Repositories
-	authService         *auth.AuthService
-	userService         *user.Service
-	categoryService     *category.Service
-	productService      *product.Service
-	productSKUService   *productsku.Service
-	inventoryService    *inventory.Service
-	customerService     *customer.Service
-	saleService         *sale.Service
-	paymentService      *payment.Service
-	cashierService      *cashier.Service
-	reportService       *report.Service
-	roleService         *role.Service
-	permissionService   *permission.Service
-	activityLogService  *activitylog.Service
-	storeService        *store.Service
+	grpcServer         *grpc.Server
+	config             *config.Config
+	db                 *gormdb.DB
+	repositories       *repository.Repositories
+	authService        *auth.AuthService
+	userService        *user.Service
+	categoryService    *category.Service
+	productService     *product.Service
+	productSKUService  *productsku.Service
+	inventoryService   *inventory.Service
+	customerService    *customer.Service
+	saleService        *sale.Service
+	paymentService     *payment.Service
+	cashierService     *cashier.Service
+	reportService      *report.Service
+	roleService        *role.Service
+	permissionService  *permission.Service
+	activityLogService *activitylog.Service
+	storeService       *store.Service
+	settingsService    *settings.Service
 }
 
 // New creates a new gRPC server
@@ -95,6 +98,7 @@ func New(cfg *config.Config, db *gormdb.DB) *Server {
 	permissionService := permission.NewService(repos)
 	activityLogService := activitylog.NewService(repos)
 	storeService := store.NewService(repos)
+	settingsService := settings.NewService(repos)
 
 	return &Server{
 		config:             cfg,
@@ -115,6 +119,7 @@ func New(cfg *config.Config, db *gormdb.DB) *Server {
 		permissionService:  permissionService,
 		activityLogService: activityLogService,
 		storeService:       storeService,
+		settingsService:    settingsService,
 	}
 }
 
@@ -265,6 +270,11 @@ func (s *Server) startHTTP() error {
 		return fmt.Errorf("failed to register store gateway: %w", err)
 	}
 
+	// Register SettingsService (tenant store settings)
+	if err := settingsv1.RegisterSettingsServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", s.config.GRPC.Port), opts); err != nil {
+		return fmt.Errorf("failed to register settings gateway: %w", err)
+	}
+
 	httpMux := http.NewServeMux()
 	httpMux.HandleFunc("/", s.handleSwaggerUI)
 	httpMux.HandleFunc("/swagger.json", s.handleSwaggerJSON)
@@ -339,6 +349,7 @@ func (s *Server) registerServices() {
 	healthServer.SetServingStatus("permission.v1.PermissionService", healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus("activitylog.v1.ActivityLogService", healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus("store.v1.StoreService", healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus("settings.v1.SettingsService", healthpb.HealthCheckResponse_SERVING)
 
 	logs := handler.NewActivityLogger(s.activityLogService)
 
@@ -386,6 +397,9 @@ func (s *Server) registerServices() {
 
 	storeHandler := handler.NewStoreHandler(s.storeService, logs)
 	storev1.RegisterStoreServiceServer(s.grpcServer, storeHandler)
+
+	settingsHandler := handler.NewSettingsHandler(s.settingsService, logs)
+	settingsv1.RegisterSettingsServiceServer(s.grpcServer, settingsHandler)
 
 	log.Println("All services registered")
 }
@@ -465,12 +479,12 @@ func endpointPermissions() map[string]string {
 		"/sale.v1.SaleService/RefundSale":       "sales.refund",
 
 		// ── Payment ───────────────────────────────────────────────
-		"/payment.v1.PaymentService/CreatePayment":      "payments.create",
-		"/payment.v1.PaymentService/GetPayment":         "payments.read",
-		"/payment.v1.PaymentService/GetPaymentsBySale":  "payments.read",
-		"/payment.v1.PaymentService/ListPayments":       "payments.read",
-		"/payment.v1.PaymentService/DeletePayment":      "payments.delete",
-		"/payment.v1.PaymentService/GetPaymentSummary":  "payments.read",
+		"/payment.v1.PaymentService/CreatePayment":     "payments.create",
+		"/payment.v1.PaymentService/GetPayment":        "payments.read",
+		"/payment.v1.PaymentService/GetPaymentsBySale": "payments.read",
+		"/payment.v1.PaymentService/ListPayments":      "payments.read",
+		"/payment.v1.PaymentService/DeletePayment":     "payments.delete",
+		"/payment.v1.PaymentService/GetPaymentSummary": "payments.read",
 
 		// ── Cashier ───────────────────────────────────────────────
 		"/cashier.v1.CashierService/OpenShift":       "cashier.open_shift",
@@ -479,7 +493,7 @@ func endpointPermissions() map[string]string {
 		"/cashier.v1.CashierService/GetShift":        "cashier.view_shift",
 		"/cashier.v1.CashierService/ListShifts":      "cashier.view_shift",
 		"/cashier.v1.CashierService/GetShiftSummary": "cashier.view_shift",
-			"/cashier.v1.CashierService/ListShiftItems":    "cashier.view_shift",
+		"/cashier.v1.CashierService/ListShiftItems":  "cashier.view_shift",
 
 		// ── Report ────────────────────────────────────────────────
 		"/report.v1.ReportService/GetDailySalesReport":     "reports.read",
@@ -523,18 +537,18 @@ func endpointPermissions() map[string]string {
 		"/user.v1.UserService/UpdateUserRole": "users.update",
 
 		// ── Store (superadmin only) ──────────────────────────────
-		"/store.v1.StoreService/CreateStore":  "roles.create",
-		"/store.v1.StoreService/GetStore":     "roles.read",
-		"/store.v1.StoreService/ListStores":   "roles.read",
-		"/store.v1.StoreService/UpdateStore":  "roles.update",
-		"/store.v1.StoreService/DeleteStore":  "roles.delete",
-		"/store.v1.StoreService/VerifyStore":  "roles.update",
+		"/store.v1.StoreService/CreateStore": "roles.create",
+		"/store.v1.StoreService/GetStore":    "roles.read",
+		"/store.v1.StoreService/ListStores":  "roles.read",
+		"/store.v1.StoreService/UpdateStore": "roles.update",
+		"/store.v1.StoreService/DeleteStore": "roles.delete",
+		"/store.v1.StoreService/VerifyStore": "roles.update",
 
 		// ── Activity logs ─────────────────────────────────────────
-		"/activitylog.v1.ActivityLogService/ListActivityLogs":           "activity_logs.read",
-		"/activitylog.v1.ActivityLogService/GetActivityLog":             "activity_logs.read",
-		"/activitylog.v1.ActivityLogService/GetActivityLogsByResource":  "activity_logs.read",
-		"/activitylog.v1.ActivityLogService/GetActivityLogsByUser":      "activity_logs.read",
+		"/activitylog.v1.ActivityLogService/ListActivityLogs":          "activity_logs.read",
+		"/activitylog.v1.ActivityLogService/GetActivityLog":            "activity_logs.read",
+		"/activitylog.v1.ActivityLogService/GetActivityLogsByResource": "activity_logs.read",
+		"/activitylog.v1.ActivityLogService/GetActivityLogsByUser":     "activity_logs.read",
 	}
 }
 

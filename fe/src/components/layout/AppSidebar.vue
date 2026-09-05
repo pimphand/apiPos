@@ -41,6 +41,7 @@ import {
   KeyRound,
   FileText,
   Store,
+  Settings,
 } from '@lucide/vue';
 
 const authStore = useAuthStore();
@@ -60,6 +61,8 @@ interface MenuItem {
   permission?: Permission;
   /** Only visible to the system-wide superadmin role (e.g. Store management). */
   superadminOnly?: boolean;
+  /** Only visible to store admin & manager roles (store settings page). */
+  adminOrManagerOnly?: boolean;
   children?: SubMenuItem[];
 }
 
@@ -103,6 +106,7 @@ const menuGroups = computed(() => {
         { label: t('sidebar.permissions'), icon: KeyRound, href: '/admin/permissions', permission: 'permissions.read' },
         { label: t('sidebar.stores'), icon: Store, href: '/admin/stores', superadminOnly: true },
         { label: t('sidebar.activityLogs'), icon: FileText, href: '/admin/activity-logs', permission: 'activity_logs.read' },
+        { label: t('sidebar.settings'), icon: Settings, href: '/admin/settings', adminOrManagerOnly: true },
       ],
     },
   ];
@@ -112,6 +116,10 @@ const menuGroups = computed(() => {
     items: group.items.filter(item => {
       if (item.superadminOnly) {
         return (authStore.currentUser as any)?.role_name === 'superadmin';
+      }
+      if (item.adminOrManagerOnly) {
+        const role = (authStore.currentUser as any)?.role_name;
+        return role === 'admin' || role === 'manager';
       }
       if (!item.permission) return true;
       return can(authStore.currentUser, item.permission);

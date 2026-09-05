@@ -2,9 +2,12 @@ package cashier
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 
 	"apiPos/internal/apperror"
 	gormdb "apiPos/internal/database/gorm"
@@ -132,6 +135,14 @@ func (s *Service) OpenShift(ctx context.Context, req OpenShiftRequest) (*gormdb.
 //   - closing another cashier's shift        -> PERMISSION_DENIED
 //   - double-close (two parallel requests)   -> idempotent success
 //   - reconciliation on wrong numbers        -> computed server-side
+//   - ledger vs inventory drift (B11)        -> rejected
+//
+// The whole reconcile → validate → close section runs inside one DB
+// transaction that locks the shift row FOR UPDATE. Sale/refund writers take
+// the same lock (openShiftOfActor in the sale service), so they serialize
+// with the closer: no sale, OUT or IN row can be committed between the
+// reconciliation snapshot and the CLOSED update — a close never misses a
+// transaction, and a closed shift can never receive new rows afterwards.
 func (s *Service) CloseShift(ctx context.Context, req CloseShiftRequest) (*gormdb.CashierShift, error) {
 	if !isValidUUID(req.ShiftID) {
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Invalid shift ID", nil)
@@ -160,40 +171,86 @@ func (s *Service) CloseShift(ctx context.Context, req CloseShiftRequest) (*gormd
 		return shift, nil
 	}
 
-	// Reconcile from the shift's linked data (single source of truth).
-	recon, err := s.computeReconciliation(ctx, shift)
-	if err != nil {
-		return nil, err
-	}
+	var result *gormdb.CashierShift
+	txErr := s.repos.DB().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Lock the shift row for the whole reconcile → validate → close
+		// section (see comment on CloseShift above, B11).
+		var locked gormdb.CashierShift
+		if err := tx.Raw("SELECT * FROM cashier_shifts WHERE id = ? FOR UPDATE", req.ShiftID).Scan(&locked).Error; err != nil {
+			return apperror.Wrap(apperror.ErrInternal, "Failed to lock shift", err)
+		}
+		if locked.ID == uuid.Nil {
+			return apperror.Wrap(apperror.ErrShiftNotFound, "Shift not found", nil)
+		}
 
-	// Atomic close: only an OPEN shift can transition to CLOSED. If a racing
-	// request already closed it (RowsAffected == 0) we return the current
-	// closed row as an idempotent success.
-	closed, err := s.repos.Cashier.CloseShift(ctx, repository.CloseShiftParams{
-		ID:                shift.ID.String(),
-		ClosingCash:       req.ClosingCash,
-		ActualCash:        req.ActualCash,
-		ExpectedCash:      recon.ExpectedCash,
-		TotalTransactions: recon.TotalTransactions,
-		TotalSalesAmount:  recon.TotalSalesAmount,
-		TotalRevenue:      recon.TotalRevenue,
-		RevenueCash:       recon.RevenueCash,
-		TotalItemsOut:     recon.TotalItemsOut,
-		TotalItemsIn:      recon.TotalItemsIn,
+		// Re-check inside the lock: a concurrent closer may have won the race.
+		if locked.Status == ShiftStatusClosed {
+			result = &locked
+			return nil
+		}
+
+		// Reconciliation read inside the transaction so the numbers are
+		// consistent with the lock point (single source of truth).
+		recon, err := s.computeReconciliationWith(ctx, tx, &locked)
+		if err != nil {
+			return err
+		}
+
+		// B11: strict cross-validation before freezing the numbers. Refuse to
+		// close when the OUT ledger disagrees with the SALE inventory ledger.
+		if err := s.validateShiftIntegrity(ctx, tx, &locked); err != nil {
+			return err
+		}
+
+		// Atomic close under the row lock: only an OPEN shift can transition.
+		difference := req.ActualCash - recon.ExpectedCash
+		res := tx.Model(&gormdb.CashierShift{}).
+			Where("id = ?", locked.ID.String()).
+			Updates(map[string]interface{}{
+				"closing_cash":       req.ClosingCash,
+				"actual_cash":        req.ActualCash,
+				"cash_sales":         recon.RevenueCash,
+				"expected_cash":      recon.ExpectedCash,
+				"cash_difference":    difference,
+				"status":             ShiftStatusClosed,
+				"closed_at":          gorm.Expr("NOW()"),
+				"total_transactions": recon.TotalTransactions,
+				"total_sales_amount": recon.TotalSalesAmount,
+				"total_revenue":      recon.TotalRevenue,
+				"revenue_cash":       recon.RevenueCash,
+				"total_items_out":    recon.TotalItemsOut,
+				"total_items_in":     recon.TotalItemsIn,
+			})
+		if res.Error != nil {
+			return apperror.Wrap(apperror.ErrInternal, "Failed to close shift", res.Error)
+		}
+		if res.RowsAffected == 0 {
+			// The lock serializes closers, but the shift may already be closed
+			// from another path; reload and return it as idempotent success.
+			var current gormdb.CashierShift
+			if err := tx.Where("id = ?", locked.ID.String()).First(&current).Error; err == nil {
+				result = &current
+			} else {
+				result = &locked
+			}
+			return nil
+		}
+
+		var updated gormdb.CashierShift
+		if err := tx.Where("id = ?", locked.ID.String()).First(&updated).Error; err != nil {
+			return apperror.Wrap(apperror.ErrInternal, "Failed to load closed shift", err)
+		}
+		result = &updated
+		return nil
 	})
-	if err != nil {
-		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to close shift", err)
+	if txErr != nil {
+		return nil, txErr
 	}
-	if !closed {
-		// Someone else closed it between our read and the update.
-		return s.repos.Cashier.GetByID(ctx, req.ShiftID)
+	if result == nil {
+		// Row vanished between the fast-path read and the transaction.
+		return nil, apperror.Wrap(apperror.ErrShiftNotFound, "Shift not found", nil)
 	}
-
-	updatedShift, err := s.repos.Cashier.GetByID(ctx, req.ShiftID)
-	if err != nil {
-		return shift, nil
-	}
-	return updatedShift, nil
+	return result, nil
 }
 
 // GetCurrentShift gets the current open shift for a user
@@ -353,12 +410,17 @@ type reconciliation struct {
 }
 
 // computeReconciliation derives all shift numbers from the shift's linked
-// data (sales.shift_id, payments and shift_items). For legacy shifts without
-// links it falls back to the bounded opened_at..closed_at window so it never
-// picks up sales that happened after the shift was closed.
+// data (sales.shift_id, payments and shift_items) using the service DB. For
+// legacy shifts without links it falls back to the bounded opened_at..closed_at
+// window so it never picks up sales that happened after the shift was closed.
 func (s *Service) computeReconciliation(ctx context.Context, shift *gormdb.CashierShift) (*reconciliation, error) {
-	db := s.repos.DB().WithContext(ctx)
+	return s.computeReconciliationWith(ctx, s.repos.DB().WithContext(ctx), shift)
+}
 
+// computeReconciliationWith is computeReconciliation over an explicit query
+// handle (tx during CloseShift) so the numbers and the close update share one
+// consistent, locked transaction.
+func (s *Service) computeReconciliationWith(ctx context.Context, db *gorm.DB, shift *gormdb.CashierShift) (*reconciliation, error) {
 	recon := &reconciliation{
 		RevenueByMethod: map[string]float64{},
 		CashRefund:      shift.CashRefund,
@@ -392,8 +454,8 @@ func (s *Service) computeReconciliation(ctx context.Context, shift *gormdb.Cashi
 		recon.TotalRevenue += sale.GrandTotal
 
 		// Determine the sale's payment method from its payment rows.
-		payments, err := s.repos.Payment.GetBySaleID(ctx, sale.ID.String())
-		if err != nil {
+		var payments []gormdb.Payment
+		if err := db.Where("sale_id = ?", sale.ID).Find(&payments).Error; err != nil {
 			payments = nil
 		}
 		paymentMethod := ""
@@ -434,6 +496,84 @@ func (s *Service) computeReconciliation(ctx context.Context, shift *gormdb.Cashi
 	recon.ExpectedCash = shift.OpeningCash + recon.RevenueCash - recon.CashRefund
 
 	return recon, nil
+}
+
+// saleMovementRow compares one sale's OUT ledger rows against its inventory
+// SALE movements (B11 cross-check).
+type saleMovementRow struct {
+	Invoice      string
+	LedgerOutQty float64
+	InventoryQty float64
+}
+
+// validateShiftIntegrity runs the B11 strict cross-validation for a shift
+// about to close: every sale linked to the shift must have OUT ledger rows
+// whose quantities match its SALE inventory movements. Both are written in
+// the same DB transaction as the sale, so a mismatch means the data drifted
+// and the shift must not be closed on wrong numbers.
+func (s *Service) validateShiftIntegrity(ctx context.Context, tx *gorm.DB, shift *gormdb.CashierShift) error {
+	rows, err := s.loadSaleMovementRows(ctx, tx, shift)
+	if err != nil {
+		return err
+	}
+	issues := validateSaleMovementConsistency(rows)
+	if len(issues) > 0 {
+		return apperror.Wrap(apperror.ErrFailedPrecondition,
+			"Cannot close shift: "+strings.Join(issues, "; "), nil)
+	}
+	return nil
+}
+
+// loadSaleMovementRows loads, per sale linked to the shift, the total OUT
+// ledger quantity and the total SALE inventory quantity. All sales are
+// included regardless of status: ledger OUT and SALE inventory rows are
+// written at sale creation and never removed (refunds add IN/RETURN rows).
+func (s *Service) loadSaleMovementRows(ctx context.Context, tx *gorm.DB, shift *gormdb.CashierShift) ([]saleMovementRow, error) {
+	var sales []gormdb.Sale
+	if err := tx.Where("shift_id = ?", shift.ID).Find(&sales).Error; err != nil {
+		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to load shift sales for validation", err)
+	}
+
+	rows := make([]saleMovementRow, 0, len(sales))
+	for _, sale := range sales {
+		var ledgerOut float64
+		if err := tx.Model(&gormdb.ShiftItem{}).
+			Where("sale_id = ? AND direction = ?", sale.ID, "OUT").
+			Select("COALESCE(SUM(quantity), 0)").
+			Scan(&ledgerOut).Error; err != nil {
+			return nil, apperror.Wrap(apperror.ErrInternal, "Failed to sum ledger OUT rows", err)
+		}
+
+		var inventoryQty float64
+		if err := tx.Model(&gormdb.InventoryTransaction{}).
+			Where("reference_type = ? AND reference_id = ?", "SALE", sale.ID).
+			Select("COALESCE(SUM(quantity), 0)").
+			Scan(&inventoryQty).Error; err != nil {
+			return nil, apperror.Wrap(apperror.ErrInternal, "Failed to sum inventory SALE rows", err)
+		}
+
+		rows = append(rows, saleMovementRow{
+			Invoice:      sale.InvoiceNumber,
+			LedgerOutQty: ledgerOut,
+			InventoryQty: inventoryQty,
+		})
+	}
+	return rows, nil
+}
+
+// validateSaleMovementConsistency is a pure decision function (unit-tested):
+// it returns one human-readable issue per sale whose OUT ledger quantity does
+// not equal its SALE inventory quantity.
+func validateSaleMovementConsistency(rows []saleMovementRow) []string {
+	var issues []string
+	for _, r := range rows {
+		if r.LedgerOutQty != r.InventoryQty {
+			issues = append(issues, fmt.Sprintf(
+				"sale %s: ledger OUT %.3f != inventory SALE %.3f",
+				r.Invoice, r.LedgerOutQty, r.InventoryQty))
+		}
+	}
+	return issues
 }
 
 // isValidUUID validates UUID format
