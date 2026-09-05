@@ -15,73 +15,73 @@ import (
 
 // mockProductSKURepo is a mock for ProductSKURepository
 type mockProductSKURepo struct {
-	createFunc       func(productSKU *gormdb.ProductSKU) error
-	getByIDFunc      func(id uuid.UUID) (*gormdb.ProductSKU, error)
-	getByBarcodeFunc func(barcode string) (*gormdb.ProductSKU, error)
-	getBySKUFunc     func(sku string) (*gormdb.ProductSKU, error)
-	listFunc         func(productID uuid.UUID, search, variant, color, size string, isActive *bool, page, perPage int) ([]gormdb.ProductSKU, int64, error)
-	listAllFunc      func(search, variant, color, size string, isActive *bool, productID uuid.UUID, page, perPage int) ([]gormdb.ProductSKU, int64, error)
-	updateFunc       func(productSKU *gormdb.ProductSKU) error
-	deleteFunc       func(id uuid.UUID) error
+	createFunc       func(ctx context.Context, productSKU *gormdb.ProductSKU) error
+	getByIDFunc      func(ctx context.Context, id uuid.UUID) (*gormdb.ProductSKU, error)
+	getByBarcodeFunc func(ctx context.Context, barcode string) (*gormdb.ProductSKU, error)
+	getBySKUFunc     func(ctx context.Context, sku string) (*gormdb.ProductSKU, error)
+	listFunc         func(ctx context.Context, productID uuid.UUID, search, variant, color, size string, isActive *bool, page, perPage int) ([]gormdb.ProductSKU, int64, error)
+	listAllFunc      func(ctx context.Context, search, variant, color, size string, isActive *bool, productID uuid.UUID, page, perPage int) ([]gormdb.ProductSKU, int64, error)
+	updateFunc       func(ctx context.Context, productSKU *gormdb.ProductSKU) error
+	deleteFunc       func(ctx context.Context, id uuid.UUID) error
 }
 
-func (m *mockProductSKURepo) Create(productSKU *gormdb.ProductSKU) error {
+func (m *mockProductSKURepo) Create(ctx context.Context, productSKU *gormdb.ProductSKU) error {
 	if m.createFunc != nil {
-		return m.createFunc(productSKU)
+		return m.createFunc(ctx, productSKU)
 	}
 	return nil
 }
 
-func (m *mockProductSKURepo) GetByID(id uuid.UUID) (*gormdb.ProductSKU, error) {
+func (m *mockProductSKURepo) GetByID(ctx context.Context, id uuid.UUID) (*gormdb.ProductSKU, error) {
 	if m.getByIDFunc != nil {
-		return m.getByIDFunc(id)
+		return m.getByIDFunc(ctx, id)
 	}
 	return nil, fmt.Errorf("not found")
 }
 
-func (m *mockProductSKURepo) GetByBarcode(barcode string) (*gormdb.ProductSKU, error) {
+func (m *mockProductSKURepo) GetByBarcode(ctx context.Context, barcode string) (*gormdb.ProductSKU, error) {
 	if m.getByBarcodeFunc != nil {
-		return m.getByBarcodeFunc(barcode)
+		return m.getByBarcodeFunc(ctx, barcode)
 	}
 	return nil, fmt.Errorf("not found")
 }
 
-func (m *mockProductSKURepo) GetBySKU(sku string) (*gormdb.ProductSKU, error) {
+func (m *mockProductSKURepo) GetBySKU(ctx context.Context, sku string) (*gormdb.ProductSKU, error) {
 	if m.getBySKUFunc != nil {
-		return m.getBySKUFunc(sku)
+		return m.getBySKUFunc(ctx, sku)
 	}
 	return nil, fmt.Errorf("not found")
 }
 
-func (m *mockProductSKURepo) List(productID uuid.UUID, search, variant, color, size string, isActive *bool, page, perPage int) ([]gormdb.ProductSKU, int64, error) {
+func (m *mockProductSKURepo) List(ctx context.Context, productID uuid.UUID, search, variant, color, size string, isActive *bool, page, perPage int) ([]gormdb.ProductSKU, int64, error) {
 	if m.listFunc != nil {
-		return m.listFunc(productID, search, variant, color, size, isActive, page, perPage)
+		return m.listFunc(ctx, productID, search, variant, color, size, isActive, page, perPage)
 	}
 	return []gormdb.ProductSKU{}, 0, nil
 }
 
-func (m *mockProductSKURepo) ListAll(search, variant, color, size string, isActive *bool, productID uuid.UUID, page, perPage int) ([]gormdb.ProductSKU, int64, error) {
+func (m *mockProductSKURepo) ListAll(ctx context.Context, search, variant, color, size string, isActive *bool, productID uuid.UUID, page, perPage int) ([]gormdb.ProductSKU, int64, error) {
 	if m.listAllFunc != nil {
-		return m.listAllFunc(search, variant, color, size, isActive, productID, page, perPage)
+		return m.listAllFunc(ctx, search, variant, color, size, isActive, productID, page, perPage)
 	}
 	return []gormdb.ProductSKU{}, 0, nil
 }
 
-func (m *mockProductSKURepo) Update(productSKU *gormdb.ProductSKU) error {
+func (m *mockProductSKURepo) Update(ctx context.Context, productSKU *gormdb.ProductSKU) error {
 	if m.updateFunc != nil {
-		return m.updateFunc(productSKU)
+		return m.updateFunc(ctx, productSKU)
 	}
 	return nil
 }
 
-func (m *mockProductSKURepo) Delete(id uuid.UUID) error {
+func (m *mockProductSKURepo) Delete(ctx context.Context, id uuid.UUID) error {
 	if m.deleteFunc != nil {
-		return m.deleteFunc(id)
+		return m.deleteFunc(ctx, id)
 	}
 	return nil
 }
 
-func (m *mockProductSKURepo) CountByProductIDs(productIDs []uuid.UUID) (map[string]int32, error) {
+func (m *mockProductSKURepo) CountByProductIDs(ctx context.Context, productIDs []uuid.UUID) (map[string]int32, error) {
 	return make(map[string]int32), nil
 }
 
@@ -117,14 +117,14 @@ func TestProductSKUService_CreateProductSKU(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		mockRepo := &mockProductSKURepo{
-			createFunc: func(productSKU *gormdb.ProductSKU) error {
+			createFunc: func(ctx context.Context, productSKU *gormdb.ProductSKU) error {
 				productSKU.ID = uuid.New()
 				return nil
 			},
 		}
 		svc := NewService(mockRepo)
 
-		productSKU, err := svc.CreateProductSKU(
+		productSKU, err := svc.CreateProductSKU(ctx, 
 			uuid.New().String(),
 			"COF-L-001",
 			"8991234567890",
@@ -160,13 +160,13 @@ func TestProductSKUService_CreateProductSKU(t *testing.T) {
 
 	t.Run("create error", func(t *testing.T) {
 		mockRepo := &mockProductSKURepo{
-			createFunc: func(productSKU *gormdb.ProductSKU) error {
+			createFunc: func(ctx context.Context, productSKU *gormdb.ProductSKU) error {
 				return fmt.Errorf("duplicate SKU")
 			},
 		}
 		svc := NewService(mockRepo)
 
-		_, err := svc.CreateProductSKU(
+		_, err := svc.CreateProductSKU(ctx, 
 			uuid.New().String(),
 			"COF-L-001",
 			"",
@@ -194,17 +194,18 @@ func TestProductSKUService_CreateProductSKU(t *testing.T) {
 }
 
 func TestProductSKUService_GetProductSKU(t *testing.T) {
+	ctx := context.Background()
 	validID := uuid.New()
 
 	t.Run("success", func(t *testing.T) {
 		mockRepo := &mockProductSKURepo{
-			getByIDFunc: func(id uuid.UUID) (*gormdb.ProductSKU, error) {
+			getByIDFunc: func(ctx context.Context, id uuid.UUID) (*gormdb.ProductSKU, error) {
 				return testProductSKU(), nil
 			},
 		}
 		svc := NewService(mockRepo)
 
-		productSKU, err := svc.GetProductSKU(validID.String())
+		productSKU, err := svc.GetProductSKU(ctx, validID.String())
 		require.NoError(t, err)
 		assert.Equal(t, "COF-L-001", productSKU.SKU)
 	})
@@ -213,34 +214,36 @@ func TestProductSKUService_GetProductSKU(t *testing.T) {
 		mockRepo := &mockProductSKURepo{}
 		svc := NewService(mockRepo)
 
-		_, err := svc.GetProductSKU("invalid-uuid")
+		_, err := svc.GetProductSKU(ctx, "invalid-uuid")
 		assert.Error(t, err)
 	})
 
 	t.Run("not found", func(t *testing.T) {
 		mockRepo := &mockProductSKURepo{
-			getByIDFunc: func(id uuid.UUID) (*gormdb.ProductSKU, error) {
+			getByIDFunc: func(ctx context.Context, id uuid.UUID) (*gormdb.ProductSKU, error) {
 				return nil, fmt.Errorf("not found")
 			},
 		}
 		svc := NewService(mockRepo)
 
-		_, err := svc.GetProductSKU(validID.String())
+		_, err := svc.GetProductSKU(ctx, validID.String())
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
 }
 
 func TestProductSKUService_GetProductSKUByBarcode(t *testing.T) {
+	ctx := context.Background()
+
 	t.Run("success", func(t *testing.T) {
 		mockRepo := &mockProductSKURepo{
-			getByBarcodeFunc: func(barcode string) (*gormdb.ProductSKU, error) {
+			getByBarcodeFunc: func(ctx context.Context, barcode string) (*gormdb.ProductSKU, error) {
 				return testProductSKU(), nil
 			},
 		}
 		svc := NewService(mockRepo)
 
-		productSKU, err := svc.GetProductSKUByBarcode("8991234567890")
+		productSKU, err := svc.GetProductSKUByBarcode(ctx, "8991234567890")
 		require.NoError(t, err)
 		assert.Equal(t, "8991234567890", productSKU.Barcode)
 	})
@@ -249,35 +252,37 @@ func TestProductSKUService_GetProductSKUByBarcode(t *testing.T) {
 		mockRepo := &mockProductSKURepo{}
 		svc := NewService(mockRepo)
 
-		_, err := svc.GetProductSKUByBarcode("")
+		_, err := svc.GetProductSKUByBarcode(ctx, "")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "required")
 	})
 
 	t.Run("not found", func(t *testing.T) {
 		mockRepo := &mockProductSKURepo{
-			getByBarcodeFunc: func(barcode string) (*gormdb.ProductSKU, error) {
+			getByBarcodeFunc: func(ctx context.Context, barcode string) (*gormdb.ProductSKU, error) {
 				return nil, fmt.Errorf("not found")
 			},
 		}
 		svc := NewService(mockRepo)
 
-		_, err := svc.GetProductSKUByBarcode("0000000000")
+		_, err := svc.GetProductSKUByBarcode(ctx, "0000000000")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
 }
 
 func TestProductSKUService_GetProductSKUBySKUCode(t *testing.T) {
+	ctx := context.Background()
+
 	t.Run("success", func(t *testing.T) {
 		mockRepo := &mockProductSKURepo{
-			getBySKUFunc: func(sku string) (*gormdb.ProductSKU, error) {
+			getBySKUFunc: func(ctx context.Context, sku string) (*gormdb.ProductSKU, error) {
 				return testProductSKU(), nil
 			},
 		}
 		svc := NewService(mockRepo)
 
-		productSKU, err := svc.GetProductSKUBySKUCode("COF-L-001")
+		productSKU, err := svc.GetProductSKUBySKUCode(ctx, "COF-L-001")
 		require.NoError(t, err)
 		assert.Equal(t, "COF-L-001", productSKU.SKU)
 	})
@@ -286,31 +291,32 @@ func TestProductSKUService_GetProductSKUBySKUCode(t *testing.T) {
 		mockRepo := &mockProductSKURepo{}
 		svc := NewService(mockRepo)
 
-		_, err := svc.GetProductSKUBySKUCode("")
+		_, err := svc.GetProductSKUBySKUCode(ctx, "")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "required")
 	})
 
 	t.Run("not found", func(t *testing.T) {
 		mockRepo := &mockProductSKURepo{
-			getBySKUFunc: func(sku string) (*gormdb.ProductSKU, error) {
+			getBySKUFunc: func(ctx context.Context, sku string) (*gormdb.ProductSKU, error) {
 				return nil, fmt.Errorf("not found")
 			},
 		}
 		svc := NewService(mockRepo)
 
-		_, err := svc.GetProductSKUBySKUCode("NONEXISTENT")
+		_, err := svc.GetProductSKUBySKUCode(ctx, "NONEXISTENT")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
 }
 
 func TestProductSKUService_ListProductSKUs(t *testing.T) {
+	ctx := context.Background()
 	validProductID := uuid.New().String()
 
 	t.Run("success", func(t *testing.T) {
 		mockRepo := &mockProductSKURepo{
-			listFunc: func(productID uuid.UUID, search, variant, color, size string, isActive *bool, page, perPage int) ([]gormdb.ProductSKU, int64, error) {
+			listFunc: func(ctx context.Context, productID uuid.UUID, search, variant, color, size string, isActive *bool, page, perPage int) ([]gormdb.ProductSKU, int64, error) {
 				return []gormdb.ProductSKU{
 					*testProductSKU(),
 					*testProductSKU(),
@@ -319,7 +325,7 @@ func TestProductSKUService_ListProductSKUs(t *testing.T) {
 		}
 		svc := NewService(mockRepo)
 
-		result, totalCount, err := svc.ListProductSKUs(validProductID, "", "", "", "", nil, 1, 10)
+		result, totalCount, err := svc.ListProductSKUs(ctx, validProductID, "", "", "", "", nil, 1, 10)
 		require.NoError(t, err)
 		assert.Len(t, result, 2)
 		assert.Equal(t, int64(2), totalCount)
@@ -329,19 +335,19 @@ func TestProductSKUService_ListProductSKUs(t *testing.T) {
 		mockRepo := &mockProductSKURepo{}
 		svc := NewService(mockRepo)
 
-		_, _, err := svc.ListProductSKUs("invalid-uuid", "", "", "", "", nil, 1, 10)
+		_, _, err := svc.ListProductSKUs(ctx, "invalid-uuid", "", "", "", "", nil, 1, 10)
 		assert.Error(t, err)
 	})
 
 	t.Run("empty list", func(t *testing.T) {
 		mockRepo := &mockProductSKURepo{
-			listFunc: func(productID uuid.UUID, search, variant, color, size string, isActive *bool, page, perPage int) ([]gormdb.ProductSKU, int64, error) {
+			listFunc: func(ctx context.Context, productID uuid.UUID, search, variant, color, size string, isActive *bool, page, perPage int) ([]gormdb.ProductSKU, int64, error) {
 				return []gormdb.ProductSKU{}, 0, nil
 			},
 		}
 		svc := NewService(mockRepo)
 
-		result, totalCount, err := svc.ListProductSKUs(validProductID, "", "", "", "", nil, 1, 10)
+		result, totalCount, err := svc.ListProductSKUs(ctx, validProductID, "", "", "", "", nil, 1, 10)
 		require.NoError(t, err)
 		assert.Empty(t, result)
 		assert.Equal(t, int64(0), totalCount)
@@ -349,9 +355,11 @@ func TestProductSKUService_ListProductSKUs(t *testing.T) {
 }
 
 func TestProductSKUService_ListAllProductSKUs(t *testing.T) {
+	ctx := context.Background()
+
 	t.Run("success", func(t *testing.T) {
 		mockRepo := &mockProductSKURepo{
-			listAllFunc: func(search, variant, color, size string, isActive *bool, productID uuid.UUID, page, perPage int) ([]gormdb.ProductSKU, int64, error) {
+			listAllFunc: func(ctx context.Context, search, variant, color, size string, isActive *bool, productID uuid.UUID, page, perPage int) ([]gormdb.ProductSKU, int64, error) {
 				return []gormdb.ProductSKU{
 					*testProductSKU(),
 				}, 1, nil
@@ -359,7 +367,7 @@ func TestProductSKUService_ListAllProductSKUs(t *testing.T) {
 		}
 		svc := NewService(mockRepo)
 
-		result, totalCount, err := svc.ListAllProductSKUs("", "", "", "", nil, "", 1, 10)
+		result, totalCount, err := svc.ListAllProductSKUs(ctx, "", "", "", "", nil, "", 1, 10)
 		require.NoError(t, err)
 		assert.Len(t, result, 1)
 		assert.Equal(t, int64(1), totalCount)
@@ -367,33 +375,34 @@ func TestProductSKUService_ListAllProductSKUs(t *testing.T) {
 
 	t.Run("with filters", func(t *testing.T) {
 		mockRepo := &mockProductSKURepo{
-			listAllFunc: func(search, variant, color, size string, isActive *bool, productID uuid.UUID, page, perPage int) ([]gormdb.ProductSKU, int64, error) {
+			listAllFunc: func(ctx context.Context, search, variant, color, size string, isActive *bool, productID uuid.UUID, page, perPage int) ([]gormdb.ProductSKU, int64, error) {
 				return []gormdb.ProductSKU{}, 0, nil
 			},
 		}
 		svc := NewService(mockRepo)
 
-		result, _, err := svc.ListAllProductSKUs("search", "variant", "color", "size", nil, uuid.New().String(), 1, 10)
+		result, _, err := svc.ListAllProductSKUs(ctx, "search", "variant", "color", "size", nil, uuid.New().String(), 1, 10)
 		require.NoError(t, err)
 		assert.Empty(t, result)
 	})
 }
 
 func TestProductSKUService_UpdateProductSKU(t *testing.T) {
+	ctx := context.Background()
 	validID := uuid.New().String()
 
 	t.Run("success", func(t *testing.T) {
 		mockRepo := &mockProductSKURepo{
-			getByIDFunc: func(id uuid.UUID) (*gormdb.ProductSKU, error) {
+			getByIDFunc: func(ctx context.Context, id uuid.UUID) (*gormdb.ProductSKU, error) {
 				return testProductSKU(), nil
 			},
-			updateFunc: func(productSKU *gormdb.ProductSKU) error {
+			updateFunc: func(ctx context.Context, productSKU *gormdb.ProductSKU) error {
 				return nil
 			},
 		}
 		svc := NewService(mockRepo)
 
-		productSKU, err := svc.UpdateProductSKU(
+		productSKU, err := svc.UpdateProductSKU(ctx, 
 			validID,
 			"COF-L-002",
 			"8991234567891",
@@ -429,35 +438,35 @@ func TestProductSKUService_UpdateProductSKU(t *testing.T) {
 		mockRepo := &mockProductSKURepo{}
 		svc := NewService(mockRepo)
 
-		_, err := svc.UpdateProductSKU("invalid-uuid", "", "", "", "", "", "", 0, 0, 0, 0, 0, 0, nil, "", "", "", true, nil)
+		_, err := svc.UpdateProductSKU(ctx, "invalid-uuid", "", "", "", "", "", "", 0, 0, 0, 0, 0, 0, nil, "", "", "", true, nil)
 		assert.Error(t, err)
 	})
 
 	t.Run("not found", func(t *testing.T) {
 		mockRepo := &mockProductSKURepo{
-			getByIDFunc: func(id uuid.UUID) (*gormdb.ProductSKU, error) {
+			getByIDFunc: func(ctx context.Context, id uuid.UUID) (*gormdb.ProductSKU, error) {
 				return nil, fmt.Errorf("not found")
 			},
 		}
 		svc := NewService(mockRepo)
 
-		_, err := svc.UpdateProductSKU(validID, "", "", "", "", "", "", 0, 0, 0, 0, 0, 0, nil, "", "", "", true, nil)
+		_, err := svc.UpdateProductSKU(ctx, validID, "", "", "", "", "", "", 0, 0, 0, 0, 0, 0, nil, "", "", "", true, nil)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
 
 	t.Run("partial update", func(t *testing.T) {
 		mockRepo := &mockProductSKURepo{
-			getByIDFunc: func(id uuid.UUID) (*gormdb.ProductSKU, error) {
+			getByIDFunc: func(ctx context.Context, id uuid.UUID) (*gormdb.ProductSKU, error) {
 				return testProductSKU(), nil
 			},
-			updateFunc: func(productSKU *gormdb.ProductSKU) error {
+			updateFunc: func(ctx context.Context, productSKU *gormdb.ProductSKU) error {
 				return nil
 			},
 		}
 		svc := NewService(mockRepo)
 
-		productSKU, err := svc.UpdateProductSKU(
+		productSKU, err := svc.UpdateProductSKU(ctx, 
 			validID,
 			"",
 			"",
@@ -486,17 +495,18 @@ func TestProductSKUService_UpdateProductSKU(t *testing.T) {
 }
 
 func TestProductSKUService_DeleteProductSKU(t *testing.T) {
+	ctx := context.Background()
 	validID := uuid.New().String()
 
 	t.Run("success", func(t *testing.T) {
 		mockRepo := &mockProductSKURepo{
-			deleteFunc: func(id uuid.UUID) error {
+			deleteFunc: func(ctx context.Context, id uuid.UUID) error {
 				return nil
 			},
 		}
 		svc := NewService(mockRepo)
 
-		err := svc.DeleteProductSKU(validID)
+		err := svc.DeleteProductSKU(ctx, validID)
 		require.NoError(t, err)
 	})
 
@@ -504,31 +514,32 @@ func TestProductSKUService_DeleteProductSKU(t *testing.T) {
 		mockRepo := &mockProductSKURepo{}
 		svc := NewService(mockRepo)
 
-		err := svc.DeleteProductSKU("invalid-uuid")
+		err := svc.DeleteProductSKU(ctx, "invalid-uuid")
 		assert.Error(t, err)
 	})
 
 	t.Run("delete error", func(t *testing.T) {
 		mockRepo := &mockProductSKURepo{
-			deleteFunc: func(id uuid.UUID) error {
+			deleteFunc: func(ctx context.Context, id uuid.UUID) error {
 				return fmt.Errorf("delete failed")
 			},
 		}
 		svc := NewService(mockRepo)
 
-		err := svc.DeleteProductSKU(validID)
+		err := svc.DeleteProductSKU(ctx, validID)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "delete failed")
 	})
 }
 
 func TestProductSKUService_PaginationNormalization(t *testing.T) {
+	ctx := context.Background()
 	validProductID := uuid.New().String()
 
 	t.Run("default pagination", func(t *testing.T) {
 		var capturedPage, capturedPerPage int
 		mockRepo := &mockProductSKURepo{
-			listFunc: func(productID uuid.UUID, search, variant, color, size string, isActive *bool, page, perPage int) ([]gormdb.ProductSKU, int64, error) {
+			listFunc: func(ctx context.Context, productID uuid.UUID, search, variant, color, size string, isActive *bool, page, perPage int) ([]gormdb.ProductSKU, int64, error) {
 				capturedPage = page
 				capturedPerPage = perPage
 				return []gormdb.ProductSKU{}, 0, nil
@@ -536,7 +547,7 @@ func TestProductSKUService_PaginationNormalization(t *testing.T) {
 		}
 		svc := NewService(mockRepo)
 
-		_, _, _ = svc.ListProductSKUs(validProductID, "", "", "", "", nil, 0, 0)
+		_, _, _ = svc.ListProductSKUs(ctx, validProductID, "", "", "", "", nil, 0, 0)
 		assert.Equal(t, 1, capturedPage)
 		assert.Equal(t, 20, capturedPerPage)
 	})
@@ -544,14 +555,14 @@ func TestProductSKUService_PaginationNormalization(t *testing.T) {
 	t.Run("max per page", func(t *testing.T) {
 		var capturedPerPage int
 		mockRepo := &mockProductSKURepo{
-			listFunc: func(productID uuid.UUID, search, variant, color, size string, isActive *bool, page, perPage int) ([]gormdb.ProductSKU, int64, error) {
+			listFunc: func(ctx context.Context, productID uuid.UUID, search, variant, color, size string, isActive *bool, page, perPage int) ([]gormdb.ProductSKU, int64, error) {
 				capturedPerPage = perPage
 				return []gormdb.ProductSKU{}, 0, nil
 			},
 		}
 		svc := NewService(mockRepo)
 
-		_, _, _ = svc.ListProductSKUs(validProductID, "", "", "", "", nil, 1, 200)
+		_, _, _ = svc.ListProductSKUs(ctx, validProductID, "", "", "", "", nil, 1, 200)
 		assert.Equal(t, 100, capturedPerPage)
 	})
 }

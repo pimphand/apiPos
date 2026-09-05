@@ -17,6 +17,12 @@ export const permissionService = {
     return response.data;
   },
 
+  /** Get all permissions of the currently authenticated user */
+  async getMy(): Promise<Permission[]> {
+    const response = await http.get<{ permissions: Permission[] }>('/v1/permissions/my');
+    return response.data.permissions ?? [];
+  },
+
   async get(id: string): Promise<Permission> {
     const response = await http.get<{ permission: Permission }>(`/v1/permissions/${id}`);
     return response.data.permission;

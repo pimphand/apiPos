@@ -118,6 +118,8 @@ async function removeCategory(c: Category) {
 const canCreate = computed(() => can(authStore.currentUser, 'categories.create'));
 const canUpdate = computed(() => can(authStore.currentUser, 'categories.update'));
 const canDelete = computed(() => can(authStore.currentUser, 'categories.delete'));
+// Hide the Actions column entirely when the user has no mutating permissions.
+const showActions = computed(() => canCreate.value || canUpdate.value || canDelete.value);
 
 watch(isReady, (r) => { if (r) load(); }, { immediate: true });
 </script>
@@ -167,16 +169,16 @@ watch(isReady, (r) => { if (r) load(); }, { immediate: true });
               <TableHead>{{ t('admin.shared.name') }}</TableHead>
               <TableHead>{{ t('admin.shared.description') }}</TableHead>
               <TableHead>{{ t('admin.shared.status') }}</TableHead>
-              <TableHead class="text-right">{{ t('admin.shared.actions') }}</TableHead>
+              <TableHead v-if="showActions" class="text-right">{{ t('admin.shared.actions') }}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             <TableRow v-if="loading">
-              <TableCell :colspan="4" class="text-center py-8 text-muted-foreground">{{ t('admin.shared.loading') }}</TableCell>
+              <TableCell :colspan="showActions ? 4 : 3" class="text-center py-8 text-muted-foreground">{{ t('admin.shared.loading') }}</TableCell>
             </TableRow>
             <template v-else>
               <TableRow v-if="categories.length === 0">
-                <TableCell :colspan="4" class="text-center py-8 text-muted-foreground">{{ t('admin.categories.noData') }}</TableCell>
+                <TableCell :colspan="showActions ? 4 : 3" class="text-center py-8 text-muted-foreground">{{ t('admin.categories.noData') }}</TableCell>
               </TableRow>
               <TableRow v-for="c in categories" :key="c.id">
                 <TableCell class="font-medium">{{ c.name }}</TableCell>
@@ -184,7 +186,7 @@ watch(isReady, (r) => { if (r) load(); }, { immediate: true });
                 <TableCell>
                   <Badge :variant="c.is_active ? 'default' : 'secondary'">{{ c.is_active ? t('admin.shared.active') : t('admin.shared.inactive') }}</Badge>
                 </TableCell>
-                <TableCell class="text-right">
+                <TableCell v-if="showActions" class="text-right">
                   <div class="flex justify-end items-center gap-3">
                     <div class="flex items-center gap-2 text-xs text-muted-foreground">
                       <Switch v-if="canUpdate" :model-value="c.is_active" @update:model-value="toggleActive(c)" />

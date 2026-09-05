@@ -51,6 +51,8 @@ func (s *Service) CreateProduct(ctx context.Context, req CreateProductRequest) (
 
 	// Create product
 	product := &gormdb.Product{
+		SKU:          req.SKU,
+		Barcode:      req.Barcode,
 		Name:         req.Name,
 		Description:  req.Description,
 		CategoryID:   categoryID,
@@ -91,7 +93,7 @@ func (s *Service) CreateProduct(ctx context.Context, req CreateProductRequest) (
 			defaultSKU.Unit = "pcs"
 		}
 
-		if err := s.repos.ProductSKU.Create(defaultSKU); err != nil {
+		if err := s.repos.ProductSKU.Create(ctx, defaultSKU); err != nil {
 			return nil, apperror.Wrap(apperror.ErrInternal, "Failed to create default SKU", err)
 		}
 	}
@@ -122,7 +124,7 @@ func (s *Service) GetProductByBarcode(ctx context.Context, barcode string) (*gor
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Barcode is required", nil)
 	}
 
-	productSKU, err := s.repos.ProductSKU.GetByBarcode(barcode)
+	productSKU, err := s.repos.ProductSKU.GetByBarcode(ctx, barcode)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperror.ErrProductNotFound
@@ -139,7 +141,7 @@ func (s *Service) GetProductBySKU(ctx context.Context, sku string) (*gormdb.Prod
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "SKU is required", nil)
 	}
 
-	productSKU, err := s.repos.ProductSKU.GetBySKU(sku)
+	productSKU, err := s.repos.ProductSKU.GetBySKU(ctx, sku)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperror.ErrProductNotFound
@@ -196,6 +198,7 @@ func (s *Service) LoadProductSKUs(ctx context.Context, products []gormdb.Product
 	// Batch load all SKUs for these products
 	for i := range products {
 		skus, _, err := s.repos.ProductSKU.List(
+			ctx,
 			products[i].ID,
 			"",  // search
 			"",  // variant
@@ -287,7 +290,7 @@ func (s *Service) UpdateProduct(ctx context.Context, req UpdateProductRequest) (
 	for _, skuID := range req.SKUsToDelete {
 		if isValidUUID(skuID) {
 			skuUUID, _ := uuid.Parse(skuID)
-			_ = s.repos.ProductSKU.Delete(skuUUID)
+			_ = s.repos.ProductSKU.Delete(ctx, skuUUID)
 		}
 	}
 
@@ -296,7 +299,7 @@ func (s *Service) UpdateProduct(ctx context.Context, req UpdateProductRequest) (
 		if skuItem.ID != "" && isValidUUID(skuItem.ID) {
 			// Update existing SKU
 			skuUUID, _ := uuid.Parse(skuItem.ID)
-			existingSKU, err := s.repos.ProductSKU.GetByID(skuUUID)
+			existingSKU, err := s.repos.ProductSKU.GetByID(ctx, skuUUID)
 			if err != nil {
 				continue // skip if not found
 			}
@@ -361,7 +364,7 @@ func (s *Service) UpdateProduct(ctx context.Context, req UpdateProductRequest) (
 				}
 			}
 
-			if err := s.repos.ProductSKU.Update(existingSKU); err != nil {
+			if err := s.repos.ProductSKU.Update(ctx, existingSKU); err != nil {
 				continue
 			}
 		} else {
@@ -404,9 +407,25 @@ func (s *Service) UpdateProduct(ctx context.Context, req UpdateProductRequest) (
 				}
 			}
 
-			if err := s.repos.ProductSKU.Create(newSKU); err != nil {
+			if err := s.repos.ProductSKU.Create(ctx, newSKU); err != nil {
 				continue
 			}
+		}
+	}
+
+	// Keep the aggregate product stock in sync with its SKUs after any
+	// create/update/delete above.
+	if db := s.repos.DB(); db != nil {
+		var aggStock int64
+		if err := db.WithContext(ctx).
+			Model(&gormdb.ProductSKU{}).
+			Where("product_id = ?", product.ID).
+			Select("COALESCE(SUM(stock), 0)").
+			Scan(&aggStock).Error; err == nil {
+			_ = db.WithContext(ctx).
+				Model(&gormdb.Product{}).
+				Where("id = ?", product.ID).
+				Update("stock", aggStock)
 		}
 	}
 

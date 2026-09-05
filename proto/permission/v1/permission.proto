@@ -50,6 +50,24 @@ service PermissionService {
       delete: "/api/v1/permissions/{id}"
     };
   }
+
+  // GetMyPermissions gets the permissions of the currently authenticated user
+  // (based on their role). Superadmins get every permission in the system.
+  // NOTE: must be declared LAST so the literal "/permissions/my" route is
+  // registered last (grpc-gateway matches the most recently registered
+  // pattern first, keeping it ahead of the "/permissions/{id}" wildcard).
+  rpc GetMyPermissions(GetMyPermissionsRequest) returns (GetMyPermissionsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/permissions/my"
+    };
+  }
+}
+
+message GetMyPermissionsRequest {}
+
+message GetMyPermissionsResponse {
+  repeated Permission permissions = 1;
+  int64 total_count = 2;
 }
 
 message GetPermissionRequest {

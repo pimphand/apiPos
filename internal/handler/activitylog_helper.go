@@ -118,10 +118,12 @@ func float64Str(n float64) string {
 }
 
 // LogWithUser records an activity using an explicit user (used for public
-// endpoints such as register/login where claims may not be present yet).
-func (l *ActivityLogger) LogWithUser(ctx context.Context, userID, username, action, resource, resourceID, metadataJSON string) {
+// endpoints such as register/login where claims may not be present yet). The
+// store must be passed explicitly so the log is scoped to the right tenant.
+func (l *ActivityLogger) LogWithUser(ctx context.Context, userID, storeID, username, action, resource, resourceID, metadataJSON string) {
 	l.write(ctx, activitylog.LogParams{
 		UserID:     userID,
+		StoreID:    storeID,
 		Username:   username,
 		Action:     action,
 		Resource:   resource,

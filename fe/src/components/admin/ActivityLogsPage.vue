@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { activityLogService } from '@/services/activitylog';
 import { useUiStore } from '@/stores/ui';
 import { useLocaleStore } from '@/stores/locale';
@@ -18,7 +18,10 @@ import PaginationBar from '@/components/ui/PaginationBar.vue';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
 
-const { isReady, allowed } = usePageGuard('activity_logs.read');
+const { isReady, allowed, authStore } = usePageGuard('activity_logs.read');
+// The store column is only meaningful for system-wide (superadmin) views;
+// tenant users only ever see their own store's logs, so the column is hidden.
+const showStoreColumn = computed(() => (authStore.currentUser as any)?.role_name === 'superadmin');
 const ui = useUiStore();
 const t = useLocaleStore().t;
 
@@ -150,6 +153,7 @@ watch(isReady, (r) => { if (r) load(); }, { immediate: true });
           <TableHeader>
             <TableRow>
               <TableHead>{{ t('admin.activityLogs.user') }}</TableHead>
+              <TableHead v-if="showStoreColumn">{{ t('admin.activityLogs.store') }}</TableHead>
               <TableHead>{{ t('admin.activityLogs.action') }}</TableHead>
               <TableHead>{{ t('admin.activityLogs.resource') }}</TableHead>
               <TableHead>{{ t('admin.shared.description') }}</TableHead>
@@ -158,16 +162,17 @@ watch(isReady, (r) => { if (r) load(); }, { immediate: true });
           </TableHeader>
           <TableBody>
             <TableRow v-if="loading">
-              <TableCell colspan="5" class="text-center py-8 text-muted-foreground">{{ t('admin.shared.loading') }}</TableCell>
+              <TableCell :colspan="showStoreColumn ? 6 : 5" class="text-center py-8 text-muted-foreground">{{ t('admin.shared.loading') }}</TableCell>
             </TableRow>
             <template v-else>
               <TableRow v-if="logs.length === 0">
-                <TableCell colspan="5" class="text-center py-8 text-muted-foreground">{{ t('admin.activityLogs.noData') }}</TableCell>
+                <TableCell :colspan="showStoreColumn ? 6 : 5" class="text-center py-8 text-muted-foreground">{{ t('admin.activityLogs.noData') }}</TableCell>
               </TableRow>
               <TableRow v-for="log in logs" :key="log.id" class="cursor-pointer hover:bg-muted/50" @click="openDetail(log)">
                 <TableCell>
                   <div class="font-medium">{{ log.username || '—' }}</div>
                 </TableCell>
+                <TableCell v-if="showStoreColumn">{{ log.store_name || '—' }}</TableCell>
                 <TableCell><Badge :variant="actionVariant(log.action)">{{ log.action }}</Badge></TableCell>
                 <TableCell><span class="font-mono text-xs">{{ log.resource }}</span></TableCell>
                 <TableCell class="max-w-[280px] truncate text-muted-foreground">{{ log.description }}</TableCell>

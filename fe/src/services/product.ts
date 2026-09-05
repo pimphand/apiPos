@@ -86,13 +86,22 @@ function normalizeList(data: Record<string, unknown>): ListProductsResponse {
 
 export const productService = {
   async list(params: {
+    search?: string;
     page?: number;
     per_page?: number;
     is_active?: string;
     category_id?: string;
     get_sku?: boolean;
   }): Promise<ListProductsResponse> {
-    const response = await http.get<Record<string, unknown>>('/v1/products', { params });
+    // Filter out undefined/empty params so we don't send empty strings
+    const cleaned: Record<string, unknown> = {};
+    if (params.search) cleaned.search = params.search;
+    if (params.page) cleaned.page = params.page;
+    if (params.per_page) cleaned.per_page = params.per_page;
+    if (params.is_active) cleaned.is_active = params.is_active;
+    if (params.category_id) cleaned.category_id = params.category_id;
+    if (params.get_sku) cleaned.get_sku = params.get_sku;
+    const response = await http.get<Record<string, unknown>>('/v1/products', { params: cleaned });
     return normalizeList(response.data);
   },
 

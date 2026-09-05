@@ -197,7 +197,7 @@ func toProtoSaleForCustomer(s *gormdb.Sale) *customerv1.Sale {
 		InvoiceNumber: s.InvoiceNumber,
 		StoreId:       s.StoreID.String(),
 		CashierId:     s.CashierID.String(),
-		CustomerId:    s.CustomerID.String(),
+		CustomerId:    customerIDStr(s.CustomerID),
 		Subtotal:      s.Subtotal,
 		Discount:      s.Discount,
 		Tax:           s.Tax,

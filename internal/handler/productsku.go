@@ -47,7 +47,7 @@ func (h *ProductSKUHandler) CreateProductSKU(ctx context.Context, req *productsk
 		}
 	}
 
-	productSKU, err := h.service.CreateProductSKU(
+	productSKU, err := h.service.CreateProductSKU(ctx, 
 		req.ProductId, req.Sku, req.Barcode, req.Variant, req.Color, req.Size, req.Unit,
 		req.CostPrice, req.SellingPrice, req.Stock, req.MinimumStock, req.Weight, req.Volume,
 		expiryTime, req.BatchNumber, req.Location, req.ImageUrl, req.IsActive, req.Metadata,
@@ -69,7 +69,7 @@ func (h *ProductSKUHandler) GetProductSKU(ctx context.Context, req *productskuv1
 		return nil, status.Error(codes.InvalidArgument, "id is required")
 	}
 
-	productSKU, err := h.service.GetProductSKU(req.Id)
+	productSKU, err := h.service.GetProductSKU(ctx, req.Id)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
@@ -85,7 +85,7 @@ func (h *ProductSKUHandler) GetProductSKUByBarcode(ctx context.Context, req *pro
 		return nil, status.Error(codes.InvalidArgument, "barcode is required")
 	}
 
-	productSKU, err := h.service.GetProductSKUByBarcode(req.Barcode)
+	productSKU, err := h.service.GetProductSKUByBarcode(ctx, req.Barcode)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
@@ -101,7 +101,7 @@ func (h *ProductSKUHandler) GetProductSKUBySKUCode(ctx context.Context, req *pro
 		return nil, status.Error(codes.InvalidArgument, "sku is required")
 	}
 
-	productSKU, err := h.service.GetProductSKUBySKUCode(req.Sku)
+	productSKU, err := h.service.GetProductSKUBySKUCode(ctx, req.Sku)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
@@ -129,7 +129,7 @@ func (h *ProductSKUHandler) ListProductSKUs(ctx context.Context, req *productsku
 		perPage = 100
 	}
 
-	productSKUs, totalCount, err := h.service.ListProductSKUs(
+	productSKUs, totalCount, err := h.service.ListProductSKUs(ctx, 
 		req.ProductId, req.Search, req.Variant, req.Color, req.Size, nil, page, perPage,
 	)
 	if err != nil {
@@ -158,7 +158,7 @@ func (h *ProductSKUHandler) ListAllProductSKUs(ctx context.Context, req *product
 		perPage = 100
 	}
 
-	productSKUs, totalCount, err := h.service.ListAllProductSKUs(
+	productSKUs, totalCount, err := h.service.ListAllProductSKUs(ctx, 
 		req.Search, req.Variant, req.Color, req.Size, nil, req.ProductId, page, perPage,
 	)
 	if err != nil {
@@ -186,7 +186,7 @@ func (h *ProductSKUHandler) UpdateProductSKU(ctx context.Context, req *productsk
 		}
 	}
 
-	productSKU, err := h.service.UpdateProductSKU(
+	productSKU, err := h.service.UpdateProductSKU(ctx, 
 		req.Id, req.Sku, req.Barcode, req.Variant, req.Color, req.Size, req.Unit,
 		req.CostPrice, req.SellingPrice, req.Stock, req.MinimumStock, req.Weight, req.Volume,
 		expiryTime, req.BatchNumber, req.Location, req.ImageUrl, req.IsActive, req.Metadata,
@@ -209,11 +209,11 @@ func (h *ProductSKUHandler) DeleteProductSKU(ctx context.Context, req *productsk
 	}
 
 	var meta interface{}
-	if ps, gerr := h.service.GetProductSKU(req.Id); gerr == nil {
+	if ps, gerr := h.service.GetProductSKU(ctx, req.Id); gerr == nil {
 		meta = ps
 	}
 
-	err := h.service.DeleteProductSKU(req.Id)
+	err := h.service.DeleteProductSKU(ctx, req.Id)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}

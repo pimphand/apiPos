@@ -1,0 +1,8 @@
+---
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+import StoresPage from '@/components/admin/StoresPage.vue';
+---
+
+<DashboardLayout title="Stores - POS Application">
+  <StoresPage client:only="vue" />
+</DashboardLayout>

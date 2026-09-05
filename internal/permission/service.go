@@ -9,6 +9,7 @@ import (
 	"gorm.io/gorm"
 
 	"apiPos/internal/apperror"
+	"apiPos/internal/auth"
 	gormdb "apiPos/internal/database/gorm"
 	"apiPos/internal/repository"
 )
@@ -46,6 +47,30 @@ func (s *Service) CreatePermission(ctx context.Context, name, resource, action, 
 	}
 
 	return permission, nil
+}
+
+// GetMyPermissions gets the permissions of the currently authenticated user,
+// derived from their role. Superadmins bypass role permissions and get every
+// permission in the system.
+func (s *Service) GetMyPermissions(ctx context.Context) ([]gormdb.Permission, error) {
+	claims, ok := auth.ClaimsFromContext(ctx)
+	if !ok || claims == nil {
+		return nil, apperror.Wrap(apperror.ErrUnauthorized, "Missing user claims", nil)
+	}
+
+	if claims.RoleName == "superadmin" {
+		permissions, _, err := s.repos.Permission.List(ctx, repository.PaginationParams{Page: 1, PerPage: 100})
+		if err != nil {
+			return nil, apperror.Wrap(apperror.ErrInternal, "Failed to list permissions", err)
+		}
+		return permissions, nil
+	}
+
+	permissions, err := s.repos.RolePermission.GetByRoleID(ctx, claims.RoleID)
+	if err != nil {
+		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to get role permissions", err)
+	}
+	return permissions, nil
 }
 
 // GetPermission gets a permission by ID

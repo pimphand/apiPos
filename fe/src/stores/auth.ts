@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import http, { tokenManager } from '@/lib/http';
+import http, { tokenManager, refreshTokens } from '@/lib/http';
 import { authStorage } from '@/lib/auth';
 import { getDeviceId } from '@/lib/device';
 import type { User, LoginRequest, RegisterRequest } from '@/types';
@@ -40,32 +40,23 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
-   * Fetch the actual permissions for the user's role from the backend and
-   * attach them to the user object so that `can()` uses the real
-   * role-permission assignment instead of the hardcoded defaults.
+   * Attach the permission names carried by the auth payload (login/register/
+   * refresh responses) to the user object so that `can()` uses the real
+   * role-permission assignment instead of hardcoded defaults.
+   *
+   * The backend embeds `permissions` in the auth responses deliberately — this
+   * avoids a separate `GET /permissions/my` request from the browser, which
+   * would otherwise be visible in the network tab (F12).
+   *
+   * Returns true when permissions were attached from the payload.
    */
-  async function fetchAndAttachPermissions(): Promise<void> {
-    if (!user.value?.role_id) return;
-    try {
-      const { roleService } = await import('@/services/role');
-      const perms = await roleService.getPermissions(user.value.role_id);
-      user.value = {
-        ...user.value,
-        permissions: perms.map((p) => p.name),
-      };
-      await authStorage.setUser(user.value);
-    } catch (err) {
-      // Log for debugging — the RBAC system depends on these permissions.
-      // If this fails, can() falls back to hardcoded ROLE_PERMISSIONS which
-      // may grant more access than intended.
-      console.warn('[auth] fetchAndAttachPermissions failed:', err);
-      // Set empty permissions array so can() knows we tried but got nothing,
-      // rather than falling back to the hardcoded role map.
-      if (user.value) {
-        user.value = { ...user.value, permissions: [] };
-        await authStorage.setUser(user.value);
-      }
+  function attachPermissionsFromPayload(perms: string[] | undefined): boolean {
+    if (!Array.isArray(perms) || !user.value) {
+      return false;
     }
+    user.value = { ...user.value, permissions: perms };
+    authStorage.setUser(user.value);
+    return true;
   }
 
   // Actions
@@ -94,8 +85,8 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = userData;
       await authStorage.setUser(userData);
 
-      // Fetch actual permissions from backend so can() uses real role-permission assignment
-      await fetchAndAttachPermissions();
+      // Permissions are embedded in the login payload (no separate request).
+      attachPermissionsFromPayload((data.user ?? {})?.permissions);
 
       return userData;
     } catch (err: unknown) {
@@ -132,8 +123,8 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = userData;
       await authStorage.setUser(userData);
 
-      // Fetch actual permissions from backend so can() uses real role-permission assignment
-      await fetchAndAttachPermissions();
+      // Permissions are embedded in the register payload (no separate request).
+      attachPermissionsFromPayload((resData.user ?? {})?.permissions);
 
       return userData;
     } catch (err: unknown) {
@@ -149,39 +140,42 @@ export const useAuthStore = defineStore('auth', () => {
   let restorePromise: Promise<User | null> | null = null;
 
   function refreshAccessToken() {
+    console.log('[DBG refreshAccessToken] called');
     // Single-flight: if a refresh is already in progress, share it. The
     // backend rotates (revokes) the refresh token on use, so concurrent
     // refresh calls with the same token would race and the second one would
     // fail with 401 -> logout. Multiple guarded components (DashboardShell +
     // page guards) call restoreSession at once on reload, so this dedup is
     // required to survive a page reload.
+    //
+    // NOTE: the actual network call is delegated to refreshTokens() in
+    // lib/http.ts, which is ALSO single-flight and shared with the axios 401
+    // interceptor. This keeps a single refresh path so an interceptor-driven
+    // rotation and a restore-driven rotation can never race, and the rotated
+    // refresh token is always persisted (surviving page reloads).
     if (refreshPromise) {
       return refreshPromise;
     }
 
-    if (!refreshToken.value) {
-      refreshPromise = Promise.reject(new Error('No refresh token available'));
-      refreshPromise = null;
-      throw new Error('No refresh token available');
-    }
-
     const pending = (async () => {
       try {
-        const response = await http.post('/v1/auth/refresh', {
-          refresh_token: refreshToken.value,
-          device_id: getDeviceId(),
-        });
+        console.log('[DBG refreshAccessToken] awaiting refreshTokens');
+        const refreshed = await refreshTokens();
+        if (!refreshed) {
+          throw new Error('No refresh token available');
+        }
+        const access_token = refreshed.accessToken;
 
-        const resData = response.data ?? {};
-        const access_token = resData.access_token ?? resData.accessToken;
-        const newRefreshToken = resData.refresh_token ?? resData.refreshToken;
-
-        // Update tokens (mirrors the rotated refresh token to localStorage)
+        // refreshTokens() already persisted the rotated pair and updated
+        // tokenManager/authStorage; mirror them into the store's refs.
+        const newRefreshToken = tokenManager.getRefreshToken();
         accessToken.value = access_token;
         refreshToken.value = newRefreshToken;
-        tokenManager.setTokens(access_token, newRefreshToken);
-        authStorage.setAccessToken(access_token);
-        await authStorage.setRefreshToken(newRefreshToken);
+
+        // Permissions are embedded in the refresh payload (no separate request).
+        if (refreshed.permissions) {
+          attachPermissionsFromPayload(refreshed.permissions);
+        }
 
         // Re-fetch the current user so cached role/permissions stay in sync
         // with the backend (e.g. a role change or the initial role assignment
@@ -198,6 +192,11 @@ export const useAuthStore = defineStore('auth', () => {
             if (!freshUser.role_name && previousRole) {
               freshUser.role_name = previousRole;
             }
+            // The profile endpoint does not carry permissions — keep the ones
+            // from the refresh payload so can() keeps using the real assignment.
+            if (refreshed.permissions) {
+              freshUser.permissions = refreshed.permissions;
+            }
             user.value = freshUser;
             await authStorage.setUser(user.value);
           } catch (err) {
@@ -206,13 +205,6 @@ export const useAuthStore = defineStore('auth', () => {
             console.warn('[auth] Failed to refresh user profile:', err);
           }
         }
-
-        // Fetch actual permissions from backend so can() uses real
-        // role-permission assignment instead of hardcoded defaults.
-        // If this fails (e.g. network), fetchAndAttachPermissions sets
-        // permissions to [] so can() correctly denies access rather than
-        // falling back to the hardcoded role map.
-        await fetchAndAttachPermissions();
 
         return access_token;
       } catch (err) {
@@ -240,6 +232,7 @@ export const useAuthStore = defineStore('auth', () => {
    * in-memory access token. Idempotent — safe to call on every guarded page.
    */
   async function restoreSession(): Promise<User | null> {
+    console.log('[DBG restoreSession] called isAuth=', isAuthenticated.value, 'at=', !!accessToken.value);
     // Already have a live session in memory; nothing to restore.
     if (isAuthenticated.value && !!accessToken.value) {
       return user.value;
@@ -255,14 +248,19 @@ export const useAuthStore = defineStore('auth', () => {
     restorePromise = (async () => {
       const persistedRefresh = await authStorage.getRefreshToken();
       const cachedUser = await authStorage.getUser();
+      console.log('[DBG restoreSession] persistedRT=', persistedRefresh ? persistedRefresh.slice(0, 12) + '...' : null, 'cachedUser=', cachedUser?.username);
 
       if (!persistedRefresh) {
         return null;
       }
 
       // Stage the refresh token + cached profile so refreshAccessToken can run
-      // and the guard has a user while the access token is being minted.
+      // and the guard has a user while the access token is being minted. The
+      // module-level token is also set so that any stray 401 during restore
+      // (e.g. a page request firing before the refresh completes) shares the
+      // same single-flight refresh instead of force-logging-out.
       refreshToken.value = persistedRefresh;
+      tokenManager.setRefreshToken(persistedRefresh);
       if (cachedUser) {
         user.value = cachedUser;
       }

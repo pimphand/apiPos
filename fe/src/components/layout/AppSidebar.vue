@@ -58,6 +58,8 @@ interface MenuItem {
   icon: any;
   href?: string;
   permission?: Permission;
+  /** Only visible to the system-wide superadmin role (e.g. Store management). */
+  superadminOnly?: boolean;
   children?: SubMenuItem[];
 }
 
@@ -99,6 +101,7 @@ const menuGroups = computed(() => {
         { label: t('sidebar.users'), icon: UserCog, href: '/admin/users', permission: 'users.read' },
         { label: t('sidebar.roles'), icon: Shield, href: '/admin/roles', permission: 'roles.read' },
         { label: t('sidebar.permissions'), icon: KeyRound, href: '/admin/permissions', permission: 'permissions.read' },
+        { label: t('sidebar.stores'), icon: Store, href: '/admin/stores', superadminOnly: true },
         { label: t('sidebar.activityLogs'), icon: FileText, href: '/admin/activity-logs', permission: 'activity_logs.read' },
       ],
     },
@@ -107,6 +110,9 @@ const menuGroups = computed(() => {
   return groups.map(group => ({
     ...group,
     items: group.items.filter(item => {
+      if (item.superadminOnly) {
+        return (authStore.currentUser as any)?.role_name === 'superadmin';
+      }
       if (!item.permission) return true;
       return can(authStore.currentUser, item.permission);
     }),

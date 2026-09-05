@@ -63,6 +63,10 @@ message CreateSaleRequest {
   string payment_method = 6;
   double amount_paid = 7;
   string payment_reference = 8;
+  // Customer can be specified by name. When provided and no customer_id is
+  // given, the system looks up an existing customer with the same name
+  // (in the same store) and reuses it, or creates a new one.
+  string customer_name = 9;
 }
 
 message SaleItemInput {

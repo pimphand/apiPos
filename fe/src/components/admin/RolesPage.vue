@@ -153,6 +153,8 @@ const canCreate = computed(() => can(authStore.currentUser, 'roles.create'));
 const canUpdate = computed(() => can(authStore.currentUser, 'roles.update'));
 const canDelete = computed(() => can(authStore.currentUser, 'roles.delete'));
 const canAssign = computed(() => can(authStore.currentUser, 'permissions.assign'));
+// Hide the Actions column entirely when the user has no mutating permissions.
+const showActions = computed(() => canCreate.value || canUpdate.value || canDelete.value || canAssign.value);
 
 watch(isReady, (r) => { if (r) load(); }, { immediate: true });
 </script>
@@ -185,16 +187,16 @@ watch(isReady, (r) => { if (r) load(); }, { immediate: true });
               <TableHead>{{ t('admin.shared.name') }}</TableHead>
               <TableHead>{{ t('admin.shared.description') }}</TableHead>
               <TableHead>{{ t('admin.roles.permissions') }}</TableHead>
-              <TableHead class="text-right">{{ t('admin.shared.actions') }}</TableHead>
+              <TableHead v-if="showActions" class="text-right">{{ t('admin.shared.actions') }}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             <TableRow v-if="loading">
-              <TableCell colspan="4" class="text-center py-8 text-muted-foreground">{{ t('admin.shared.loading') }}</TableCell>
+              <TableCell :colspan="showActions ? 4 : 3" class="text-center py-8 text-muted-foreground">{{ t('admin.shared.loading') }}</TableCell>
             </TableRow>
             <template v-else>
               <TableRow v-if="roles.length === 0">
-                <TableCell colspan="4" class="text-center py-8 text-muted-foreground">{{ t('admin.roles.noData') }}</TableCell>
+                <TableCell :colspan="showActions ? 4 : 3" class="text-center py-8 text-muted-foreground">{{ t('admin.roles.noData') }}</TableCell>
               </TableRow>
               <TableRow v-for="r in roles" :key="r.id">
                 <TableCell>
@@ -207,7 +209,7 @@ watch(isReady, (r) => { if (r) load(); }, { immediate: true });
                 <TableCell>
                   <Button v-if="canAssign" variant="outline" size="sm" @click="openPermissions(r)">{{ t('admin.roles.assignPermissions') }}</Button>
                 </TableCell>
-                <TableCell class="text-right">
+                <TableCell v-if="showActions" class="text-right">
                   <div class="flex justify-end gap-2">
                     <Button v-if="canUpdate" variant="outline" size="sm" @click="openEdit(r)">{{ t('admin.shared.edit') }}</Button>
                     <AlertDialog v-if="canDelete && !DEFAULT_ROLES.has(r.name)">

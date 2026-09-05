@@ -84,4 +84,8 @@ message ActivityLog {
   string user_agent = 9;
   string metadata = 10;
   string created_at = 11;
+  // Tenant store the activity belongs to (empty for system-level actions).
+  // Populated for all callers; the UI decides whether to display it.
+  string store_id = 12;
+  string store_name = 13;
 }

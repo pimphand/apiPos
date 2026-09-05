@@ -109,6 +109,8 @@ async function removePermission(p: Permission) {
 const canCreate = computed(() => can(authStore.currentUser, 'permissions.create'));
 const canUpdate = computed(() => can(authStore.currentUser, 'permissions.update'));
 const canDelete = computed(() => can(authStore.currentUser, 'permissions.delete'));
+// Hide the Actions column entirely when the user has no mutating permissions.
+const showActions = computed(() => canCreate.value || canUpdate.value || canDelete.value);
 
 watch(isReady, (r) => { if (r) load(); }, { immediate: true });
 </script>
@@ -158,23 +160,23 @@ watch(isReady, (r) => { if (r) load(); }, { immediate: true });
               <TableHead>{{ t('admin.permissions.resource') }}</TableHead>
               <TableHead>{{ t('admin.permissions.action') }}</TableHead>
               <TableHead>{{ t('admin.shared.description') }}</TableHead>
-              <TableHead class="text-right">{{ t('admin.shared.actions') }}</TableHead>
+              <TableHead v-if="showActions" class="text-right">{{ t('admin.shared.actions') }}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             <TableRow v-if="loading">
-              <TableCell colspan="5" class="text-center py-8 text-muted-foreground">{{ t('admin.shared.loading') }}</TableCell>
+              <TableCell :colspan="showActions ? 5 : 4" class="text-center py-8 text-muted-foreground">{{ t('admin.shared.loading') }}</TableCell>
             </TableRow>
             <template v-else>
               <TableRow v-if="permissions.length === 0">
-                <TableCell colspan="5" class="text-center py-8 text-muted-foreground">{{ t('admin.permissions.noData') }}</TableCell>
+                <TableCell :colspan="showActions ? 5 : 4" class="text-center py-8 text-muted-foreground">{{ t('admin.permissions.noData') }}</TableCell>
               </TableRow>
               <TableRow v-for="p in permissions" :key="p.id">
                 <TableCell><span class="font-mono text-sm font-medium">{{ p.name }}</span></TableCell>
                 <TableCell><Badge variant="outline">{{ p.resource }}</Badge></TableCell>
                 <TableCell><Badge variant="secondary">{{ p.action }}</Badge></TableCell>
                 <TableCell class="text-muted-foreground">{{ p.description || '—' }}</TableCell>
-                <TableCell class="text-right">
+                <TableCell v-if="showActions" class="text-right">
                   <div class="flex justify-end gap-2">
                     <Button v-if="canUpdate" variant="outline" size="sm" @click="openEdit(p)">{{ t('admin.shared.edit') }}</Button>
                     <AlertDialog v-if="canDelete">

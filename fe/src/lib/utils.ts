@@ -8,12 +8,22 @@ export function cn(...inputs: ClassValue[]) {
 
 // Format currency (Indonesian Rupiah)
 export function formatCurrency(amount: number): string {
+  let n = Number(amount);
+  if (!Number.isFinite(n)) n = 0;
   return new Intl.NumberFormat('id-ID', {
     style: 'currency',
     currency: 'IDR',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(amount);
+  }).format(n);
+}
+
+// Parse a date defensively. Returns null for empty/invalid input so callers
+// never crash with RangeError: Invalid time value.
+function toValidDate(value: string | Date): Date | null {
+  if (!value) return null;
+  const d = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
 // Format number with separators
@@ -23,30 +33,36 @@ export function formatNumber(num: number): string {
 
 // Format date
 export function formatDate(date: string | Date): string {
+  const d = toValidDate(date);
+  if (!d) return '—';
   return new Intl.DateTimeFormat('id-ID', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
-  }).format(new Date(date));
+  }).format(d);
 }
 
 // Format datetime
 export function formatDateTime(date: string | Date): string {
+  const d = toValidDate(date);
+  if (!d) return '—';
   return new Intl.DateTimeFormat('id-ID', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date(date));
+  }).format(d);
 }
 
 // Format time only
 export function formatTime(date: string | Date): string {
+  const d = toValidDate(date);
+  if (!d) return '—';
   return new Intl.DateTimeFormat('id-ID', {
     hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date(date));
+  }).format(d);
 }
 
 // Generate UUID

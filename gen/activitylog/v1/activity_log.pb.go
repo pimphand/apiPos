@@ -383,18 +383,22 @@ func (x *ActivityLogResponse) GetLog() *ActivityLog {
 }
 
 type ActivityLog struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Username      string                 `protobuf:"bytes,3,opt,name=username,proto3" json:"username,omitempty"`
-	Action        string                 `protobuf:"bytes,4,opt,name=action,proto3" json:"action,omitempty"`
-	Resource      string                 `protobuf:"bytes,5,opt,name=resource,proto3" json:"resource,omitempty"`
-	ResourceId    string                 `protobuf:"bytes,6,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	Description   string                 `protobuf:"bytes,7,opt,name=description,proto3" json:"description,omitempty"`
-	IpAddress     string                 `protobuf:"bytes,8,opt,name=ip_address,json=ipAddress,proto3" json:"ip_address,omitempty"`
-	UserAgent     string                 `protobuf:"bytes,9,opt,name=user_agent,json=userAgent,proto3" json:"user_agent,omitempty"`
-	Metadata      string                 `protobuf:"bytes,10,opt,name=metadata,proto3" json:"metadata,omitempty"`
-	CreatedAt     string                 `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Id          string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	UserId      string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Username    string                 `protobuf:"bytes,3,opt,name=username,proto3" json:"username,omitempty"`
+	Action      string                 `protobuf:"bytes,4,opt,name=action,proto3" json:"action,omitempty"`
+	Resource    string                 `protobuf:"bytes,5,opt,name=resource,proto3" json:"resource,omitempty"`
+	ResourceId  string                 `protobuf:"bytes,6,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	Description string                 `protobuf:"bytes,7,opt,name=description,proto3" json:"description,omitempty"`
+	IpAddress   string                 `protobuf:"bytes,8,opt,name=ip_address,json=ipAddress,proto3" json:"ip_address,omitempty"`
+	UserAgent   string                 `protobuf:"bytes,9,opt,name=user_agent,json=userAgent,proto3" json:"user_agent,omitempty"`
+	Metadata    string                 `protobuf:"bytes,10,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	CreatedAt   string                 `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// Tenant store the activity belongs to (empty for system-level actions).
+	// Populated for all callers; the UI decides whether to display it.
+	StoreId       string `protobuf:"bytes,12,opt,name=store_id,json=storeId,proto3" json:"store_id,omitempty"`
+	StoreName     string `protobuf:"bytes,13,opt,name=store_name,json=storeName,proto3" json:"store_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -506,6 +510,20 @@ func (x *ActivityLog) GetCreatedAt() string {
 	return ""
 }
 
+func (x *ActivityLog) GetStoreId() string {
+	if x != nil {
+		return x.StoreId
+	}
+	return ""
+}
+
+func (x *ActivityLog) GetStoreName() string {
+	if x != nil {
+		return x.StoreName
+	}
+	return ""
+}
+
 var File_activitylog_v1_activity_log_proto protoreflect.FileDescriptor
 
 const file_activitylog_v1_activity_log_proto_rawDesc = "" +
@@ -537,7 +555,7 @@ const file_activitylog_v1_activity_log_proto_rawDesc = "" +
 	"\x04page\x18\x03 \x01(\x05R\x04page\x12\x19\n" +
 	"\bper_page\x18\x04 \x01(\x05R\aperPage\"D\n" +
 	"\x13ActivityLogResponse\x12-\n" +
-	"\x03log\x18\x01 \x01(\v2\x1b.activitylog.v1.ActivityLogR\x03log\"\xc2\x02\n" +
+	"\x03log\x18\x01 \x01(\v2\x1b.activitylog.v1.ActivityLogR\x03log\"\xfc\x02\n" +
 	"\vActivityLog\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x1a\n" +
@@ -554,7 +572,10 @@ const file_activitylog_v1_activity_log_proto_rawDesc = "" +
 	"\bmetadata\x18\n" +
 	" \x01(\tR\bmetadata\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\v \x01(\tR\tcreatedAt2\xeb\x04\n" +
+	"created_at\x18\v \x01(\tR\tcreatedAt\x12\x19\n" +
+	"\bstore_id\x18\f \x01(\tR\astoreId\x12\x1d\n" +
+	"\n" +
+	"store_name\x18\r \x01(\tR\tstoreName2\xeb\x04\n" +
 	"\x12ActivityLogService\x12\x84\x01\n" +
 	"\x10ListActivityLogs\x12'.activitylog.v1.ListActivityLogsRequest\x1a(.activitylog.v1.ListActivityLogsResponse\"\x1d\x82\xd3\xe4\x93\x02\x17\x12\x15/api/v1/activity-logs\x12\x80\x01\n" +
 	"\x0eGetActivityLog\x12%.activitylog.v1.GetActivityLogRequest\x1a#.activitylog.v1.ActivityLogResponse\"\"\x82\xd3\xe4\x93\x02\x1c\x12\x1a/api/v1/activity-logs/{id}\x12\x9d\x01\n" +

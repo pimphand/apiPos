@@ -1,0 +1,8 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import PermissionDenied from '@/components/auth/PermissionDenied.vue';
+---
+
+<BaseLayout title="Access Denied - POS Application">
+  <PermissionDenied client:only="vue" transition:animate="fade" />
+</BaseLayout>

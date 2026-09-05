@@ -2,7 +2,9 @@ package sale
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -42,11 +44,12 @@ func NewService(repos *repository.Repositories) *Service {
 
 // CreateSaleRequest represents the request to create a sale
 type CreateSaleRequest struct {
-	StoreID          string
-	CustomerID       string
-	Items            []SaleItemInput
-	Discount         float64
-	TaxRate          float64
+	StoreID      string
+	CustomerID   string
+	CustomerName string
+	Items        []SaleItemInput
+	Discount     float64
+	TaxRate      float64
 	PaymentMethod    string
 	AmountPaid       float64
 	PaymentReference string
@@ -99,10 +102,6 @@ func (s *Service) CreateSale(ctx context.Context, req CreateSaleRequest) (*SaleD
 
 	storeID, _ := uuid.Parse(req.StoreID)
 	cashierID, _ := uuid.Parse(req.CreatedBy)
-	customerID := uuid.Nil
-	if req.CustomerID != "" && isValidUUID(req.CustomerID) {
-		customerID, _ = uuid.Parse(req.CustomerID)
-	}
 
 	// Calculate totals (subtotal, discount, tax, grand total).
 	subtotal, discount, taxAmount, grandTotal := computeSaleTotals(req.Items, req.Discount, req.TaxRate)
@@ -119,21 +118,32 @@ func (s *Service) CreateSale(ctx context.Context, req CreateSaleRequest) (*SaleD
 	var saleDetail SaleDetail
 
 	err := s.repos.DB().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Resolve customer: explicit ID, or find-or-create by typed name.
+		customerID, useCustomer, err := s.resolveCustomer(ctx, tx, req, storeID)
+		if err != nil {
+			return err
+		}
+
 		// 1. Create sale
 		sale := &gormdb.Sale{
 			InvoiceNumber: invoiceNumber,
 			StoreID:       storeID,
 			CashierID:     cashierID,
-			CustomerID:    customerID,
 			Subtotal:      subtotal,
 			Discount:      discount,
 			Tax:           taxAmount,
 			GrandTotal:    grandTotal,
 			Status:        StatusPending,
 		}
-
-		if err := tx.Create(sale).Error; err != nil {
-			return apperror.Wrap(apperror.ErrInternal, "Failed to create sale", err)
+		if useCustomer {
+			sale.CustomerID = customerID
+			if err := tx.Create(sale).Error; err != nil {
+				return apperror.Wrap(apperror.ErrInternal, "Failed to create sale", err)
+			}
+		} else {
+			if err := tx.Omit("CustomerID").Create(sale).Error; err != nil {
+				return apperror.Wrap(apperror.ErrInternal, "Failed to create sale", err)
+			}
 		}
 
 		// 2. Create sale items and decrease stock
@@ -141,23 +151,85 @@ func (s *Service) CreateSale(ctx context.Context, req CreateSaleRequest) (*SaleD
 		for _, item := range req.Items {
 			productID, _ := uuid.Parse(item.ProductID)
 
-			// Get product with row locking
+			// Get product with row locking (scoped to the current store)
 			var product gormdb.Product
-			if err := tx.Raw("SELECT * FROM products WHERE id = ? FOR UPDATE", productID).Scan(&product).Error; err != nil {
+			if err := tx.Raw("SELECT * FROM products WHERE id = ? AND (store_id = ? OR store_id IS NULL) FOR UPDATE", productID, storeID).Scan(&product).Error; err != nil {
 				return apperror.Wrap(apperror.ErrNotFound, fmt.Sprintf("Product not found: %s", item.ProductID), err)
 			}
-
-			// Validate stock
-			if product.Stock < item.Quantity {
-				return apperror.Wrap(apperror.ErrInsufficientStock,
-					fmt.Sprintf("Insufficient stock for %s. Available: %d, Requested: %d", product.Name, product.Stock, item.Quantity), nil)
+			// Scan() does not error on zero rows; detect a missing product.
+			if product.ID == uuid.Nil {
+				return apperror.Wrap(apperror.ErrNotFound, fmt.Sprintf("Product not found: %s", item.ProductID), nil)
 			}
 
-			// Decrease stock
-			if err := tx.Model(&gormdb.Product{}).
-				Where("id = ?", productID).
-				Update("stock", gorm.Expr("stock - ?", item.Quantity)).Error; err != nil {
-				return apperror.Wrap(apperror.ErrInternal, "Failed to update stock", err)
+			beforeStock := product.Stock
+			afterStock := product.Stock
+
+			if item.SKUID != "" && isValidUUID(item.SKUID) {
+				// A specific variant was selected: the SKU stock is the source
+				// of truth (the POS shows per-SKU stock). products.stock is the
+				// aggregate of all SKU stocks and is kept in sync afterwards.
+				skuID, _ := uuid.Parse(item.SKUID)
+
+				// Get SKU with row locking (scoped to the current store)
+				var sku gormdb.ProductSKU
+				if err := tx.Raw("SELECT * FROM product_skus WHERE id = ? AND (store_id = ? OR store_id IS NULL) FOR UPDATE", skuID, storeID).Scan(&sku).Error; err != nil {
+					return apperror.Wrap(apperror.ErrNotFound, fmt.Sprintf("Product SKU not found: %s", item.SKUID), err)
+				}
+				// Scan() does not error on zero rows; a missing SKU leaves the
+				// struct zero-valued, so detect it explicitly to return a proper
+				// NOT_FOUND instead of a misleading "does not belong" error.
+				if sku.ID == uuid.Nil {
+					return apperror.Wrap(apperror.ErrNotFound, fmt.Sprintf("Product SKU not found: %s", item.SKUID), nil)
+				}
+
+				// SKU must belong to the selected product
+				if sku.ProductID != productID {
+					return apperror.Wrap(apperror.ErrInvalidRequest,
+						fmt.Sprintf("Product SKU %s does not belong to product %s", item.SKUID, item.ProductID), nil)
+				}
+
+				// Validate against the SKU stock
+				if sku.Stock < item.Quantity {
+					return apperror.Wrap(apperror.ErrInsufficientStock,
+						fmt.Sprintf("Insufficient stock for SKU %s. Available: %d, Requested: %d", sku.SKU, sku.Stock, item.Quantity), nil)
+				}
+
+				// Decrease SKU stock atomically
+				if err := tx.Model(&gormdb.ProductSKU{}).
+					Where("id = ?", skuID).
+					Update("stock", gorm.Expr("stock - ?", item.Quantity)).Error; err != nil {
+					return apperror.Wrap(apperror.ErrInternal, "Failed to update SKU stock", err)
+				}
+
+				// Recompute product stock as the sum of its SKU stocks so the
+				// aggregate never drifts from the variants.
+				var aggStock int64
+				if err := tx.Model(&gormdb.ProductSKU{}).
+					Where("product_id = ?", productID).
+					Select("COALESCE(SUM(stock), 0)").
+					Scan(&aggStock).Error; err != nil {
+					return apperror.Wrap(apperror.ErrInternal, "Failed to recompute product stock", err)
+				}
+				if err := tx.Model(&gormdb.Product{}).
+					Where("id = ?", productID).
+					Update("stock", aggStock).Error; err != nil {
+					return apperror.Wrap(apperror.ErrInternal, "Failed to update product stock", err)
+				}
+				afterStock = int32(aggStock)
+			} else {
+				// No variant selected: validate against the product stock.
+				if product.Stock < item.Quantity {
+					return apperror.Wrap(apperror.ErrInsufficientStock,
+						fmt.Sprintf("Insufficient stock for %s. Available: %d, Requested: %d", product.Name, product.Stock, item.Quantity), nil)
+				}
+
+				// Decrease stock
+				if err := tx.Model(&gormdb.Product{}).
+					Where("id = ?", productID).
+					Update("stock", gorm.Expr("stock - ?", item.Quantity)).Error; err != nil {
+					return apperror.Wrap(apperror.ErrInternal, "Failed to update stock", err)
+				}
+				afterStock = product.Stock - item.Quantity
 			}
 
 			// Create sale item
@@ -175,17 +247,6 @@ func (s *Service) CreateSale(ctx context.Context, req CreateSaleRequest) (*SaleD
 				Subtotal:  itemSubtotal,
 			}
 
-			// Set SKU ID if provided
-			if item.SKUID != "" && isValidUUID(item.SKUID) {
-				skuID, _ := uuid.Parse(item.SKUID)
-				// Update SKU stock as well
-				if err := tx.Model(&gormdb.ProductSKU{}).
-					Where("id = ?", skuID).
-					Update("stock", gorm.Expr("stock - ?", item.Quantity)).Error; err != nil {
-					return apperror.Wrap(apperror.ErrInternal, "Failed to update SKU stock", err)
-				}
-			}
-
 			if err := tx.Create(saleItem).Error; err != nil {
 				return apperror.Wrap(apperror.ErrInternal, "Failed to create sale item", err)
 			}
@@ -193,8 +254,6 @@ func (s *Service) CreateSale(ctx context.Context, req CreateSaleRequest) (*SaleD
 			saleItems = append(saleItems, *saleItem)
 
 			// Create inventory transaction
-			beforeStock := product.Stock
-			afterStock := product.Stock - item.Quantity
 			inventoryTxn := &gormdb.InventoryTransaction{
 				ProductID:     productID,
 				StoreID:       storeID,
@@ -227,7 +286,9 @@ func (s *Service) CreateSale(ctx context.Context, req CreateSaleRequest) (*SaleD
 
 			// Update sale status to PAID
 			sale.Status = StatusPaid
-			if err := tx.Save(sale).Error; err != nil {
+			if err := tx.Model(&gormdb.Sale{}).
+				Where("id = ?", sale.ID).
+				Update("status", sale.Status).Error; err != nil {
 				return apperror.Wrap(apperror.ErrInternal, "Failed to update sale status", err)
 			}
 		}
@@ -456,6 +517,54 @@ func (s *Service) RefundSale(ctx context.Context, id string) error {
 func generateInvoiceNumber() string {
 	now := time.Now()
 	return fmt.Sprintf("INV-%s-%s", now.Format("20060102"), uuid.New().String()[:8])
+}
+
+// resolveCustomer determines the customer for a sale. It returns the customer
+// ID and whether it should be set on the sale. Precedence:
+//  1. An explicit valid customer_id.
+//  2. A customer name typed at checkout: reuse an existing customer with the
+//     same name in the store (case-insensitive), or create a new one.
+//  3. No customer: the sale is stored with a NULL customer_id.
+func (s *Service) resolveCustomer(ctx context.Context, tx *gorm.DB, req CreateSaleRequest, storeID uuid.UUID) (uuid.UUID, bool, error) {
+	// 1. Explicit customer ID takes precedence.
+	if req.CustomerID != "" && isValidUUID(req.CustomerID) {
+		customerID, _ := uuid.Parse(req.CustomerID)
+		return customerID, true, nil
+	}
+
+	// 2. Customer typed by name: find-or-create.
+	if name := strings.TrimSpace(req.CustomerName); name != "" {
+		var existing gormdb.Customer
+		err := tx.Where("LOWER(name) = LOWER(?)", name).
+			Where("store_id = ?", storeID).
+			First(&existing).Error
+		if err == nil {
+			return existing.ID, true, nil
+		}
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return uuid.Nil, false, apperror.Wrap(apperror.ErrInternal, "Failed to find customer", err)
+		}
+
+		customer := &gormdb.Customer{
+			StoreID:  storeID,
+			Code:     generateCustomerCode(),
+			Name:     name,
+			IsActive: true,
+		}
+		if err := tx.Create(customer).Error; err != nil {
+			return uuid.Nil, false, apperror.Wrap(apperror.ErrInternal, "Failed to create customer", err)
+		}
+		return customer.ID, true, nil
+	}
+
+	// 3. No customer: NULL.
+	return uuid.Nil, false, nil
+}
+
+// generateCustomerCode generates a unique customer code for customers created
+// on the fly during checkout.
+func generateCustomerCode() string {
+	return fmt.Sprintf("CUS-%s", strings.ToUpper(uuid.New().String()[:8]))
 }
 
 // isValidUUID validates UUID format

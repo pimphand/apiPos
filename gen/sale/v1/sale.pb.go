@@ -33,8 +33,12 @@ type CreateSaleRequest struct {
 	PaymentMethod    string  `protobuf:"bytes,6,opt,name=payment_method,json=paymentMethod,proto3" json:"payment_method,omitempty"`
 	AmountPaid       float64 `protobuf:"fixed64,7,opt,name=amount_paid,json=amountPaid,proto3" json:"amount_paid,omitempty"`
 	PaymentReference string  `protobuf:"bytes,8,opt,name=payment_reference,json=paymentReference,proto3" json:"payment_reference,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Customer can be specified by name. When provided and no customer_id is
+	// given, the system looks up an existing customer with the same name
+	// (in the same store) and reuses it, or creates a new one.
+	CustomerName  string `protobuf:"bytes,9,opt,name=customer_name,json=customerName,proto3" json:"customer_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateSaleRequest) Reset() {
@@ -119,6 +123,13 @@ func (x *CreateSaleRequest) GetAmountPaid() float64 {
 func (x *CreateSaleRequest) GetPaymentReference() string {
 	if x != nil {
 		return x.PaymentReference
+	}
+	return ""
+}
+
+func (x *CreateSaleRequest) GetCustomerName() string {
+	if x != nil {
+		return x.CustomerName
 	}
 	return ""
 }
@@ -1055,7 +1066,7 @@ var File_sale_v1_sale_proto protoreflect.FileDescriptor
 
 const file_sale_v1_sale_proto_rawDesc = "" +
 	"\n" +
-	"\x12sale/v1/sale.proto\x12\asale.v1\x1a\x1cgoogle/api/annotations.proto\"\xa9\x02\n" +
+	"\x12sale/v1/sale.proto\x12\asale.v1\x1a\x1cgoogle/api/annotations.proto\"\xce\x02\n" +
 	"\x11CreateSaleRequest\x12\x19\n" +
 	"\bstore_id\x18\x01 \x01(\tR\astoreId\x12\x1f\n" +
 	"\vcustomer_id\x18\x02 \x01(\tR\n" +
@@ -1066,7 +1077,8 @@ const file_sale_v1_sale_proto_rawDesc = "" +
 	"\x0epayment_method\x18\x06 \x01(\tR\rpaymentMethod\x12\x1f\n" +
 	"\vamount_paid\x18\a \x01(\x01R\n" +
 	"amountPaid\x12+\n" +
-	"\x11payment_reference\x18\b \x01(\tR\x10paymentReference\"\x9c\x01\n" +
+	"\x11payment_reference\x18\b \x01(\tR\x10paymentReference\x12#\n" +
+	"\rcustomer_name\x18\t \x01(\tR\fcustomerName\"\x9c\x01\n" +
 	"\rSaleItemInput\x12\x1d\n" +
 	"\n" +
 	"product_id\x18\x01 \x01(\tR\tproductId\x12\x15\n" +

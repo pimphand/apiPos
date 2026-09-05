@@ -45,6 +45,7 @@ func (h *SaleHandler) CreateSale(ctx context.Context, req *salev1.CreateSaleRequ
 	detail, err := h.service.CreateSale(ctx, sale.CreateSaleRequest{
 		StoreID:          req.StoreId,
 		CustomerID:       req.CustomerId,
+		CustomerName:     req.CustomerName,
 		Items:            items,
 		Discount:         req.Discount,
 		TaxRate:          req.TaxRate,
@@ -161,7 +162,7 @@ func toProtoSale(s *gormdb.Sale, repos *repository.Repositories) *salev1.Sale {
 		InvoiceNumber: s.InvoiceNumber,
 		StoreId:       s.StoreID.String(),
 		CashierId:     s.CashierID.String(),
-		CustomerId:    s.CustomerID.String(),
+		CustomerId:    customerIDStr(s.CustomerID),
 		Subtotal:      s.Subtotal,
 		Discount:      s.Discount,
 		Tax:           s.Tax,
@@ -199,6 +200,15 @@ func toProtoSale(s *gormdb.Sale, repos *repository.Repositories) *salev1.Sale {
 	}
 
 	return proto
+}
+
+// customerIDStr returns the customer ID string, or empty when the sale has no
+// customer (NULL in the database maps to the zero UUID).
+func customerIDStr(id uuid.UUID) string {
+	if id == uuid.Nil {
+		return ""
+	}
+	return id.String()
 }
 
 // toProtoSaleDetail converts a SaleDetail to proto SaleDetailResponse

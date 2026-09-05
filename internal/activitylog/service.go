@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 
 	"apiPos/internal/apperror"
+	"apiPos/internal/auth"
 	gormdb "apiPos/internal/database/gorm"
 	"apiPos/internal/repository"
 )
@@ -24,6 +25,7 @@ func NewService(repos *repository.Repositories) *Service {
 // LogParams holds parameters for creating an activity log
 type LogParams struct {
 	UserID     string
+	StoreID    string
 	Username   string
 	Action     string
 	Resource   string
@@ -47,6 +49,9 @@ func (s *Service) CreateLog(ctx context.Context, params LogParams) (*gormdb.Acti
 
 	if params.UserID != "" {
 		log.UserID = parseUUID(params.UserID)
+	}
+	if params.StoreID != "" {
+		log.StoreID = parseUUID(params.StoreID)
 	}
 	if params.Username != "" {
 		log.Username = params.Username
@@ -73,7 +78,8 @@ func (s *Service) GetLog(ctx context.Context, id string) (*gormdb.ActivityLog, e
 	return log, nil
 }
 
-// ListLogs lists activity logs with filters and pagination
+// ListLogs lists activity logs with filters and pagination. Non-superadmin
+// callers are restricted to their own store's logs.
 func (s *Service) ListLogs(ctx context.Context, userID, action, resource, startDate, endDate string, page, perPage int32) ([]gormdb.ActivityLog, int64, error) {
 	if page <= 0 {
 		page = 1
@@ -86,6 +92,7 @@ func (s *Service) ListLogs(ctx context.Context, userID, action, resource, startD
 	}
 
 	return s.repos.ActivityLog.List(ctx, repository.ActivityLogListParams{
+		StoreID:   storeScopeFromClaims(ctx),
 		UserID:    userID,
 		Action:    action,
 		Resource:  resource,
@@ -113,6 +120,7 @@ func (s *Service) ListLogsByUser(ctx context.Context, userID string, page, perPa
 	}
 
 	return s.repos.ActivityLog.ListByUser(ctx, userID, repository.PaginationParams{
+		StoreID: storeScopeFromClaims(ctx),
 		Page:    page,
 		PerPage: perPage,
 	})
@@ -131,9 +139,24 @@ func (s *Service) ListLogsByResource(ctx context.Context, resource, resourceID s
 	}
 
 	return s.repos.ActivityLog.ListByResource(ctx, resource, resourceID, repository.PaginationParams{
+		StoreID: storeScopeFromClaims(ctx),
 		Page:    page,
 		PerPage: perPage,
 	})
+}
+
+// storeScopeFromClaims returns the store_id a non-superadmin caller is
+// restricted to, or "" for superadmins (who can see all stores) and for
+// contexts without claims.
+func storeScopeFromClaims(ctx context.Context) string {
+	claims, ok := auth.ClaimsFromContext(ctx)
+	if !ok || claims == nil {
+		return ""
+	}
+	if claims.RoleName == "superadmin" {
+		return ""
+	}
+	return claims.StoreID
 }
 
 // generateDescription generates a human-readable description for the activity

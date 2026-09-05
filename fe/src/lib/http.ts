@@ -2,6 +2,7 @@ import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import type { ApiError } from '@/types';
 import { navigateTo } from '@/lib/navigation';
 import { getDeviceId } from '@/lib/device';
+import { authStorage } from '@/lib/auth';
 
 // Access token stored in memory (synced with auth store)
 let accessToken: string | null = null;
@@ -14,12 +15,12 @@ let failedQueue: Array<{
   reject: (reason?: unknown) => void;
 }> = [];
 
-const processQueue = (error: Error | null, token: string | null = null) => {
+const processQueue = (error: Error | null, result: RefreshResult | null = null) => {
   failedQueue.forEach((prom) => {
     if (error) {
       prom.reject(error);
     } else {
-      prom.resolve(token);
+      prom.resolve(result);
     }
   });
   failedQueue = [];
@@ -44,6 +45,12 @@ export const tokenManager = {
     refreshToken = refresh;
   },
 
+  /** Set only the refresh token (used when restoring a persisted session so
+   * concurrent 401-handlers during restore can piggyback on the same refresh). */
+  setRefreshToken: (refresh: string) => {
+    refreshToken = refresh;
+  },
+
   clearTokens: () => {
     accessToken = null;
     refreshToken = null;
@@ -51,6 +58,84 @@ export const tokenManager = {
 
   isAuthenticated: () => !!accessToken,
 };
+
+/** Result of a token refresh. */
+export interface RefreshResult {
+  accessToken: string;
+  /** Permission names embedded by the backend in the refresh payload. */
+  permissions?: string[];
+}
+
+/**
+ * Perform a token refresh and persist the rotated refresh token.
+ *
+ * This is the SINGLE refresh path for both the axios 401 interceptor and the
+ * auth store (`refreshAccessToken`). It is single-flight: concurrent callers
+ * (e.g. multiple tabs/components restoring a session at once) share one refresh
+ * request instead of racing and revoking each other's tokens — the backend
+ * rotates (revokes) the presented refresh token on every use.
+ *
+ * Returns the new access token (plus embedded permissions), or null if no
+ * refresh token exists / refresh failed. On success the rotated refresh token
+ * is persisted to authStorage so a page reload after an interceptor-driven
+ * refresh does NOT log the user out.
+ */
+export async function refreshTokens(): Promise<RefreshResult | null> {
+  console.log('[DBG refreshTokens] entry isRefreshing=', isRefreshing, 'moduleRT=', refreshToken ? refreshToken.slice(0, 12) + '...' : null);
+  if (isRefreshing) {
+    return new Promise<RefreshResult | null>((resolve, reject) => {
+      failedQueue.push({
+        resolve: (value) => resolve(value as RefreshResult | null),
+        reject,
+      });
+    });
+  }
+
+  isRefreshing = true;
+  try {
+    // Fall back to the persisted refresh token (e.g. right after a page reload
+    // before restoreSession has run) so a stray 401 doesn't force a logout.
+    let rt = refreshToken;
+    if (!rt) {
+      rt = await authStorage.getRefreshToken();
+      if (!rt) return null;
+      refreshToken = rt;
+    }
+    console.log('[DBG refreshTokens] using rt=', rt.slice(0, 12) + '...');
+
+    const response = await axios.post(
+      `${import.meta.env.PUBLIC_API_BASE_URL || '/api'}/v1/auth/refresh`,
+      { refresh_token: rt, device_id: getDeviceId() }
+    );
+
+    const resData = response.data ?? {};
+    const access_token = resData.access_token ?? resData.accessToken;
+    const newRefreshToken = resData.refresh_token ?? resData.refreshToken;
+    const permissions = Array.isArray(resData.permissions)
+      ? resData.permissions.map(String)
+      : undefined;
+
+    accessToken = access_token;
+    refreshToken = newRefreshToken;
+    console.log('[DBG refreshTokens] SUCCESS newRT=', newRefreshToken.slice(0, 12) + '...');
+
+    // CRITICAL: persist the rotated refresh token. Without this, an
+    // interceptor-driven refresh leaves the old (revoked) token in storage and
+    // the next page reload fails to refresh -> logout.
+    await authStorage.setRefreshToken(newRefreshToken);
+    authStorage.setAccessToken(access_token);
+
+    const result: RefreshResult = { accessToken: access_token, permissions };
+    processQueue(null, result);
+    return result;
+  } catch (err) {
+    console.log('[DBG refreshTokens] FAILED', (err as Error)?.message);
+    processQueue(err as Error, null);
+    return null;
+  } finally {
+    isRefreshing = false;
+  }
+}
 
 // Request interceptor - add auth header
 http.interceptors.request.use(
@@ -88,26 +173,14 @@ http.interceptors.response.use(
       !originalRequest._retry &&
       !isAuthEndpoint(originalRequest.url)
     ) {
-      // If already refreshing, queue this request
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        })
-          .then((token) => {
-            if (originalRequest.headers) {
-              originalRequest.headers.Authorization = `Bearer ${token}`;
-            }
-            return http(originalRequest);
-          })
-          .catch((err) => Promise.reject(err));
-      }
-
+      console.log('[DBG interceptor] 401 on', originalRequest.url, 'retrying');
       originalRequest._retry = true;
-      isRefreshing = true;
 
-      // If no refresh token, reject immediately
-      if (!refreshToken) {
-        isRefreshing = false;
+      // Single shared refresh (single-flight — safe for concurrent callers).
+      const refreshed = await refreshTokens();
+
+      if (!refreshed) {
+        // Refresh failed - clear state and send to login
         tokenManager.clearTokens();
         if (typeof window !== 'undefined') {
           navigateTo('/login');
@@ -115,36 +188,11 @@ http.interceptors.response.use(
         return Promise.reject(error);
       }
 
-      try {
-        // Try to refresh the token
-        const response = await axios.post(
-          `${import.meta.env.PUBLIC_API_BASE_URL || '/api'}/v1/auth/refresh`,
-          { refresh_token: refreshToken, device_id: getDeviceId() }
-        );
-
-        const resData = response.data ?? {};
-        const access_token = resData.access_token ?? resData.accessToken;
-        const newRefreshToken = resData.refresh_token ?? resData.refreshToken;
-        tokenManager.setTokens(access_token, newRefreshToken);
-
-        // Retry original request
-        if (originalRequest.headers) {
-          originalRequest.headers.Authorization = `Bearer ${access_token}`;
-        }
-
-        processQueue(null, access_token);
-        return http(originalRequest);
-      } catch (refreshError) {
-        // Refresh failed - logout
-        processQueue(refreshError as Error, null);
-        tokenManager.clearTokens();
-        if (typeof window !== 'undefined') {
-          navigateTo('/login');
-        }
-        return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
+      // Retry original request
+      if (originalRequest.headers) {
+        originalRequest.headers.Authorization = `Bearer ${refreshed.accessToken}`;
       }
+      return http(originalRequest);
     }
 
     // Map error to typed format

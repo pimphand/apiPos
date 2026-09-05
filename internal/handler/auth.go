@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"log/slog"
 
 	authv1 "apiPos/gen/auth/v1"
 	"apiPos/internal/apperror"
@@ -28,23 +29,26 @@ func (h *AuthHandler) Register(ctx context.Context, req *authv1.RegisterRequest)
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
 
-	h.logs.LogWithUser(ctx, u.ID.String(), u.Username, "CREATE", "users", u.ID.String(),
+	h.logs.LogWithUser(ctx, u.ID.String(), u.StoreID.String(), u.Username, "CREATE", "users", u.ID.String(),
 		`{"username":"`+u.Username+`","email":"`+u.Email+`"}`)
+
+	userProto := &authv1.User{
+		Id:       u.ID.String(),
+		Username: u.Username,
+		Email:    u.Email,
+		FullName: u.FullName,
+		RoleId:   u.RoleID.String(),
+		RoleName: registerRoleName(u.Role.Name),
+		StoreId:  u.StoreID.String(),
+		IsActive: u.IsActive,
+	}
+	userProto.Permissions = h.rolePermissions(ctx, u.RoleID.String())
 
 	return &authv1.RegisterResponse{
 		AccessToken:  tokenPair.AccessToken,
 		RefreshToken: tokenPair.RefreshToken,
 		ExpiresAt:    tokenPair.ExpiresAt.Unix(),
-		User: &authv1.User{
-			Id:       u.ID.String(),
-			Username: u.Username,
-			Email:    u.Email,
-			FullName: u.FullName,
-			RoleId:   u.RoleID.String(),
-			RoleName: registerRoleName(u.Role.Name),
-			StoreId:  u.StoreID.String(),
-			IsActive: u.IsActive,
-		},
+		User:         userProto,
 	}, nil
 }
 
@@ -64,23 +68,26 @@ func (h *AuthHandler) Login(ctx context.Context, req *authv1.LoginRequest) (*aut
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
 
-	h.logs.LogWithUser(ctx, u.ID.String(), u.Username, "LOGIN", "auth", u.ID.String(),
+	h.logs.LogWithUser(ctx, u.ID.String(), u.StoreID.String(), u.Username, "LOGIN", "auth", u.ID.String(),
 		`{"username":"`+u.Username+`"}`)
+
+	userProto := &authv1.User{
+		Id:       u.ID.String(),
+		Username: u.Username,
+		Email:    u.Email,
+		FullName: u.FullName,
+		RoleId:   u.RoleID.String(),
+		RoleName: u.Role.Name,
+		StoreId:  u.StoreID.String(),
+		IsActive: u.IsActive,
+	}
+	userProto.Permissions = h.rolePermissions(ctx, u.RoleID.String())
 
 	return &authv1.LoginResponse{
 		AccessToken:  tokenPair.AccessToken,
 		RefreshToken: tokenPair.RefreshToken,
 		ExpiresAt:    tokenPair.ExpiresAt.Unix(),
-		User: &authv1.User{
-			Id:       u.ID.String(),
-			Username: u.Username,
-			Email:    u.Email,
-			FullName: u.FullName,
-			RoleId:   u.RoleID.String(),
-			RoleName: u.Role.Name,
-			StoreId:  u.StoreID.String(),
-			IsActive: u.IsActive,
-		},
+		User:         userProto,
 	}, nil
 }
 
@@ -91,11 +98,34 @@ func (h *AuthHandler) RefreshToken(ctx context.Context, req *authv1.RefreshToken
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
 
+	// Parse the freshly minted access token to learn the user's role so the
+	// response can carry the permission names (no separate permissions request
+	// needed on the client). Best-effort: if the token can't be decoded, return
+	// an empty permission list rather than failing the refresh.
+	var permissions []string
+	if claims, err := h.userService.DecodeAccessToken(tokenPair.AccessToken); err == nil {
+		permissions = h.rolePermissions(ctx, claims.RoleID)
+	} else {
+		slog.Warn("auth refresh: failed to decode access token for permissions", "error", err)
+	}
+
 	return &authv1.RefreshTokenResponse{
 		AccessToken:  tokenPair.AccessToken,
 		RefreshToken: tokenPair.RefreshToken,
 		ExpiresAt:    tokenPair.ExpiresAt.Unix(),
+		Permissions:  permissions,
 	}, nil
+}
+
+// rolePermissions returns the permission names for a role, tolerating lookup
+// failures (returns nil so the auth response still succeeds).
+func (h *AuthHandler) rolePermissions(ctx context.Context, roleID string) []string {
+	perms, err := h.userService.RolePermissionNames(ctx, roleID)
+	if err != nil {
+		slog.Warn("auth: failed to load role permissions", "role_id", roleID, "error", err)
+		return nil
+	}
+	return perms
 }
 
 // Logout logs out a user by revoking the presented refresh token

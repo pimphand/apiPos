@@ -311,6 +311,8 @@ function formatPriceRange(p: Product): string {
 const canCreate = computed(() => can(authStore.currentUser, 'products.create'));
 const canUpdate = computed(() => can(authStore.currentUser, 'products.update'));
 const canDelete = computed(() => can(authStore.currentUser, 'products.delete'));
+// Hide the Actions column entirely when the user has no mutating permissions.
+const showActions = computed(() => canCreate.value || canUpdate.value || canDelete.value);
 
 watch(isReady, (r) => {
   if (r) {
@@ -378,25 +380,25 @@ watch(isReady, (r) => {
               <TableHead>{{ t('admin.shared.name') }}</TableHead>
               <TableHead>{{ t('admin.products.category') }}</TableHead>
               <TableHead class="text-right">{{ t('admin.products.sellingPrice') }}</TableHead>
-              <TableHead class="text-right">{{ t('admin.products.stock') }}</TableHead>
+              <!-- <TableHead class="text-right">{{ t('admin.products.stock') }}</TableHead> -->
               <TableHead class="text-center">{{ t('admin.products.skus') }}</TableHead>
               <TableHead>{{ t('admin.shared.status') }}</TableHead>
-              <TableHead class="text-right">{{ t('admin.shared.actions') }}</TableHead>
+              <TableHead v-if="showActions" class="text-right">{{ t('admin.shared.actions') }}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             <TableRow v-if="loading">
-              <TableCell :colspan="7" class="text-center py-8 text-muted-foreground">{{ t('admin.shared.loading') }}</TableCell>
+              <TableCell :colspan="showActions ? 7 : 6" class="text-center py-8 text-muted-foreground">{{ t('admin.shared.loading') }}</TableCell>
             </TableRow>
             <template v-else>
               <TableRow v-if="products.length === 0">
-                <TableCell :colspan="7" class="text-center py-8 text-muted-foreground">{{ t('admin.products.noData') }}</TableCell>
+                <TableCell :colspan="showActions ? 7 : 6" class="text-center py-8 text-muted-foreground">{{ t('admin.products.noData') }}</TableCell>
               </TableRow>
               <TableRow v-for="p in products" :key="p.id">
                 <TableCell class="font-medium">{{ p.name }}</TableCell>
                 <TableCell class="text-muted-foreground">{{ p.category_name || '—' }}</TableCell>
                 <TableCell class="text-right font-medium tabular-nums">{{ formatPriceRange(p) }}</TableCell>
-                <TableCell class="text-right tabular-nums">{{ p.stock }}</TableCell>
+                <!-- <TableCell class="text-right tabular-nums">{{ p.stock }}</TableCell> -->
                 <TableCell class="text-center tabular-nums">{{ p.sku_count ?? 0 }}</TableCell>
                 <TableCell>
                   <button
@@ -410,7 +412,7 @@ watch(isReady, (r) => {
                     {{ p.is_active ? t('admin.shared.active') : t('admin.shared.inactive') }}
                   </button>
                 </TableCell>
-                <TableCell class="text-right">
+                <TableCell v-if="showActions" class="text-right">
                   <div class="flex justify-end items-center gap-2">
                     <Button v-if="canUpdate" variant="outline" size="sm" @click="openEdit(p)">{{ t('admin.shared.edit') }}</Button>
                     <AlertDialog v-if="canDelete">
@@ -483,7 +485,7 @@ watch(isReady, (r) => {
             <Label>{{ t('admin.shared.description') }}</Label>
             <Textarea v-model="baseForm.description" :placeholder="t('admin.products.descriptionPlaceholder')" :rows="2" />
           </div>
-          <div class="grid gap-4 sm:grid-cols-2">
+          <div class="grid gap-4">
             <div class="space-y-2">
               <Label>{{ t('admin.products.category') }}</Label>
               <Select v-model="baseForm.category_id">
@@ -492,10 +494,6 @@ watch(isReady, (r) => {
                   <SelectItem v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            <div class="space-y-2">
-              <Label>{{ t('admin.products.minimumStock') }}</Label>
-              <Input v-model.number="baseForm.minimum_stock" type="number" min="0" />
             </div>
           </div>
         </div>

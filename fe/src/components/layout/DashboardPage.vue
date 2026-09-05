@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useUiStore } from '@/stores/ui';
 import { useLocaleStore } from '@/stores/locale';
 import { navigateTo } from '@/lib/navigation';
+import { can } from '@/lib/rbac';
 import AppSidebar from './AppSidebar.vue';
 import AppTopbar from './AppTopbar.vue';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
@@ -17,11 +18,11 @@ const isReady = ref(false);
 const userName = ref('User');
 
 const stats = computed(() => [
-  { label: t('dashboard.totalSales'), value: 'Rp 0', icon: '💰', href: '/admin/sales' },
-  { label: t('dashboard.products'), value: '0', icon: '📦', href: '/admin/products' },
-  { label: t('dashboard.customers'), value: '0', icon: '👥', href: '/admin/customers' },
-  { label: t('dashboard.lowStock'), value: '0', icon: '⚠️', href: '/admin/inventory' },
-]);
+  { label: t('dashboard.totalSales'), value: 'Rp 0', icon: '💰', href: '/admin/sales', permission: 'sales.read' as const },
+  { label: t('dashboard.products'), value: '0', icon: '📦', href: '/admin/products', permission: 'products.read' as const },
+  { label: t('dashboard.customers'), value: '0', icon: '👥', href: '/admin/customers', permission: 'customers.read' as const },
+  { label: t('dashboard.lowStock'), value: '0', icon: '⚠️', href: '/admin/inventory', permission: 'inventory.read' as const },
+].filter(s => can(authStore.currentUser, s.permission)));
 
 onMounted(async () => {
   uiStore.loadTheme();
@@ -77,6 +78,7 @@ onMounted(async () => {
           <h3 class="text-lg font-semibold mb-4">{{ t('dashboard.quickActions') }}</h3>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <a
+              v-if="can(authStore.currentUser, 'sales.create')"
               href="/pos"
               class="p-6 bg-card rounded-xl border shadow-sm hover:shadow-md transition-shadow flex items-center gap-4"
             >
@@ -88,6 +90,7 @@ onMounted(async () => {
             </a>
 
             <a
+              v-if="can(authStore.currentUser, 'reports.read')"
               href="/reports"
               class="p-6 bg-card rounded-xl border shadow-sm hover:shadow-md transition-shadow flex items-center gap-4"
             >
@@ -99,6 +102,7 @@ onMounted(async () => {
             </a>
 
             <a
+              v-if="can(authStore.currentUser, 'products.read')"
               href="/admin/products"
               class="p-6 bg-card rounded-xl border shadow-sm hover:shadow-md transition-shadow flex items-center gap-4"
             >

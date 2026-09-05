@@ -494,6 +494,21 @@ export interface ActivityLog {
   user_agent: string;
   metadata: string;
   created_at: string;
+  /** Tenant store the activity belongs to (empty for system-level actions). */
+  store_id?: string;
+  store_name?: string;
+}
+
+// Store types (superadmin)
+export interface Store {
+  id: string;
+  name: string;
+  address: string;
+  phone: string;
+  is_active: string;   // "true" | "false" (string from proto)
+  is_verified: string; // "true" | "false" (string from proto)
+  created_at: string;
+  updated_at: string;
 }
 
 // Error types

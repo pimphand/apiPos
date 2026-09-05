@@ -81,6 +81,24 @@ func (s *Service) CreateUser(ctx context.Context, username, email, password, ful
 	return user, nil
 }
 
+// RolePermissionNames returns the permission names granted to a role. Used by
+// auth responses (login/register/refresh) so the client gets its permissions
+// embedded in the auth payload instead of calling a separate endpoint.
+func (s *Service) RolePermissionNames(ctx context.Context, roleID string) ([]string, error) {
+	if roleID == "" {
+		return nil, nil
+	}
+	perms, err := s.repos.RolePermission.GetByRoleID(ctx, roleID)
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, len(perms))
+	for i, p := range perms {
+		names[i] = p.Name
+	}
+	return names, nil
+}
+
 // GetUser gets a user by ID
 func (s *Service) GetUser(ctx context.Context, id string) (*gormdb.User, error) {
 	if !isValidUUID(id) {
@@ -97,7 +115,8 @@ func (s *Service) GetUser(ctx context.Context, id string) (*gormdb.User, error) 
 	return user, nil
 }
 
-// ListUsers lists users with filters
+// ListUsers lists users with filters. Non-superadmin callers are restricted to
+// their own store's users; superadmins (system-wide) see all stores.
 func (s *Service) ListUsers(ctx context.Context, roleIDStr string, isActiveStr string, page, perPage int32) ([]gormdb.User, int64, error) {
 	if page <= 0 {
 		page = 1
@@ -112,6 +131,7 @@ func (s *Service) ListUsers(ctx context.Context, roleIDStr string, isActiveStr s
 	users, totalCount, err := s.repos.User.List(ctx, repository.UserListParams{
 		RoleID:   roleIDStr,
 		IsActive: isActiveStr,
+		StoreID:  storeScopeFromClaims(ctx),
 		Page:     page,
 		PerPage:  perPage,
 	})
@@ -120,6 +140,20 @@ func (s *Service) ListUsers(ctx context.Context, roleIDStr string, isActiveStr s
 	}
 
 	return users, totalCount, nil
+}
+
+// storeScopeFromClaims returns the store_id a non-superadmin caller is
+// restricted to, or "" for superadmins (who can see all stores) and for
+// contexts without claims.
+func storeScopeFromClaims(ctx context.Context) string {
+	claims, ok := auth.ClaimsFromContext(ctx)
+	if !ok || claims == nil {
+		return ""
+	}
+	if claims.RoleName == "superadmin" {
+		return ""
+	}
+	return claims.StoreID
 }
 
 // UpdateUser updates a user — uses targeted Updates to avoid overwriting
@@ -313,6 +347,12 @@ func (s *Service) Register(ctx context.Context, username, email, password, fullN
 	}
 
 	return tokenPair, user, nil
+}
+
+// DecodeAccessToken validates a JWT access token and returns its claims.
+// Used by auth responses to attach role permissions to refreshed sessions.
+func (s *Service) DecodeAccessToken(tokenString string) (*auth.Claims, error) {
+	return s.auth.ValidateToken(tokenString)
 }
 
 // Login authenticates a user

@@ -11,6 +11,9 @@ import (
 type PaginationParams struct {
 	Page    int32
 	PerPage int32
+	// StoreID optionally restricts the query to a single store (used by
+	// store-scoped listers such as activity logs). Empty means no filter.
+	StoreID string
 }
 
 // PaginationResult holds pagination metadata

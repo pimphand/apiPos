@@ -84,6 +84,8 @@ func (Category) TableName() string {
 type Product struct {
 	ID           uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	StoreID      uuid.UUID  `gorm:"type:uuid;not null;index:idx_products_store_id;default:00000000-0000-0000-0000-000000000001" json:"store_id"`
+	SKU          string     `gorm:"type:varchar(50);index:idx_products_sku" json:"sku"`
+	Barcode      string     `gorm:"type:varchar(50);index:idx_products_barcode" json:"barcode"`
 	Name         string     `gorm:"type:varchar(200);not null" json:"name"`
 	Description  string     `gorm:"type:text" json:"description"`
 	CategoryID   uuid.UUID  `gorm:"type:uuid" json:"category_id"`

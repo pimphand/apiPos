@@ -1,6 +1,7 @@
 package productsku
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -23,7 +24,7 @@ func NewService(productSKURepo repository.ProductSKURepository) *Service {
 }
 
 // CreateProductSKU creates a new product SKU
-func (s *Service) CreateProductSKU(productID, sku, barcode, variant, color, size, unit string, costPrice, sellingPrice float64, stock, minimumStock int32, weight, volume float64, expiryDate *time.Time, batchNumber, location, imageURL string, isActive bool, metadata map[string]string) (*gormdb.ProductSKU, error) {
+func (s *Service) CreateProductSKU(ctx context.Context, productID, sku, barcode, variant, color, size, unit string, costPrice, sellingPrice float64, stock, minimumStock int32, weight, volume float64, expiryDate *time.Time, batchNumber, location, imageURL string, isActive bool, metadata map[string]string) (*gormdb.ProductSKU, error) {
 	productSKU := &gormdb.ProductSKU{
 		ProductID:    uuid.MustParse(productID),
 		SKU:          sku,
@@ -52,7 +53,7 @@ func (s *Service) CreateProductSKU(productID, sku, barcode, variant, color, size
 		}
 	}
 
-	if err := s.productSKURepo.Create(productSKU); err != nil {
+	if err := s.productSKURepo.Create(ctx, productSKU); err != nil {
 		return nil, err
 	}
 
@@ -60,33 +61,33 @@ func (s *Service) CreateProductSKU(productID, sku, barcode, variant, color, size
 }
 
 // GetProductSKU gets a product SKU by ID
-func (s *Service) GetProductSKU(id string) (*gormdb.ProductSKU, error) {
+func (s *Service) GetProductSKU(ctx context.Context, id string) (*gormdb.ProductSKU, error) {
 	productSKUID, err := uuid.Parse(id)
 	if err != nil {
 		return nil, err
 	}
 
-	return s.productSKURepo.GetByID(productSKUID)
+	return s.productSKURepo.GetByID(ctx, productSKUID)
 }
 
 // GetProductSKUByBarcode gets a product SKU by barcode
-func (s *Service) GetProductSKUByBarcode(barcode string) (*gormdb.ProductSKU, error) {
+func (s *Service) GetProductSKUByBarcode(ctx context.Context, barcode string) (*gormdb.ProductSKU, error) {
 	if barcode == "" {
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Barcode is required", nil)
 	}
-	return s.productSKURepo.GetByBarcode(barcode)
+	return s.productSKURepo.GetByBarcode(ctx, barcode)
 }
 
 // GetProductSKUBySKUCode gets a product SKU by SKU code
-func (s *Service) GetProductSKUBySKUCode(sku string) (*gormdb.ProductSKU, error) {
+func (s *Service) GetProductSKUBySKUCode(ctx context.Context, sku string) (*gormdb.ProductSKU, error) {
 	if sku == "" {
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "SKU is required", nil)
 	}
-	return s.productSKURepo.GetBySKU(sku)
+	return s.productSKURepo.GetBySKU(ctx, sku)
 }
 
 // ListProductSKUs lists product SKUs by product ID
-func (s *Service) ListProductSKUs(productID string, search, variant, color, size string, isActive *bool, page, perPage int) ([]gormdb.ProductSKU, int64, error) {
+func (s *Service) ListProductSKUs(ctx context.Context, productID string, search, variant, color, size string, isActive *bool, page, perPage int) ([]gormdb.ProductSKU, int64, error) {
 	productUUID, err := uuid.Parse(productID)
 	if err != nil {
 		return nil, 0, err
@@ -102,11 +103,11 @@ func (s *Service) ListProductSKUs(productID string, search, variant, color, size
 		perPage = 100
 	}
 
-	return s.productSKURepo.List(productUUID, search, variant, color, size, isActive, page, perPage)
+	return s.productSKURepo.List(ctx, productUUID, search, variant, color, size, isActive, page, perPage)
 }
 
 // ListAllProductSKUs lists all product SKUs
-func (s *Service) ListAllProductSKUs(search, variant, color, size string, isActive *bool, productID string, page, perPage int) ([]gormdb.ProductSKU, int64, error) {
+func (s *Service) ListAllProductSKUs(ctx context.Context, search, variant, color, size string, isActive *bool, productID string, page, perPage int) ([]gormdb.ProductSKU, int64, error) {
 	var productUUID uuid.UUID
 	if productID != "" {
 		productUUID, _ = uuid.Parse(productID)
@@ -122,17 +123,17 @@ func (s *Service) ListAllProductSKUs(search, variant, color, size string, isActi
 		perPage = 100
 	}
 
-	return s.productSKURepo.ListAll(search, variant, color, size, isActive, productUUID, page, perPage)
+	return s.productSKURepo.ListAll(ctx, search, variant, color, size, isActive, productUUID, page, perPage)
 }
 
 // UpdateProductSKU updates a product SKU
-func (s *Service) UpdateProductSKU(id, sku, barcode, variant, color, size, unit string, costPrice, sellingPrice float64, stock, minimumStock int32, weight, volume float64, expiryDate *time.Time, batchNumber, location, imageURL string, isActive bool, metadata map[string]string) (*gormdb.ProductSKU, error) {
+func (s *Service) UpdateProductSKU(ctx context.Context, id, sku, barcode, variant, color, size, unit string, costPrice, sellingPrice float64, stock, minimumStock int32, weight, volume float64, expiryDate *time.Time, batchNumber, location, imageURL string, isActive bool, metadata map[string]string) (*gormdb.ProductSKU, error) {
 	productSKUID, err := uuid.Parse(id)
 	if err != nil {
 		return nil, err
 	}
 
-	productSKU, err := s.productSKURepo.GetByID(productSKUID)
+	productSKU, err := s.productSKURepo.GetByID(ctx, productSKUID)
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +195,7 @@ func (s *Service) UpdateProductSKU(id, sku, barcode, variant, color, size, unit 
 		}
 	}
 
-	if err := s.productSKURepo.Update(productSKU); err != nil {
+	if err := s.productSKURepo.Update(ctx, productSKU); err != nil {
 		return nil, err
 	}
 
@@ -202,11 +203,11 @@ func (s *Service) UpdateProductSKU(id, sku, barcode, variant, color, size, unit 
 }
 
 // DeleteProductSKU deletes a product SKU
-func (s *Service) DeleteProductSKU(id string) error {
+func (s *Service) DeleteProductSKU(ctx context.Context, id string) error {
 	productSKUID, err := uuid.Parse(id)
 	if err != nil {
 		return err
 	}
 
-	return s.productSKURepo.Delete(productSKUID)
+	return s.productSKURepo.Delete(ctx, productSKUID)
 }

@@ -1,0 +1,3 @@
+-- 000009_reconcile_product_stock.down.sql
+-- Irreversible: the previous (drifted) aggregate values are not recorded.
+-- Keep as a no-op.

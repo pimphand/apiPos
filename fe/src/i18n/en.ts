@@ -21,6 +21,7 @@ export default {
     users: 'Users',
     roles: 'Roles',
     permissions: 'Permissions',
+    stores: 'Stores',
     activityLogs: 'Activity Logs',
   },
   // Topbar
@@ -33,6 +34,12 @@ export default {
   common: {
     loading: 'Loading...',
     backToDashboard: '← Back to Dashboard',
+  },
+  permissionDenied: {
+    title: 'Access Denied',
+    description: "You don't have permission to access this page.",
+    hint: 'If you believe this is a mistake, contact your administrator.',
+    back: '← Back',
   },
   // Auth
   auth: {
@@ -112,12 +119,10 @@ export default {
     cashier: {
       title: 'Cashier Shifts',
       description: 'Open and close shifts, track opening cash, and reconcile cash differences.',
-      hint: 'Shift management (open/close), expected vs actual cash, and cash difference reconciliation will be implemented here in a later phase.',
-    },
-    payments: {
+    },    payments: {
       title: 'Payments',
-      description: 'Review payment methods, transactions, and settlement summaries.',
-      hint: 'Payment transactions by method (cash, card, bank transfer, e-wallet) and summaries will be implemented here in a later phase.',
+      description:
+        'Review payment methods, transactions, and settlement summaries.',
     },
     customers: {
       title: 'Customers',
@@ -219,6 +224,7 @@ export default {
       resourcePlaceholder: 'e.g. products',
       noData: 'No activity logs found',
       user: 'User',
+      store: 'Store',
       when: 'When',
       detailTitle: 'Activity Log Detail',
       detailDescription: 'Full record for this activity.',
@@ -569,6 +575,16 @@ export default {
       ewallet: 'E-Wallet',
       other: 'Other',
       filterBySale: 'Filter by Sale ID',
+      deleteTitle: 'Delete payment?',
+      deleteDescription: 'This will permanently delete this payment record. This action cannot be undone.',
+      summaryTitle: 'Payment Summary',
+      summaryDescription: 'Payment breakdown for this sale.',
+      grandTotal: 'Grand Total',
+      totalPaid: 'Total Paid',
+      remaining: 'Remaining',
+      change: 'Change',
+      status: 'Status',
+      paymentsLabel: 'Payments',
       toastDeleted: 'Payment deleted',
       noPermissionAction: 'view payments',
     },
@@ -630,6 +646,7 @@ export default {
       grandTotal: 'Grand Total',
       change: 'Change',
       insufficient: 'Insufficient amount',
+      inputAmountToSeeChange: 'Enter amount to see change',
       toastAdded: 'Product added to cart',
       toastRemoved: 'Product removed',
       toastSaleCreated: 'Sale completed successfully!',
@@ -639,6 +656,26 @@ export default {
       stock: 'Stock',
       clearCart: 'Clear Cart',
       holdCart: 'Hold',
+    },
+    stores: {
+      title: 'Stores',
+      description: 'Manage tenant stores. Superadmin can verify and activate pending stores.',
+      name: 'Store',
+      address: 'Address',
+      phone: 'Phone',
+      verified: 'Verified',
+      verifiedLabel: 'Verified',
+      pendingLabel: 'Pending',
+      createdAt: 'Created',
+      updatedAt: 'Updated',
+      noData: 'No stores found',
+      viewDetail: 'View Detail',
+      detailTitle: 'Store Detail',
+      verify: 'Verify Store',
+      verifyTitle: 'Verify store?',
+      verifyDescription: 'This will verify and activate "{name}". The store will become operational.',
+      toastVerified: 'Store verified and activated',
+      noPermissionAction: 'manage stores',
     },
   },
 };

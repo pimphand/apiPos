@@ -55,7 +55,7 @@ func (h *ProductHandler) CreateProduct(ctx context.Context, req *productv1.Creat
 	}
 
 	// Load SKU count and category name for the created product
-	protoProduct := h.toProtoProductEnriched(p)
+	protoProduct := h.toProtoProductEnriched(ctx, p)
 
 	h.logs.LogJSON(ctx, "CREATE", "products", p.ID.String(), map[string]interface{}{
 		"name":          p.Name,
@@ -82,7 +82,7 @@ func (h *ProductHandler) GetProduct(ctx context.Context, req *productv1.GetProdu
 
 	// Load SKUs if get_sku is true
 	if req.GetSku && h.repos != nil {
-		skus, _, err := h.repos.ProductSKU.List(
+		skus, _, err := h.repos.ProductSKU.List(ctx, 
 			p.ID,
 			"",  // search
 			"",  // variant
@@ -97,7 +97,7 @@ func (h *ProductHandler) GetProduct(ctx context.Context, req *productv1.GetProdu
 		}
 	}
 
-	protoProduct := h.toProtoProductEnriched(p)
+	protoProduct := h.toProtoProductEnriched(ctx, p)
 
 	return &productv1.ProductResponse{
 		Product: protoProduct,
@@ -116,7 +116,7 @@ func (h *ProductHandler) ListProducts(ctx context.Context, req *productv1.ListPr
 		h.service.LoadProductSKUs(ctx, result.Products)
 	}
 
-	protoProducts := h.toProtoProductsEnriched(result.Products)
+	protoProducts := h.toProtoProductsEnriched(ctx, result.Products)
 
 	return &productv1.ListProductsResponse{
 		Products:   protoProducts,
@@ -138,7 +138,7 @@ func (h *ProductHandler) SearchProducts(ctx context.Context, req *productv1.Sear
 		h.service.LoadProductSKUs(ctx, result.Products)
 	}
 
-	protoProducts := h.toProtoProductsEnriched(result.Products)
+	protoProducts := h.toProtoProductsEnriched(ctx, result.Products)
 
 	return &productv1.ListProductsResponse{
 		Products:   protoProducts,
@@ -196,7 +196,7 @@ func (h *ProductHandler) UpdateProduct(ctx context.Context, req *productv1.Updat
 
 	// Always load SKUs after update so response shows current state
 	if h.repos != nil {
-		skus, _, err := h.repos.ProductSKU.List(
+		skus, _, err := h.repos.ProductSKU.List(ctx, 
 			p.ID,
 			"",  // search
 			"",  // variant
@@ -211,7 +211,7 @@ func (h *ProductHandler) UpdateProduct(ctx context.Context, req *productv1.Updat
 		}
 	}
 
-	protoProduct := h.toProtoProductEnriched(p)
+	protoProduct := h.toProtoProductEnriched(ctx, p)
 
 	h.logs.LogJSON(ctx, "UPDATE", "products", p.ID.String(), map[string]interface{}{
 		"name":              p.Name,
@@ -296,7 +296,7 @@ func (h *ProductHandler) GetLowStockProducts(ctx context.Context, req *productv1
 		h.service.LoadProductSKUs(ctx, result.Products)
 	}
 
-	protoProducts := h.toProtoProductsEnriched(result.Products)
+	protoProducts := h.toProtoProductsEnriched(ctx, result.Products)
 
 	return &productv1.ListProductsResponse{
 		Products:   protoProducts,
@@ -307,7 +307,7 @@ func (h *ProductHandler) GetLowStockProducts(ctx context.Context, req *productv1
 }
 
 // toProtoProductsEnriched converts a list of products to proto with SKU counts and category names
-func (h *ProductHandler) toProtoProductsEnriched(products []gormdb.Product) []*productv1.Product {
+func (h *ProductHandler) toProtoProductsEnriched(ctx context.Context, products []gormdb.Product) []*productv1.Product {
 	if len(products) == 0 {
 		return []*productv1.Product{}
 	}
@@ -325,7 +325,7 @@ func (h *ProductHandler) toProtoProductsEnriched(products []gormdb.Product) []*p
 	// Batch load SKU counts
 	skuCountMap := make(map[string]int32)
 	if h.repos != nil {
-		counts, err := h.repos.ProductSKU.CountByProductIDs(productIDs)
+		counts, err := h.repos.ProductSKU.CountByProductIDs(ctx, productIDs)
 		if err != nil {
 			log.Printf("Warning: failed to batch load SKU counts: %v", err)
 		} else {
@@ -365,12 +365,12 @@ func (h *ProductHandler) toProtoProductsEnriched(products []gormdb.Product) []*p
 }
 
 // toProtoProductEnriched converts a single product to proto with SKU count and category name
-func (h *ProductHandler) toProtoProductEnriched(p *gormdb.Product) *productv1.Product {
+func (h *ProductHandler) toProtoProductEnriched(ctx context.Context, p *gormdb.Product) *productv1.Product {
 	protoProduct := toProtoProductFromGORM(p)
 
 	// Load SKU count
 	if h.repos != nil {
-		counts, err := h.repos.ProductSKU.CountByProductIDs([]uuid.UUID{p.ID})
+		counts, err := h.repos.ProductSKU.CountByProductIDs(ctx, []uuid.UUID{p.ID})
 		if err == nil {
 			protoProduct.SkuCount = counts[p.ID.String()]
 		}

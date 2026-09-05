@@ -28,7 +28,7 @@ const ROLE_PERMISSIONS: Record<string, Permission[]> = {
   superadmin: [
     // Full access to everything (system-wide)
     'users.create', 'users.read', 'users.update', 'users.delete',
-    'roles.create', 'roles.read', 'roles.update', 'roles.delete',
+    'roles.create', 'roles.read', 'roles.update', 'roles.delete', 'roles.assign',
     'permissions.create', 'permissions.read', 'permissions.update', 'permissions.delete', 'permissions.assign',
     'categories.create', 'categories.read', 'categories.update', 'categories.delete',
     'products.create', 'products.read', 'products.update', 'products.delete',
@@ -42,7 +42,7 @@ const ROLE_PERMISSIONS: Record<string, Permission[]> = {
   admin: [
     // Full access to everything
     'users.create', 'users.read', 'users.update', 'users.delete',
-    'roles.create', 'roles.read', 'roles.update', 'roles.delete',
+    'roles.create', 'roles.read', 'roles.update', 'roles.delete', 'roles.assign',
     'permissions.create', 'permissions.read', 'permissions.update', 'permissions.delete', 'permissions.assign',
     'categories.create', 'categories.read', 'categories.update', 'categories.delete',
     'products.create', 'products.read', 'products.update', 'products.delete',

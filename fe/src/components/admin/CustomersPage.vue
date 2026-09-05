@@ -179,6 +179,8 @@ async function loadPurchases() {
 const canCreate = computed(() => can(authStore.currentUser, 'customers.create'));
 const canUpdate = computed(() => can(authStore.currentUser, 'customers.update'));
 const canDelete = computed(() => can(authStore.currentUser, 'customers.delete'));
+// Hide the Actions column entirely when the user has no mutating permissions.
+const showActions = computed(() => canCreate.value || canUpdate.value || canDelete.value);
 
 watch(isReady, (r) => { if (r) load(); }, { immediate: true });
 </script>
@@ -236,16 +238,16 @@ watch(isReady, (r) => { if (r) load(); }, { immediate: true });
               <TableHead>{{ t('admin.customers.phone') }}</TableHead>
               <TableHead>{{ t('admin.shared.email') }}</TableHead>
               <TableHead>{{ t('admin.shared.status') }}</TableHead>
-              <TableHead class="text-right">{{ t('admin.shared.actions') }}</TableHead>
+              <TableHead v-if="showActions" class="text-right">{{ t('admin.shared.actions') }}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             <TableRow v-if="loading">
-              <TableCell :colspan="6" class="text-center py-8 text-muted-foreground">{{ t('admin.shared.loading') }}</TableCell>
+              <TableCell :colspan="showActions ? 6 : 5" class="text-center py-8 text-muted-foreground">{{ t('admin.shared.loading') }}</TableCell>
             </TableRow>
             <template v-else>
               <TableRow v-if="customers.length === 0">
-                <TableCell :colspan="6" class="text-center py-8 text-muted-foreground">{{ t('admin.customers.noData') }}</TableCell>
+                <TableCell :colspan="showActions ? 6 : 5" class="text-center py-8 text-muted-foreground">{{ t('admin.customers.noData') }}</TableCell>
               </TableRow>
               <TableRow v-for="c in customers" :key="c.id">
                 <TableCell class="font-mono text-xs">{{ c.code }}</TableCell>
@@ -255,7 +257,7 @@ watch(isReady, (r) => { if (r) load(); }, { immediate: true });
                 <TableCell>
                   <Badge :variant="c.is_active ? 'default' : 'secondary'">{{ c.is_active ? t('admin.shared.active') : t('admin.shared.inactive') }}</Badge>
                 </TableCell>
-                <TableCell class="text-right">
+                <TableCell v-if="showActions" class="text-right">
                   <div class="flex justify-end items-center gap-2 flex-wrap">
                     <Button variant="outline" size="sm" @click="openProfile(c)">{{ t('admin.customers.viewProfile') }}</Button>
                     <Button v-if="canUpdate" variant="outline" size="sm" @click="openEdit(c)">{{ t('admin.shared.edit') }}</Button>

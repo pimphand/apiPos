@@ -1,0 +1,2 @@
+-- 000008_backfill_product_sku_store_id.down.sql
+-- Irreversible: the previous store_id values are unknown. Keep as a no-op.

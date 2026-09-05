@@ -3,6 +3,8 @@ package handler
 import (
 	"context"
 
+	"github.com/google/uuid"
+
 	activitylogv1 "apiPos/gen/activitylog/v1"
 	"apiPos/internal/activitylog"
 	"apiPos/internal/apperror"
@@ -115,6 +117,10 @@ func (h *ActivityLogHandler) GetActivityLogsByResource(ctx context.Context, req 
 
 // toProtoActivityLogFromGORM converts a GORM ActivityLog model to proto ActivityLog
 func toProtoActivityLogFromGORM(l *gormdb.ActivityLog) *activitylogv1.ActivityLog {
+	storeName := ""
+	if l.Store.ID != uuid.Nil {
+		storeName = l.Store.Name
+	}
 	return &activitylogv1.ActivityLog{
 		Id:          l.ID.String(),
 		UserId:      l.UserID.String(),
@@ -127,5 +133,7 @@ func toProtoActivityLogFromGORM(l *gormdb.ActivityLog) *activitylogv1.ActivityLo
 		UserAgent:   l.UserAgent,
 		Metadata:    l.Metadata,
 		CreatedAt:   l.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		StoreId:     l.StoreID.String(),
+		StoreName:   storeName,
 	}
 }

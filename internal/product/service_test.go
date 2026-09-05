@@ -116,57 +116,57 @@ func (m *mockProductRepo) GetStockForUpdate(ctx context.Context, id string) (*go
 
 // mockProductSKURepo is a mock for ProductSKURepository
 type mockProductSKURepo struct {
-	createFunc       func(productSKU *gormdb.ProductSKU) error
-	getByIDFunc      func(id uuid.UUID) (*gormdb.ProductSKU, error)
-	getByBarcodeFunc func(barcode string) (*gormdb.ProductSKU, error)
-	getBySKUFunc     func(sku string) (*gormdb.ProductSKU, error)
+	createFunc       func(ctx context.Context, productSKU *gormdb.ProductSKU) error
+	getByIDFunc      func(ctx context.Context, id uuid.UUID) (*gormdb.ProductSKU, error)
+	getByBarcodeFunc func(ctx context.Context, barcode string) (*gormdb.ProductSKU, error)
+	getBySKUFunc     func(ctx context.Context, sku string) (*gormdb.ProductSKU, error)
 }
 
-func (m *mockProductSKURepo) Create(productSKU *gormdb.ProductSKU) error {
+func (m *mockProductSKURepo) Create(ctx context.Context, productSKU *gormdb.ProductSKU) error {
 	if m.createFunc != nil {
-		return m.createFunc(productSKU)
+		return m.createFunc(ctx, productSKU)
 	}
 	return nil
 }
 
-func (m *mockProductSKURepo) GetByID(id uuid.UUID) (*gormdb.ProductSKU, error) {
+func (m *mockProductSKURepo) GetByID(ctx context.Context, id uuid.UUID) (*gormdb.ProductSKU, error) {
 	if m.getByIDFunc != nil {
-		return m.getByIDFunc(id)
+		return m.getByIDFunc(ctx, id)
 	}
 	return nil, gorm.ErrRecordNotFound
 }
 
-func (m *mockProductSKURepo) GetByBarcode(barcode string) (*gormdb.ProductSKU, error) {
+func (m *mockProductSKURepo) GetByBarcode(ctx context.Context, barcode string) (*gormdb.ProductSKU, error) {
 	if m.getByBarcodeFunc != nil {
-		return m.getByBarcodeFunc(barcode)
+		return m.getByBarcodeFunc(ctx, barcode)
 	}
 	return nil, gorm.ErrRecordNotFound
 }
 
-func (m *mockProductSKURepo) GetBySKU(sku string) (*gormdb.ProductSKU, error) {
+func (m *mockProductSKURepo) GetBySKU(ctx context.Context, sku string) (*gormdb.ProductSKU, error) {
 	if m.getBySKUFunc != nil {
-		return m.getBySKUFunc(sku)
+		return m.getBySKUFunc(ctx, sku)
 	}
 	return nil, gorm.ErrRecordNotFound
 }
 
-func (m *mockProductSKURepo) List(productID uuid.UUID, search, variant, color, size string, isActive *bool, page, perPage int) ([]gormdb.ProductSKU, int64, error) {
+func (m *mockProductSKURepo) List(ctx context.Context, productID uuid.UUID, search, variant, color, size string, isActive *bool, page, perPage int) ([]gormdb.ProductSKU, int64, error) {
 	return []gormdb.ProductSKU{}, 0, nil
 }
 
-func (m *mockProductSKURepo) ListAll(search, variant, color, size string, isActive *bool, productID uuid.UUID, page, perPage int) ([]gormdb.ProductSKU, int64, error) {
+func (m *mockProductSKURepo) ListAll(ctx context.Context, search, variant, color, size string, isActive *bool, productID uuid.UUID, page, perPage int) ([]gormdb.ProductSKU, int64, error) {
 	return []gormdb.ProductSKU{}, 0, nil
 }
 
-func (m *mockProductSKURepo) Update(productSKU *gormdb.ProductSKU) error {
+func (m *mockProductSKURepo) Update(ctx context.Context, productSKU *gormdb.ProductSKU) error {
 	return nil
 }
 
-func (m *mockProductSKURepo) Delete(id uuid.UUID) error {
+func (m *mockProductSKURepo) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-func (m *mockProductSKURepo) CountByProductIDs(productIDs []uuid.UUID) (map[string]int32, error) {
+func (m *mockProductSKURepo) CountByProductIDs(ctx context.Context, productIDs []uuid.UUID) (map[string]int32, error) {
 	return make(map[string]int32), nil
 }
 
@@ -271,7 +271,7 @@ func TestProductService_GetProductByBarcode(t *testing.T) {
 		mockRepo := &mockProductRepo{}
 
 		mockProductSKURepo := &mockProductSKURepo{
-			getByBarcodeFunc: func(barcode string) (*gormdb.ProductSKU, error) {
+			getByBarcodeFunc: func(ctx context.Context, barcode string) (*gormdb.ProductSKU, error) {
 				return &gormdb.ProductSKU{
 					ID:        uuid.New(),
 					ProductID: uuid.New(),
@@ -311,7 +311,7 @@ func TestProductService_GetProductByBarcode(t *testing.T) {
 		mockRepo := &mockProductRepo{}
 
 		mockProductSKURepo := &mockProductSKURepo{
-			getByBarcodeFunc: func(barcode string) (*gormdb.ProductSKU, error) {
+			getByBarcodeFunc: func(ctx context.Context, barcode string) (*gormdb.ProductSKU, error) {
 				return nil, gorm.ErrRecordNotFound
 			},
 		}
@@ -335,7 +335,7 @@ func TestProductService_GetProductBySKU(t *testing.T) {
 		mockRepo := &mockProductRepo{}
 
 		mockProductSKURepo := &mockProductSKURepo{
-			getBySKUFunc: func(sku string) (*gormdb.ProductSKU, error) {
+			getBySKUFunc: func(ctx context.Context, sku string) (*gormdb.ProductSKU, error) {
 				return &gormdb.ProductSKU{
 					ID:        uuid.New(),
 					ProductID: uuid.New(),
@@ -375,7 +375,7 @@ func TestProductService_GetProductBySKU(t *testing.T) {
 		mockRepo := &mockProductRepo{}
 
 		mockProductSKURepo := &mockProductSKURepo{
-			getBySKUFunc: func(sku string) (*gormdb.ProductSKU, error) {
+			getBySKUFunc: func(ctx context.Context, sku string) (*gormdb.ProductSKU, error) {
 				return nil, gorm.ErrRecordNotFound
 			},
 		}

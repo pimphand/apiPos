@@ -1,0 +1,2 @@
+-- 000010_backfill_activity_log_store_id.down.sql
+-- Irreversible: the previous (NULL) values are not recorded. Keep as a no-op.

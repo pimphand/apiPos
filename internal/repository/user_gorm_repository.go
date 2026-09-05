@@ -26,10 +26,13 @@ type UserRepository interface {
 
 // UserListParams holds parameters for listing users
 type UserListParams struct {
-	RoleID    string
-	IsActive  string // "" = all, "true" = active only, "false" = inactive only
-	Page      int32
-	PerPage   int32
+	RoleID   string
+	IsActive string // "" = all, "true" = active only, "false" = inactive only
+	// StoreID optionally restricts the query to a single store (set from the
+	// caller's claims for non-superadmins). Empty means no filter (superadmin).
+	StoreID string
+	Page    int32
+	PerPage int32
 }
 
 // UserRepo implements UserRepository using GORM
@@ -85,6 +88,10 @@ func (r *UserRepo) List(ctx context.Context, params UserListParams) ([]gormdb.Us
 	query := r.WithContext(ctx).Model(&gormdb.User{})
 
 	// Apply filters
+	if params.StoreID != "" {
+		query = query.Where("store_id = ?", params.StoreID)
+	}
+
 	if params.RoleID != "" {
 		query = query.Where("role_id = ?", params.RoleID)
 	}

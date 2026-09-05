@@ -84,6 +84,10 @@ message User {
   string role_name = 6;
   string store_id = 7;
   bool is_active = 8;
+  // Permission names granted to this user's role, returned on register/login so
+  // the client can do permission-based UI without a separate /permissions/my
+  // call (which would be visible in the browser's network tab).
+  repeated string permissions = 9;
 }
 
 message RefreshTokenRequest {
@@ -97,6 +101,9 @@ message RefreshTokenResponse {
   string access_token = 1;
   string refresh_token = 2;
   int64 expires_at = 3;
+  // Permission names granted to the refreshed user's role (same rationale as
+  // User.permissions — avoids a separate permissions request on session restore).
+  repeated string permissions = 4;
 }
 
 message LogoutRequest {

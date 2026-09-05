@@ -19,13 +19,14 @@ type ActivityLogRepository interface {
 
 // ActivityLogListParams holds parameters for listing activity logs
 type ActivityLogListParams struct {
-	UserID      string
-	Action      string
-	Resource    string
-	StartDate   string
-	EndDate     string
-	Page        int32
-	PerPage     int32
+	StoreID   string
+	UserID    string
+	Action    string
+	Resource  string
+	StartDate string
+	EndDate   string
+	Page      int32
+	PerPage   int32
 }
 
 // ActivityLogRepo implements ActivityLogRepository using GORM
@@ -46,7 +47,7 @@ func (r *ActivityLogRepo) Create(ctx context.Context, log *gormdb.ActivityLog) e
 // GetByID gets an activity log by ID
 func (r *ActivityLogRepo) GetByID(ctx context.Context, id string) (*gormdb.ActivityLog, error) {
 	var log gormdb.ActivityLog
-	err := r.WithContext(ctx).Where("id = ?", id).First(&log).Error
+	err := r.WithContext(ctx).Preload("Store").Where("id = ?", id).First(&log).Error
 	if err != nil {
 		return nil, err
 	}
@@ -61,6 +62,9 @@ func (r *ActivityLogRepo) List(ctx context.Context, params ActivityLogListParams
 	query := r.WithContext(ctx).Model(&gormdb.ActivityLog{})
 
 	// Apply filters
+	if params.StoreID != "" {
+		query = query.Where("store_id = ?", params.StoreID)
+	}
 	if params.UserID != "" {
 		query = query.Where("user_id = ?", params.UserID)
 	}
@@ -84,7 +88,7 @@ func (r *ActivityLogRepo) List(ctx context.Context, params ActivityLogListParams
 
 	// Apply pagination
 	normalized := PaginationParams{Page: params.Page, PerPage: params.PerPage}.normalize()
-	err := query.Order("created_at DESC").
+	err := query.Preload("Store").Order("created_at DESC").
 		Offset(normalized.offset()).
 		Limit(normalized.limit()).
 		Find(&logs).Error
@@ -98,6 +102,9 @@ func (r *ActivityLogRepo) ListByUser(ctx context.Context, userID string, params 
 	var totalCount int64
 
 	query := r.WithContext(ctx).Model(&gormdb.ActivityLog{}).Where("user_id = ?", userID)
+	if params.StoreID != "" {
+		query = query.Where("store_id = ?", params.StoreID)
+	}
 
 	// Get total count
 	if err := query.Count(&totalCount).Error; err != nil {
@@ -106,7 +113,7 @@ func (r *ActivityLogRepo) ListByUser(ctx context.Context, userID string, params 
 
 	// Apply pagination
 	normalized := params.normalize()
-	err := query.Order("created_at DESC").
+	err := query.Preload("Store").Order("created_at DESC").
 		Offset(normalized.offset()).
 		Limit(normalized.limit()).
 		Find(&logs).Error
@@ -123,6 +130,9 @@ func (r *ActivityLogRepo) ListByResource(ctx context.Context, resource, resource
 	if resourceID != "" {
 		query = query.Where("resource_id = ?", resourceID)
 	}
+	if params.StoreID != "" {
+		query = query.Where("store_id = ?", params.StoreID)
+	}
 
 	// Get total count
 	if err := query.Count(&totalCount).Error; err != nil {
@@ -131,7 +141,7 @@ func (r *ActivityLogRepo) ListByResource(ctx context.Context, resource, resource
 
 	// Apply pagination
 	normalized := params.normalize()
-	err := query.Order("created_at DESC").
+	err := query.Preload("Store").Order("created_at DESC").
 		Offset(normalized.offset()).
 		Limit(normalized.limit()).
 		Find(&logs).Error

@@ -1556,6 +1556,29 @@
         ]
       }
     },
+    "/api/v1/permissions/my": {
+      "get": {
+        "summary": "GetMyPermissions gets the permissions of the currently authenticated user\n(based on their role). Superadmins get every permission in the system.\nNOTE: must be declared LAST so the literal \"/permissions/my\" route is\nregistered last (grpc-gateway matches the most recently registered\npattern first, keeping it ahead of the \"/permissions/{id}\" wildcard).",
+        "operationId": "PermissionService_GetMyPermissions",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetMyPermissionsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "PermissionService"
+        ]
+      }
+    },
     "/api/v1/permissions/resource/{resource}": {
       "get": {
         "summary": "ListPermissionsByResource lists permissions filtered by resource",
@@ -4041,6 +4064,13 @@
         },
         "isActive": {
           "type": "boolean"
+        },
+        "permissions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Permission names granted to this user's role, returned on register/login so\nthe client can do permission-based UI without a separate /permissions/my\ncall (which would be visible in the browser's network tab)."
         }
       }
     },
@@ -4534,6 +4564,13 @@
         },
         "createdAt": {
           "type": "string"
+        },
+        "storeId": {
+          "type": "string",
+          "description": "Tenant store the activity belongs to (empty for system-level actions).\nPopulated for all callers; the UI decides whether to display it."
+        },
+        "storeName": {
+          "type": "string"
         }
       }
     },
@@ -4909,6 +4946,10 @@
         },
         "paymentReference": {
           "type": "string"
+        },
+        "customerName": {
+          "type": "string",
+          "description": "Customer can be specified by name. When provided and no customer_id is\ngiven, the system looks up an existing customer with the same name\n(in the same store) and reuses it, or creates a new one."
         }
       }
     },
@@ -5126,6 +5167,22 @@
         },
         "message": {
           "type": "string"
+        }
+      }
+    },
+    "v1GetMyPermissionsResponse": {
+      "type": "object",
+      "properties": {
+        "permissions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/permissionV1Permission"
+          }
+        },
+        "totalCount": {
+          "type": "string",
+          "format": "int64"
         }
       }
     },
@@ -5978,6 +6035,13 @@
         "expiresAt": {
           "type": "string",
           "format": "int64"
+        },
+        "permissions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Permission names granted to the refreshed user's role (same rationale as\nUser.permissions — avoids a separate permissions request on session restore)."
         }
       }
     },

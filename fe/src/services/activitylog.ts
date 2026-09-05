@@ -30,6 +30,8 @@ export function normalizeLog(raw: Record<string, any>): ActivityLog {
     user_agent: str(raw.user_agent ?? raw.userAgent),
     metadata: str(raw.metadata),
     created_at: str(raw.created_at ?? raw.createdAt),
+    store_id: str(raw.store_id ?? raw.storeId),
+    store_name: str(raw.store_name ?? raw.storeName),
   };
 }
 

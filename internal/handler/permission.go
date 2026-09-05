@@ -22,6 +22,24 @@ func NewPermissionHandler(service *permission.Service, logs *ActivityLogger) *Pe
 	return &PermissionHandler{service: service, logs: logs}
 }
 
+// GetMyPermissions gets the permissions of the currently authenticated user
+func (h *PermissionHandler) GetMyPermissions(ctx context.Context, req *permissionv1.GetMyPermissionsRequest) (*permissionv1.GetMyPermissionsResponse, error) {
+	permissions, err := h.service.GetMyPermissions(ctx)
+	if err != nil {
+		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
+	protoPermissions := make([]*permissionv1.Permission, len(permissions))
+	for i, p := range permissions {
+		protoPermissions[i] = toProtoPermFromGORM(&p)
+	}
+
+	return &permissionv1.GetMyPermissionsResponse{
+		Permissions: protoPermissions,
+		TotalCount:  int64(len(protoPermissions)),
+	}, nil
+}
+
 // GetPermission gets a permission by ID
 func (h *PermissionHandler) GetPermission(ctx context.Context, req *permissionv1.GetPermissionRequest) (*permissionv1.PermissionResponse, error) {
 	p, err := h.service.GetPermission(ctx, req.Id)
