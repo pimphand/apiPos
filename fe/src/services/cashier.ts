@@ -2,6 +2,7 @@ import http from '@/lib/http';
 import type {
   CashierShift,
   ShiftSummary,
+  ShiftItem,
   ListShiftsResponse,
 } from '@/types';
 
@@ -61,6 +62,22 @@ export const cashierService = {
     const response = await http.get<ShiftSummary>(
       `/v1/cashier/shifts/${id}/summary`
     );
+    return response.data;
+  },
+
+  async listShiftItems(params: {
+    id: string;
+    direction?: 'OUT' | 'IN';
+    page?: number;
+    per_page?: number;
+  }): Promise<{ items: ShiftItem[]; total_count: number; page: number; per_page: number }> {
+    const { id, ...query } = params;
+    const response = await http.get<{
+      items: ShiftItem[];
+      total_count: number;
+      page: number;
+      per_page: number;
+    }>(`/v1/cashier/shifts/${id}/items`, { params: query });
     return response.data;
   },
 };

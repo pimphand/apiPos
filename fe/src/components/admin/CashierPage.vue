@@ -175,7 +175,7 @@ watch(isReady, (r) => {
           <p class="text-muted-foreground mt-1">{{ t('admin.cashier.description') }}</p>
         </div>
         <div class="flex gap-2">
-          <Button v-if="currentShift && canCloseShift" variant="destructive" @click="openCloseShift">{{ t('admin.cashier.closeShiftTitle') }}</Button>
+          <!-- <Button v-if="currentShift && canCloseShift" variant="destructive" @click="openCloseShift">{{ t('admin.cashier.closeShiftTitle') }}</Button> -->
           <Button v-if="!currentShift && canOpenShift" @click="openOpenShift">{{ t('admin.cashier.openShift') }}</Button>
         </div>
       </div>

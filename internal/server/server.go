@@ -479,6 +479,7 @@ func endpointPermissions() map[string]string {
 		"/cashier.v1.CashierService/GetShift":        "cashier.view_shift",
 		"/cashier.v1.CashierService/ListShifts":      "cashier.view_shift",
 		"/cashier.v1.CashierService/GetShiftSummary": "cashier.view_shift",
+			"/cashier.v1.CashierService/ListShiftItems":    "cashier.view_shift",
 
 		// ── Report ────────────────────────────────────────────────
 		"/report.v1.ReportService/GetDailySalesReport":     "reports.read",

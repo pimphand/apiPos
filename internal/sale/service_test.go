@@ -82,9 +82,9 @@ func TestSaleService_CreateSale(t *testing.T) {
 		svc := NewService(repos)
 
 		_, err := svc.CreateSale(ctx, CreateSaleRequest{
-			StoreID:    "550e8400-e29b-41d4-a716-446655440000",
-			Items:      []SaleItemInput{},
-			CreatedBy:  "550e8400-e29b-41d4-a716-446655440000",
+			StoreID:   "550e8400-e29b-41d4-a716-446655440000",
+			Items:     []SaleItemInput{},
+			CreatedBy: "550e8400-e29b-41d4-a716-446655440000",
 		})
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "at least one item")
@@ -157,7 +157,7 @@ func TestSaleService_CancelSale(t *testing.T) {
 		repos := &repository.Repositories{}
 		svc := NewService(repos)
 
-		err := svc.CancelSale(ctx, "invalid")
+		err := svc.CancelSale(ctx, "invalid", "")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "Invalid sale ID")
 	})
@@ -170,7 +170,7 @@ func TestSaleService_RefundSale(t *testing.T) {
 		repos := &repository.Repositories{}
 		svc := NewService(repos)
 
-		err := svc.RefundSale(ctx, "invalid")
+		err := svc.RefundSale(ctx, "invalid", "")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "Invalid sale ID")
 	})

@@ -34,6 +34,12 @@ func (l *ActivityLogger) logParams(ctx context.Context, action, resource, resour
 	if claims, ok := auth.ClaimsFromContext(ctx); ok {
 		params.UserID = claims.UserID
 		params.Username = claims.Username
+		// Store-scope the log to the caller's store. Superadmins (and any
+		// account without a store) carry an empty store claim, which leaves
+		// store_id NULL instead of inserting a zero UUID that violates the FK.
+		if claims.StoreID != "" {
+			params.StoreID = claims.StoreID
+		}
 	}
 
 	// Best-effort capture of IP address and user agent from gRPC metadata,

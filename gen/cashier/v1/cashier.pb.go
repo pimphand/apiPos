@@ -419,6 +419,9 @@ type ShiftSummaryResponse struct {
 	OpenedAt          string                 `protobuf:"bytes,13,opt,name=opened_at,json=openedAt,proto3" json:"opened_at,omitempty"`
 	ClosedAt          string                 `protobuf:"bytes,14,opt,name=closed_at,json=closedAt,proto3" json:"closed_at,omitempty"`
 	Sales             []*SaleSummary         `protobuf:"bytes,15,rep,name=sales,proto3" json:"sales,omitempty"`
+	RevenueByMethod   map[string]float64     `protobuf:"bytes,16,rep,name=revenue_by_method,json=revenueByMethod,proto3" json:"revenue_by_method,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"fixed64,2,opt,name=value"`
+	ItemsOutTotal     float64                `protobuf:"fixed64,17,opt,name=items_out_total,json=itemsOutTotal,proto3" json:"items_out_total,omitempty"`
+	ItemsInTotal      float64                `protobuf:"fixed64,18,opt,name=items_in_total,json=itemsInTotal,proto3" json:"items_in_total,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -558,6 +561,335 @@ func (x *ShiftSummaryResponse) GetSales() []*SaleSummary {
 	return nil
 }
 
+func (x *ShiftSummaryResponse) GetRevenueByMethod() map[string]float64 {
+	if x != nil {
+		return x.RevenueByMethod
+	}
+	return nil
+}
+
+func (x *ShiftSummaryResponse) GetItemsOutTotal() float64 {
+	if x != nil {
+		return x.ItemsOutTotal
+	}
+	return 0
+}
+
+func (x *ShiftSummaryResponse) GetItemsInTotal() float64 {
+	if x != nil {
+		return x.ItemsInTotal
+	}
+	return 0
+}
+
+type ListShiftItemsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Direction     string                 `protobuf:"bytes,2,opt,name=direction,proto3" json:"direction,omitempty"`
+	Page          int32                  `protobuf:"varint,3,opt,name=page,proto3" json:"page,omitempty"`
+	PerPage       int32                  `protobuf:"varint,4,opt,name=per_page,json=perPage,proto3" json:"per_page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListShiftItemsRequest) Reset() {
+	*x = ListShiftItemsRequest{}
+	mi := &file_cashier_v1_cashier_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListShiftItemsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListShiftItemsRequest) ProtoMessage() {}
+
+func (x *ListShiftItemsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cashier_v1_cashier_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListShiftItemsRequest.ProtoReflect.Descriptor instead.
+func (*ListShiftItemsRequest) Descriptor() ([]byte, []int) {
+	return file_cashier_v1_cashier_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ListShiftItemsRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ListShiftItemsRequest) GetDirection() string {
+	if x != nil {
+		return x.Direction
+	}
+	return ""
+}
+
+func (x *ListShiftItemsRequest) GetPage() int32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *ListShiftItemsRequest) GetPerPage() int32 {
+	if x != nil {
+		return x.PerPage
+	}
+	return 0
+}
+
+type ListShiftItemsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Items         []*ShiftItem           `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	TotalCount    int64                  `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	Page          int32                  `protobuf:"varint,3,opt,name=page,proto3" json:"page,omitempty"`
+	PerPage       int32                  `protobuf:"varint,4,opt,name=per_page,json=perPage,proto3" json:"per_page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListShiftItemsResponse) Reset() {
+	*x = ListShiftItemsResponse{}
+	mi := &file_cashier_v1_cashier_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListShiftItemsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListShiftItemsResponse) ProtoMessage() {}
+
+func (x *ListShiftItemsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cashier_v1_cashier_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListShiftItemsResponse.ProtoReflect.Descriptor instead.
+func (*ListShiftItemsResponse) Descriptor() ([]byte, []int) {
+	return file_cashier_v1_cashier_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ListShiftItemsResponse) GetItems() []*ShiftItem {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+func (x *ListShiftItemsResponse) GetTotalCount() int64 {
+	if x != nil {
+		return x.TotalCount
+	}
+	return 0
+}
+
+func (x *ListShiftItemsResponse) GetPage() int32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *ListShiftItemsResponse) GetPerPage() int32 {
+	if x != nil {
+		return x.PerPage
+	}
+	return 0
+}
+
+type ShiftItem struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Id             string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ShiftId        string                 `protobuf:"bytes,2,opt,name=shift_id,json=shiftId,proto3" json:"shift_id,omitempty"`
+	SaleId         string                 `protobuf:"bytes,3,opt,name=sale_id,json=saleId,proto3" json:"sale_id,omitempty"`
+	Direction      string                 `protobuf:"bytes,4,opt,name=direction,proto3" json:"direction,omitempty"`
+	ItemType       string                 `protobuf:"bytes,5,opt,name=item_type,json=itemType,proto3" json:"item_type,omitempty"`
+	ProductId      string                 `protobuf:"bytes,6,opt,name=product_id,json=productId,proto3" json:"product_id,omitempty"`
+	ProductSkuId   string                 `protobuf:"bytes,7,opt,name=product_sku_id,json=productSkuId,proto3" json:"product_sku_id,omitempty"`
+	ProductName    string                 `protobuf:"bytes,8,opt,name=product_name,json=productName,proto3" json:"product_name,omitempty"`
+	SkuCode        string                 `protobuf:"bytes,9,opt,name=sku_code,json=skuCode,proto3" json:"sku_code,omitempty"`
+	VariantLabel   string                 `protobuf:"bytes,10,opt,name=variant_label,json=variantLabel,proto3" json:"variant_label,omitempty"`
+	Quantity       float64                `protobuf:"fixed64,11,opt,name=quantity,proto3" json:"quantity,omitempty"`
+	UnitPrice      float64                `protobuf:"fixed64,12,opt,name=unit_price,json=unitPrice,proto3" json:"unit_price,omitempty"`
+	DiscountAmount float64                `protobuf:"fixed64,13,opt,name=discount_amount,json=discountAmount,proto3" json:"discount_amount,omitempty"`
+	LineAmount     float64                `protobuf:"fixed64,14,opt,name=line_amount,json=lineAmount,proto3" json:"line_amount,omitempty"`
+	PaymentMethod  string                 `protobuf:"bytes,15,opt,name=payment_method,json=paymentMethod,proto3" json:"payment_method,omitempty"`
+	ReferenceNo    string                 `protobuf:"bytes,16,opt,name=reference_no,json=referenceNo,proto3" json:"reference_no,omitempty"`
+	CreatedAt      string                 `protobuf:"bytes,17,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ShiftItem) Reset() {
+	*x = ShiftItem{}
+	mi := &file_cashier_v1_cashier_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ShiftItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ShiftItem) ProtoMessage() {}
+
+func (x *ShiftItem) ProtoReflect() protoreflect.Message {
+	mi := &file_cashier_v1_cashier_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ShiftItem.ProtoReflect.Descriptor instead.
+func (*ShiftItem) Descriptor() ([]byte, []int) {
+	return file_cashier_v1_cashier_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *ShiftItem) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ShiftItem) GetShiftId() string {
+	if x != nil {
+		return x.ShiftId
+	}
+	return ""
+}
+
+func (x *ShiftItem) GetSaleId() string {
+	if x != nil {
+		return x.SaleId
+	}
+	return ""
+}
+
+func (x *ShiftItem) GetDirection() string {
+	if x != nil {
+		return x.Direction
+	}
+	return ""
+}
+
+func (x *ShiftItem) GetItemType() string {
+	if x != nil {
+		return x.ItemType
+	}
+	return ""
+}
+
+func (x *ShiftItem) GetProductId() string {
+	if x != nil {
+		return x.ProductId
+	}
+	return ""
+}
+
+func (x *ShiftItem) GetProductSkuId() string {
+	if x != nil {
+		return x.ProductSkuId
+	}
+	return ""
+}
+
+func (x *ShiftItem) GetProductName() string {
+	if x != nil {
+		return x.ProductName
+	}
+	return ""
+}
+
+func (x *ShiftItem) GetSkuCode() string {
+	if x != nil {
+		return x.SkuCode
+	}
+	return ""
+}
+
+func (x *ShiftItem) GetVariantLabel() string {
+	if x != nil {
+		return x.VariantLabel
+	}
+	return ""
+}
+
+func (x *ShiftItem) GetQuantity() float64 {
+	if x != nil {
+		return x.Quantity
+	}
+	return 0
+}
+
+func (x *ShiftItem) GetUnitPrice() float64 {
+	if x != nil {
+		return x.UnitPrice
+	}
+	return 0
+}
+
+func (x *ShiftItem) GetDiscountAmount() float64 {
+	if x != nil {
+		return x.DiscountAmount
+	}
+	return 0
+}
+
+func (x *ShiftItem) GetLineAmount() float64 {
+	if x != nil {
+		return x.LineAmount
+	}
+	return 0
+}
+
+func (x *ShiftItem) GetPaymentMethod() string {
+	if x != nil {
+		return x.PaymentMethod
+	}
+	return ""
+}
+
+func (x *ShiftItem) GetReferenceNo() string {
+	if x != nil {
+		return x.ReferenceNo
+	}
+	return ""
+}
+
+func (x *ShiftItem) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
 type SaleSummary struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -571,7 +903,7 @@ type SaleSummary struct {
 
 func (x *SaleSummary) Reset() {
 	*x = SaleSummary{}
-	mi := &file_cashier_v1_cashier_proto_msgTypes[8]
+	mi := &file_cashier_v1_cashier_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -583,7 +915,7 @@ func (x *SaleSummary) String() string {
 func (*SaleSummary) ProtoMessage() {}
 
 func (x *SaleSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_cashier_v1_cashier_proto_msgTypes[8]
+	mi := &file_cashier_v1_cashier_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -596,7 +928,7 @@ func (x *SaleSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaleSummary.ProtoReflect.Descriptor instead.
 func (*SaleSummary) Descriptor() ([]byte, []int) {
-	return file_cashier_v1_cashier_proto_rawDescGZIP(), []int{8}
+	return file_cashier_v1_cashier_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *SaleSummary) GetId() string {
@@ -643,7 +975,7 @@ type ShiftResponse struct {
 
 func (x *ShiftResponse) Reset() {
 	*x = ShiftResponse{}
-	mi := &file_cashier_v1_cashier_proto_msgTypes[9]
+	mi := &file_cashier_v1_cashier_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -655,7 +987,7 @@ func (x *ShiftResponse) String() string {
 func (*ShiftResponse) ProtoMessage() {}
 
 func (x *ShiftResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cashier_v1_cashier_proto_msgTypes[9]
+	mi := &file_cashier_v1_cashier_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -668,7 +1000,7 @@ func (x *ShiftResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShiftResponse.ProtoReflect.Descriptor instead.
 func (*ShiftResponse) Descriptor() ([]byte, []int) {
-	return file_cashier_v1_cashier_proto_rawDescGZIP(), []int{9}
+	return file_cashier_v1_cashier_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ShiftResponse) GetShift() *CashierShift {
@@ -702,7 +1034,7 @@ type CashierShift struct {
 
 func (x *CashierShift) Reset() {
 	*x = CashierShift{}
-	mi := &file_cashier_v1_cashier_proto_msgTypes[10]
+	mi := &file_cashier_v1_cashier_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -714,7 +1046,7 @@ func (x *CashierShift) String() string {
 func (*CashierShift) ProtoMessage() {}
 
 func (x *CashierShift) ProtoReflect() protoreflect.Message {
-	mi := &file_cashier_v1_cashier_proto_msgTypes[10]
+	mi := &file_cashier_v1_cashier_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -727,7 +1059,7 @@ func (x *CashierShift) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CashierShift.ProtoReflect.Descriptor instead.
 func (*CashierShift) Descriptor() ([]byte, []int) {
-	return file_cashier_v1_cashier_proto_rawDescGZIP(), []int{10}
+	return file_cashier_v1_cashier_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *CashierShift) GetId() string {
@@ -872,7 +1204,7 @@ const file_cashier_v1_cashier_proto_rawDesc = "" +
 	"\x04page\x18\x03 \x01(\x05R\x04page\x12\x19\n" +
 	"\bper_page\x18\x04 \x01(\x05R\aperPage\"(\n" +
 	"\x16GetShiftSummaryRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"\xa3\x04\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\x98\x06\n" +
 	"\x14ShiftSummaryResponse\x12\x19\n" +
 	"\bshift_id\x18\x01 \x01(\tR\ashiftId\x12!\n" +
 	"\fcashier_name\x18\x02 \x01(\tR\vcashierName\x12\x1d\n" +
@@ -893,7 +1225,47 @@ const file_cashier_v1_cashier_proto_rawDesc = "" +
 	"\x06status\x18\f \x01(\tR\x06status\x12\x1b\n" +
 	"\topened_at\x18\r \x01(\tR\bopenedAt\x12\x1b\n" +
 	"\tclosed_at\x18\x0e \x01(\tR\bclosedAt\x12-\n" +
-	"\x05sales\x18\x0f \x03(\v2\x17.cashier.v1.SaleSummaryR\x05sales\"\xab\x01\n" +
+	"\x05sales\x18\x0f \x03(\v2\x17.cashier.v1.SaleSummaryR\x05sales\x12a\n" +
+	"\x11revenue_by_method\x18\x10 \x03(\v25.cashier.v1.ShiftSummaryResponse.RevenueByMethodEntryR\x0frevenueByMethod\x12&\n" +
+	"\x0fitems_out_total\x18\x11 \x01(\x01R\ritemsOutTotal\x12$\n" +
+	"\x0eitems_in_total\x18\x12 \x01(\x01R\fitemsInTotal\x1aB\n" +
+	"\x14RevenueByMethodEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x01R\x05value:\x028\x01\"t\n" +
+	"\x15ListShiftItemsRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1c\n" +
+	"\tdirection\x18\x02 \x01(\tR\tdirection\x12\x12\n" +
+	"\x04page\x18\x03 \x01(\x05R\x04page\x12\x19\n" +
+	"\bper_page\x18\x04 \x01(\x05R\aperPage\"\x95\x01\n" +
+	"\x16ListShiftItemsResponse\x12+\n" +
+	"\x05items\x18\x01 \x03(\v2\x15.cashier.v1.ShiftItemR\x05items\x12\x1f\n" +
+	"\vtotal_count\x18\x02 \x01(\x03R\n" +
+	"totalCount\x12\x12\n" +
+	"\x04page\x18\x03 \x01(\x05R\x04page\x12\x19\n" +
+	"\bper_page\x18\x04 \x01(\x05R\aperPage\"\xa0\x04\n" +
+	"\tShiftItem\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
+	"\bshift_id\x18\x02 \x01(\tR\ashiftId\x12\x17\n" +
+	"\asale_id\x18\x03 \x01(\tR\x06saleId\x12\x1c\n" +
+	"\tdirection\x18\x04 \x01(\tR\tdirection\x12\x1b\n" +
+	"\titem_type\x18\x05 \x01(\tR\bitemType\x12\x1d\n" +
+	"\n" +
+	"product_id\x18\x06 \x01(\tR\tproductId\x12$\n" +
+	"\x0eproduct_sku_id\x18\a \x01(\tR\fproductSkuId\x12!\n" +
+	"\fproduct_name\x18\b \x01(\tR\vproductName\x12\x19\n" +
+	"\bsku_code\x18\t \x01(\tR\askuCode\x12#\n" +
+	"\rvariant_label\x18\n" +
+	" \x01(\tR\fvariantLabel\x12\x1a\n" +
+	"\bquantity\x18\v \x01(\x01R\bquantity\x12\x1d\n" +
+	"\n" +
+	"unit_price\x18\f \x01(\x01R\tunitPrice\x12'\n" +
+	"\x0fdiscount_amount\x18\r \x01(\x01R\x0ediscountAmount\x12\x1f\n" +
+	"\vline_amount\x18\x0e \x01(\x01R\n" +
+	"lineAmount\x12%\n" +
+	"\x0epayment_method\x18\x0f \x01(\tR\rpaymentMethod\x12!\n" +
+	"\freference_no\x18\x10 \x01(\tR\vreferenceNo\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x11 \x01(\tR\tcreatedAt\"\xab\x01\n" +
 	"\vSaleSummary\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12%\n" +
 	"\x0einvoice_number\x18\x02 \x01(\tR\rinvoiceNumber\x12\x1f\n" +
@@ -926,16 +1298,17 @@ const file_cashier_v1_cashier_proto_rawDesc = "" +
 	"\topened_at\x18\x0e \x01(\tR\bopenedAt\x12\x1b\n" +
 	"\tclosed_at\x18\x0f \x01(\tR\bclosedAt\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\x10 \x01(\tR\tcreatedAt2\xc6\x05\n" +
+	"created_at\x18\x10 \x01(\tR\tcreatedAt2\xd2\x06\n" +
 	"\x0eCashierService\x12l\n" +
 	"\tOpenShift\x12\x1c.cashier.v1.OpenShiftRequest\x1a\x19.cashier.v1.ShiftResponse\"&\x82\xd3\xe4\x93\x02 :\x01*\"\x1b/api/v1/cashier/shifts/open\x12o\n" +
 	"\n" +
 	"CloseShift\x12\x1d.cashier.v1.CloseShiftRequest\x1a\x19.cashier.v1.ShiftResponse\"'\x82\xd3\xe4\x93\x02!:\x01*\"\x1c/api/v1/cashier/shifts/close\x12x\n" +
-	"\x0fGetCurrentShift\x12\".cashier.v1.GetCurrentShiftRequest\x1a\x19.cashier.v1.ShiftResponse\"&\x82\xd3\xe4\x93\x02 \x12\x1e/api/v1/cashier/shifts/current\x12g\n" +
-	"\bGetShift\x12\x1b.cashier.v1.GetShiftRequest\x1a\x19.cashier.v1.ShiftResponse\"#\x82\xd3\xe4\x93\x02\x1d\x12\x1b/api/v1/cashier/shifts/{id}\x12k\n" +
+	"\x0fGetCurrentShift\x12\".cashier.v1.GetCurrentShiftRequest\x1a\x19.cashier.v1.ShiftResponse\"&\x82\xd3\xe4\x93\x02 \x12\x1e/api/v1/cashier/shifts/current\x12n\n" +
+	"\bGetShift\x12\x1b.cashier.v1.GetShiftRequest\x1a\x19.cashier.v1.ShiftResponse\"*\x82\xd3\xe4\x93\x02$\x12\"/api/v1/cashier/shifts/detail/{id}\x12k\n" +
 	"\n" +
 	"ListShifts\x12\x1d.cashier.v1.ListShiftsRequest\x1a\x1e.cashier.v1.ListShiftsResponse\"\x1e\x82\xd3\xe4\x93\x02\x18\x12\x16/api/v1/cashier/shifts\x12\x84\x01\n" +
-	"\x0fGetShiftSummary\x12\".cashier.v1.GetShiftSummaryRequest\x1a .cashier.v1.ShiftSummaryResponse\"+\x82\xd3\xe4\x93\x02%\x12#/api/v1/cashier/shifts/{id}/summaryB!Z\x1fapiPos/gen/cashier/v1;cashierpbb\x06proto3"
+	"\x0fGetShiftSummary\x12\".cashier.v1.GetShiftSummaryRequest\x1a .cashier.v1.ShiftSummaryResponse\"+\x82\xd3\xe4\x93\x02%\x12#/api/v1/cashier/shifts/{id}/summary\x12\x82\x01\n" +
+	"\x0eListShiftItems\x12!.cashier.v1.ListShiftItemsRequest\x1a\".cashier.v1.ListShiftItemsResponse\")\x82\xd3\xe4\x93\x02#\x12!/api/v1/cashier/shifts/{id}/itemsB!Z\x1fapiPos/gen/cashier/v1;cashierpbb\x06proto3"
 
 var (
 	file_cashier_v1_cashier_proto_rawDescOnce sync.Once
@@ -949,7 +1322,7 @@ func file_cashier_v1_cashier_proto_rawDescGZIP() []byte {
 	return file_cashier_v1_cashier_proto_rawDescData
 }
 
-var file_cashier_v1_cashier_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_cashier_v1_cashier_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_cashier_v1_cashier_proto_goTypes = []any{
 	(*OpenShiftRequest)(nil),       // 0: cashier.v1.OpenShiftRequest
 	(*CloseShiftRequest)(nil),      // 1: cashier.v1.CloseShiftRequest
@@ -959,31 +1332,39 @@ var file_cashier_v1_cashier_proto_goTypes = []any{
 	(*ListShiftsResponse)(nil),     // 5: cashier.v1.ListShiftsResponse
 	(*GetShiftSummaryRequest)(nil), // 6: cashier.v1.GetShiftSummaryRequest
 	(*ShiftSummaryResponse)(nil),   // 7: cashier.v1.ShiftSummaryResponse
-	(*SaleSummary)(nil),            // 8: cashier.v1.SaleSummary
-	(*ShiftResponse)(nil),          // 9: cashier.v1.ShiftResponse
-	(*CashierShift)(nil),           // 10: cashier.v1.CashierShift
+	(*ListShiftItemsRequest)(nil),  // 8: cashier.v1.ListShiftItemsRequest
+	(*ListShiftItemsResponse)(nil), // 9: cashier.v1.ListShiftItemsResponse
+	(*ShiftItem)(nil),              // 10: cashier.v1.ShiftItem
+	(*SaleSummary)(nil),            // 11: cashier.v1.SaleSummary
+	(*ShiftResponse)(nil),          // 12: cashier.v1.ShiftResponse
+	(*CashierShift)(nil),           // 13: cashier.v1.CashierShift
+	nil,                            // 14: cashier.v1.ShiftSummaryResponse.RevenueByMethodEntry
 }
 var file_cashier_v1_cashier_proto_depIdxs = []int32{
-	10, // 0: cashier.v1.ListShiftsResponse.shifts:type_name -> cashier.v1.CashierShift
-	8,  // 1: cashier.v1.ShiftSummaryResponse.sales:type_name -> cashier.v1.SaleSummary
-	10, // 2: cashier.v1.ShiftResponse.shift:type_name -> cashier.v1.CashierShift
-	0,  // 3: cashier.v1.CashierService.OpenShift:input_type -> cashier.v1.OpenShiftRequest
-	1,  // 4: cashier.v1.CashierService.CloseShift:input_type -> cashier.v1.CloseShiftRequest
-	2,  // 5: cashier.v1.CashierService.GetCurrentShift:input_type -> cashier.v1.GetCurrentShiftRequest
-	3,  // 6: cashier.v1.CashierService.GetShift:input_type -> cashier.v1.GetShiftRequest
-	4,  // 7: cashier.v1.CashierService.ListShifts:input_type -> cashier.v1.ListShiftsRequest
-	6,  // 8: cashier.v1.CashierService.GetShiftSummary:input_type -> cashier.v1.GetShiftSummaryRequest
-	9,  // 9: cashier.v1.CashierService.OpenShift:output_type -> cashier.v1.ShiftResponse
-	9,  // 10: cashier.v1.CashierService.CloseShift:output_type -> cashier.v1.ShiftResponse
-	9,  // 11: cashier.v1.CashierService.GetCurrentShift:output_type -> cashier.v1.ShiftResponse
-	9,  // 12: cashier.v1.CashierService.GetShift:output_type -> cashier.v1.ShiftResponse
-	5,  // 13: cashier.v1.CashierService.ListShifts:output_type -> cashier.v1.ListShiftsResponse
-	7,  // 14: cashier.v1.CashierService.GetShiftSummary:output_type -> cashier.v1.ShiftSummaryResponse
-	9,  // [9:15] is the sub-list for method output_type
-	3,  // [3:9] is the sub-list for method input_type
-	3,  // [3:3] is the sub-list for extension type_name
-	3,  // [3:3] is the sub-list for extension extendee
-	0,  // [0:3] is the sub-list for field type_name
+	13, // 0: cashier.v1.ListShiftsResponse.shifts:type_name -> cashier.v1.CashierShift
+	11, // 1: cashier.v1.ShiftSummaryResponse.sales:type_name -> cashier.v1.SaleSummary
+	14, // 2: cashier.v1.ShiftSummaryResponse.revenue_by_method:type_name -> cashier.v1.ShiftSummaryResponse.RevenueByMethodEntry
+	10, // 3: cashier.v1.ListShiftItemsResponse.items:type_name -> cashier.v1.ShiftItem
+	13, // 4: cashier.v1.ShiftResponse.shift:type_name -> cashier.v1.CashierShift
+	0,  // 5: cashier.v1.CashierService.OpenShift:input_type -> cashier.v1.OpenShiftRequest
+	1,  // 6: cashier.v1.CashierService.CloseShift:input_type -> cashier.v1.CloseShiftRequest
+	2,  // 7: cashier.v1.CashierService.GetCurrentShift:input_type -> cashier.v1.GetCurrentShiftRequest
+	3,  // 8: cashier.v1.CashierService.GetShift:input_type -> cashier.v1.GetShiftRequest
+	4,  // 9: cashier.v1.CashierService.ListShifts:input_type -> cashier.v1.ListShiftsRequest
+	6,  // 10: cashier.v1.CashierService.GetShiftSummary:input_type -> cashier.v1.GetShiftSummaryRequest
+	8,  // 11: cashier.v1.CashierService.ListShiftItems:input_type -> cashier.v1.ListShiftItemsRequest
+	12, // 12: cashier.v1.CashierService.OpenShift:output_type -> cashier.v1.ShiftResponse
+	12, // 13: cashier.v1.CashierService.CloseShift:output_type -> cashier.v1.ShiftResponse
+	12, // 14: cashier.v1.CashierService.GetCurrentShift:output_type -> cashier.v1.ShiftResponse
+	12, // 15: cashier.v1.CashierService.GetShift:output_type -> cashier.v1.ShiftResponse
+	5,  // 16: cashier.v1.CashierService.ListShifts:output_type -> cashier.v1.ListShiftsResponse
+	7,  // 17: cashier.v1.CashierService.GetShiftSummary:output_type -> cashier.v1.ShiftSummaryResponse
+	9,  // 18: cashier.v1.CashierService.ListShiftItems:output_type -> cashier.v1.ListShiftItemsResponse
+	12, // [12:19] is the sub-list for method output_type
+	5,  // [5:12] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_cashier_v1_cashier_proto_init() }
@@ -997,7 +1378,7 @@ func file_cashier_v1_cashier_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cashier_v1_cashier_proto_rawDesc), len(file_cashier_v1_cashier_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

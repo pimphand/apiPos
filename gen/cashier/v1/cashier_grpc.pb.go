@@ -25,6 +25,7 @@ const (
 	CashierService_GetShift_FullMethodName        = "/cashier.v1.CashierService/GetShift"
 	CashierService_ListShifts_FullMethodName      = "/cashier.v1.CashierService/ListShifts"
 	CashierService_GetShiftSummary_FullMethodName = "/cashier.v1.CashierService/GetShiftSummary"
+	CashierService_ListShiftItems_FullMethodName  = "/cashier.v1.CashierService/ListShiftItems"
 )
 
 // CashierServiceClient is the client API for CashierService service.
@@ -38,11 +39,17 @@ type CashierServiceClient interface {
 	// GetCurrentShift gets the current open shift for a user
 	GetCurrentShift(ctx context.Context, in *GetCurrentShiftRequest, opts ...grpc.CallOption) (*ShiftResponse, error)
 	// GetShift gets a shift by ID
+	//
+	// Note: the REST path deliberately uses a literal "detail" segment instead
+	// of /shifts/{id} — {id} would shadow the literal /shifts/current route
+	// (grpc-gateway resolves same-depth patterns by registration specificity).
 	GetShift(ctx context.Context, in *GetShiftRequest, opts ...grpc.CallOption) (*ShiftResponse, error)
 	// ListShifts lists shifts with filters
 	ListShifts(ctx context.Context, in *ListShiftsRequest, opts ...grpc.CallOption) (*ListShiftsResponse, error)
 	// GetShiftSummary gets shift summary with sales and cash info
 	GetShiftSummary(ctx context.Context, in *GetShiftSummaryRequest, opts ...grpc.CallOption) (*ShiftSummaryResponse, error)
+	// ListShiftItems lists the per-item OUT/IN ledger of a shift
+	ListShiftItems(ctx context.Context, in *ListShiftItemsRequest, opts ...grpc.CallOption) (*ListShiftItemsResponse, error)
 }
 
 type cashierServiceClient struct {
@@ -113,6 +120,16 @@ func (c *cashierServiceClient) GetShiftSummary(ctx context.Context, in *GetShift
 	return out, nil
 }
 
+func (c *cashierServiceClient) ListShiftItems(ctx context.Context, in *ListShiftItemsRequest, opts ...grpc.CallOption) (*ListShiftItemsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListShiftItemsResponse)
+	err := c.cc.Invoke(ctx, CashierService_ListShiftItems_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CashierServiceServer is the server API for CashierService service.
 // All implementations must embed UnimplementedCashierServiceServer
 // for forward compatibility.
@@ -124,11 +141,17 @@ type CashierServiceServer interface {
 	// GetCurrentShift gets the current open shift for a user
 	GetCurrentShift(context.Context, *GetCurrentShiftRequest) (*ShiftResponse, error)
 	// GetShift gets a shift by ID
+	//
+	// Note: the REST path deliberately uses a literal "detail" segment instead
+	// of /shifts/{id} — {id} would shadow the literal /shifts/current route
+	// (grpc-gateway resolves same-depth patterns by registration specificity).
 	GetShift(context.Context, *GetShiftRequest) (*ShiftResponse, error)
 	// ListShifts lists shifts with filters
 	ListShifts(context.Context, *ListShiftsRequest) (*ListShiftsResponse, error)
 	// GetShiftSummary gets shift summary with sales and cash info
 	GetShiftSummary(context.Context, *GetShiftSummaryRequest) (*ShiftSummaryResponse, error)
+	// ListShiftItems lists the per-item OUT/IN ledger of a shift
+	ListShiftItems(context.Context, *ListShiftItemsRequest) (*ListShiftItemsResponse, error)
 	mustEmbedUnimplementedCashierServiceServer()
 }
 
@@ -156,6 +179,9 @@ func (UnimplementedCashierServiceServer) ListShifts(context.Context, *ListShifts
 }
 func (UnimplementedCashierServiceServer) GetShiftSummary(context.Context, *GetShiftSummaryRequest) (*ShiftSummaryResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetShiftSummary not implemented")
+}
+func (UnimplementedCashierServiceServer) ListShiftItems(context.Context, *ListShiftItemsRequest) (*ListShiftItemsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListShiftItems not implemented")
 }
 func (UnimplementedCashierServiceServer) mustEmbedUnimplementedCashierServiceServer() {}
 func (UnimplementedCashierServiceServer) testEmbeddedByValue()                        {}
@@ -286,6 +312,24 @@ func _CashierService_GetShiftSummary_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _CashierService_ListShiftItems_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListShiftItemsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CashierServiceServer).ListShiftItems(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CashierService_ListShiftItems_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CashierServiceServer).ListShiftItems(ctx, req.(*ListShiftItemsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // CashierService_ServiceDesc is the grpc.ServiceDesc for CashierService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -316,6 +360,10 @@ var CashierService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetShiftSummary",
 			Handler:    _CashierService_GetShiftSummary_Handler,
+		},
+		{
+			MethodName: "ListShiftItems",
+			Handler:    _CashierService_ListShiftItems_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

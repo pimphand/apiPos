@@ -17,8 +17,8 @@ type mockCashierRepo struct{}
 func (m *mockCashierRepo) OpenShift(ctx context.Context, shift *gormdb.CashierShift) error {
 	return nil
 }
-func (m *mockCashierRepo) CloseShift(ctx context.Context, id string, closingCash, actualCash float64) error {
-	return nil
+func (m *mockCashierRepo) CloseShift(ctx context.Context, params repository.CloseShiftParams) (bool, error) {
+	return true, nil
 }
 func (m *mockCashierRepo) GetCurrentShift(ctx context.Context, userID string) (*gormdb.CashierShift, error) {
 	return nil, nil
@@ -37,6 +37,9 @@ func (m *mockCashierRepo) UpdateCashRefund(ctx context.Context, id string, amoun
 }
 func (m *mockCashierRepo) CountOpenShifts(ctx context.Context) (int64, error) {
 	return 0, nil
+}
+func (m *mockCashierRepo) ListShiftItems(ctx context.Context, params repository.ShiftItemListParams) ([]gormdb.ShiftItem, int64, error) {
+	return nil, 0, nil
 }
 
 type mockPaymentRepo struct{}

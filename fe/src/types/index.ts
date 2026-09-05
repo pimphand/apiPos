@@ -354,6 +354,10 @@ export interface ShiftSummary {
   opened_at: string;
   closed_at?: string;
   sales: ShiftSale[];
+  /** Grand total per payment method, e.g. { CASH: 50000, CARD: 0 }. */
+  revenue_by_method?: Record<string, number>;
+  items_out_total?: number;
+  items_in_total?: number;
 }
 
 export interface ShiftSale {
@@ -362,6 +366,31 @@ export interface ShiftSale {
   grand_total: number;
   payment_method: string;
   created_at: string;
+}
+
+/** One row of the insert-only per-item shift ledger (goods OUT/IN). */
+export interface ShiftItem {
+  id: string;
+  shift_id: string;
+  sale_id?: string;
+  direction: 'OUT' | 'IN';
+  item_type: 'PRODUCT' | 'SKU';
+  product_id: string;
+  product_sku_id?: string;
+  product_name: string;
+  sku_code?: string;
+  variant_label?: string;
+  quantity: number;
+  unit_price: number;
+  discount_amount: number;
+  line_amount: number;
+  payment_method?: string;
+  reference_no?: string;
+  created_at: string;
+}
+
+export interface ListShiftItemsResponse extends PaginationResponse {
+  items: ShiftItem[];
 }
 
 export interface ListShiftsResponse extends PaginationResponse {

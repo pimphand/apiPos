@@ -505,6 +505,38 @@
         ]
       }
     },
+    "/api/v1/cashier/shifts/detail/{id}": {
+      "get": {
+        "summary": "GetShift gets a shift by ID",
+        "description": "Note: the REST path deliberately uses a literal \"detail\" segment instead\nof /shifts/{id} — {id} would shadow the literal /shifts/current route\n(grpc-gateway resolves same-depth patterns by registration specificity).",
+        "operationId": "CashierService_GetShift",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ShiftResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "CashierService"
+        ]
+      }
+    },
     "/api/v1/cashier/shifts/open": {
       "post": {
         "summary": "OpenShift opens a new cashier shift",
@@ -538,15 +570,15 @@
         ]
       }
     },
-    "/api/v1/cashier/shifts/{id}": {
+    "/api/v1/cashier/shifts/{id}/items": {
       "get": {
-        "summary": "GetShift gets a shift by ID",
-        "operationId": "CashierService_GetShift",
+        "summary": "ListShiftItems lists the per-item OUT/IN ledger of a shift",
+        "operationId": "CashierService_ListShiftItems",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1ShiftResponse"
+              "$ref": "#/definitions/v1ListShiftItemsResponse"
             }
           },
           "default": {
@@ -562,6 +594,26 @@
             "in": "path",
             "required": true,
             "type": "string"
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "perPage",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
           }
         ],
         "tags": [
@@ -5488,6 +5540,30 @@
         }
       }
     },
+    "v1ListShiftItemsResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1ShiftItem"
+          }
+        },
+        "totalCount": {
+          "type": "string",
+          "format": "int64"
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "perPage": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
     "v1ListShiftsResponse": {
       "type": "object",
       "properties": {
@@ -6357,6 +6433,66 @@
         }
       }
     },
+    "v1ShiftItem": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "shiftId": {
+          "type": "string"
+        },
+        "saleId": {
+          "type": "string"
+        },
+        "direction": {
+          "type": "string"
+        },
+        "itemType": {
+          "type": "string"
+        },
+        "productId": {
+          "type": "string"
+        },
+        "productSkuId": {
+          "type": "string"
+        },
+        "productName": {
+          "type": "string"
+        },
+        "skuCode": {
+          "type": "string"
+        },
+        "variantLabel": {
+          "type": "string"
+        },
+        "quantity": {
+          "type": "number",
+          "format": "double"
+        },
+        "unitPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "discountAmount": {
+          "type": "number",
+          "format": "double"
+        },
+        "lineAmount": {
+          "type": "number",
+          "format": "double"
+        },
+        "paymentMethod": {
+          "type": "string"
+        },
+        "referenceNo": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      }
+    },
     "v1ShiftResponse": {
       "type": "object",
       "properties": {
@@ -6424,6 +6560,21 @@
             "type": "object",
             "$ref": "#/definitions/v1SaleSummary"
           }
+        },
+        "revenueByMethod": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "itemsOutTotal": {
+          "type": "number",
+          "format": "double"
+        },
+        "itemsInTotal": {
+          "type": "number",
+          "format": "double"
         }
       }
     },

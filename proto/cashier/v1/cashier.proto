@@ -31,9 +31,13 @@ service CashierService {
   }
 
   // GetShift gets a shift by ID
+  //
+  // Note: the REST path deliberately uses a literal "detail" segment instead
+  // of /shifts/{id} — {id} would shadow the literal /shifts/current route
+  // (grpc-gateway resolves same-depth patterns by registration specificity).
   rpc GetShift(GetShiftRequest) returns (ShiftResponse) {
     option (google.api.http) = {
-      get: "/api/v1/cashier/shifts/{id}"
+      get: "/api/v1/cashier/shifts/detail/{id}"
     };
   }
 
@@ -48,6 +52,13 @@ service CashierService {
   rpc GetShiftSummary(GetShiftSummaryRequest) returns (ShiftSummaryResponse) {
     option (google.api.http) = {
       get: "/api/v1/cashier/shifts/{id}/summary"
+    };
+  }
+
+  // ListShiftItems lists the per-item OUT/IN ledger of a shift
+  rpc ListShiftItems(ListShiftItemsRequest) returns (ListShiftItemsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/cashier/shifts/{id}/items"
     };
   }
 }
@@ -106,6 +117,43 @@ message ShiftSummaryResponse {
   string opened_at = 13;
   string closed_at = 14;
   repeated SaleSummary sales = 15;
+  map<string, double> revenue_by_method = 16;
+  double items_out_total = 17;
+  double items_in_total = 18;
+}
+
+message ListShiftItemsRequest {
+  string id = 1;
+  string direction = 2;
+  int32 page = 3;
+  int32 per_page = 4;
+}
+
+message ListShiftItemsResponse {
+  repeated ShiftItem items = 1;
+  int64 total_count = 2;
+  int32 page = 3;
+  int32 per_page = 4;
+}
+
+message ShiftItem {
+  string id = 1;
+  string shift_id = 2;
+  string sale_id = 3;
+  string direction = 4;
+  string item_type = 5;
+  string product_id = 6;
+  string product_sku_id = 7;
+  string product_name = 8;
+  string sku_code = 9;
+  string variant_label = 10;
+  double quantity = 11;
+  double unit_price = 12;
+  double discount_amount = 13;
+  double line_amount = 14;
+  string payment_method = 15;
+  string reference_no = 16;
+  string created_at = 17;
 }
 
 message SaleSummary {

@@ -117,7 +117,8 @@ func (h *SaleHandler) ListSales(ctx context.Context, req *salev1.ListSalesReques
 
 // CancelSale cancels a sale
 func (h *SaleHandler) CancelSale(ctx context.Context, req *salev1.CancelSaleRequest) (*salev1.SaleResponse, error) {
-	err := h.service.CancelSale(ctx, req.Id)
+	userID := getUserIDFromContext(ctx)
+	err := h.service.CancelSale(ctx, req.Id, userID)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
@@ -137,7 +138,8 @@ func (h *SaleHandler) CancelSale(ctx context.Context, req *salev1.CancelSaleRequ
 
 // RefundSale refunds a sale
 func (h *SaleHandler) RefundSale(ctx context.Context, req *salev1.RefundSaleRequest) (*salev1.SaleResponse, error) {
-	err := h.service.RefundSale(ctx, req.Id)
+	userID := getUserIDFromContext(ctx)
+	err := h.service.RefundSale(ctx, req.Id, userID)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
@@ -219,14 +221,14 @@ func toProtoSaleDetail(detail *sale.SaleDetail, repos *repository.Repositories) 
 	items := make([]*salev1.SaleItem, 0, len(detail.Items))
 	for _, item := range detail.Items {
 		protoItem := &salev1.SaleItem{
-			Id:         item.ID.String(),
-			SaleId:     item.SaleID.String(),
-			ProductId:  item.ProductID.String(),
-			Quantity:   item.Quantity,
-			UnitPrice:  item.UnitPrice,
-			Discount:   item.Discount,
-			Subtotal:   item.Subtotal,
-			CreatedAt:  item.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			Id:        item.ID.String(),
+			SaleId:    item.SaleID.String(),
+			ProductId: item.ProductID.String(),
+			Quantity:  item.Quantity,
+			UnitPrice: item.UnitPrice,
+			Discount:  item.Discount,
+			Subtotal:  item.Subtotal,
+			CreatedAt: item.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		}
 
 		// Load product name
