@@ -1,24 +1,35 @@
 <script setup lang="ts">
-import { ref, reactive, computed, watch } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { productService } from '@/services/product';
 import { customerService } from '@/services/customer';
 import { saleService } from '@/services/sale';
 import { cashierService } from '@/services/cashier';
 import { useCashierShift } from '@/composables/useCashierShift';
+import { useHeldOrders } from '@/composables/useHeldOrders';
 import { useUiStore } from '@/stores/ui';
 import { useLocaleStore } from '@/stores/locale';
 import { usePageGuard } from '@/composables/usePageGuard';
 import { apiMessage } from '@/lib/apiError';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
-import type { Product, ProductSKU, Customer, ShiftItem, ShiftSummary } from '@/types';
+import { HOLD_LIMIT } from '@/lib/posHold';
+import type {
+  Product,
+  ProductSKU,
+  Customer,
+  ShiftItem,
+  ShiftSummary,
+  HeldOrder,
+  HeldOrderItem,
+} from '@/types';
 import DashboardShell from '@/components/layout/DashboardShell.vue';
+import PosHeldOrders from '@/components/pos/PosHeldOrders.vue';
+import PosPaymentDialog from '@/components/pos/PosPaymentDialog.vue';
+import PosProductBrowser from '@/components/pos/PosProductBrowser.vue';
+import PosShiftDialogs from '@/components/pos/PosShiftDialogs.vue';
 import Button from '@/components/ui/button/Button.vue';
 import Input from '@/components/ui/input/Input.vue';
-import Label from '@/components/ui/label/Label.vue';
 import Badge from '@/components/ui/badge/Badge.vue';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const { isReady, allowed, authStore } = usePageGuard('sales.create');
@@ -39,111 +50,56 @@ const {
   ensureShiftOpen,
 } = useCashierShift();
 
-const openDialog = ref(false);
-const openForm = reactive({ opening_cash: 0 });
 /** Gates the very first paint until the shift state is resolved. */
 const checkingShift = ref(true);
 
-const closeDialog = ref(false);
-const closeActual = ref(0);
-const closeClosing = ref(0);
-const diffConfirm = ref(false);
-const closedResult = ref<ShiftSummary | null>(null);
-const resultDialog = ref(false);
-
-const itemsDirection = ref<'OUT' | 'IN'>('OUT');
-const itemsOut = ref<ShiftItem[]>([]);
-const itemsIn = ref<ShiftItem[]>([]);
-const itemsLoading = ref(false);
-
-const differencePreview = computed(
-  () => (Number(closeActual.value) || 0) - (summary.value?.expected_cash ?? 0)
-);
-
-function openOpenShift() {
-  openForm.opening_cash = 0;
-  openDialog.value = true;
-}
-
-async function submitOpenShift() {
-  if (opening.value) return;
-  try {
-    await openShift(openForm.opening_cash);
-    ui.addToast('success', t('posShift.toastOpened'));
-    openDialog.value = false;
-    await refreshLive();
-    searchProducts(); // product list only renders while a shift is open
-  } catch (err) {
-    ui.addToast('error', apiMessage(err));
-  }
-}
+/** Template refs to the child views that own the shift-dialog / product UI. */
+const shiftDialogsRef = ref<InstanceType<typeof PosShiftDialogs> | null>(null);
+const productBrowserRef = ref<InstanceType<typeof PosProductBrowser> | null>(null);
 
 async function refreshLive() {
   await refreshShift();
   if (currentShift.value) {
     await loadSummary();
-    await loadShiftItems();
   }
 }
 
-async function loadShiftItems() {
-  const id = currentShift.value?.id;
-  if (!id) return;
-  itemsLoading.value = true;
+/** PosShiftDialogs → open the shift; refreshes POS state on success. */
+async function handleOpenShift(openingCash: number): Promise<boolean> {
   try {
-    const [outRes, inRes] = await Promise.all([
-      cashierService.listShiftItems({ id, direction: 'OUT', page: 1, per_page: 50 }),
-      cashierService.listShiftItems({ id, direction: 'IN', page: 1, per_page: 50 }),
-    ]);
-    itemsOut.value = outRes.items ?? [];
-    itemsIn.value = inRes.items ?? [];
-  } catch {
-    // Items are auxiliary; ignore failures so the dialogs still work.
-  } finally {
-    itemsLoading.value = false;
-  }
-}
-
-async function openCloseDialog() {
-  if (!currentShift.value) return;
-  itemsDirection.value = 'OUT';
-  closeActual.value = 0;
-  closeClosing.value = 0;
-  diffConfirm.value = false;
-  closeDialog.value = true;
-  await loadSummary();
-  if (summary.value && closeActual.value === 0) {
-    // Suggest expected cash; the cashier may edit before confirming.
-    closeActual.value = summary.value.expected_cash ?? 0;
-    closeClosing.value = closeActual.value;
-  }
-  await loadShiftItems();
-}
-
-function askClose() {
-  // Require an explicit confirmation when the counted cash differs.
-  if (differencePreview.value !== 0) {
-    diffConfirm.value = true;
-  } else {
-    performClose();
-  }
-}
-
-async function performClose() {
-  const id = currentShift.value?.id;
-  if (!id || closing.value) return;
-  try {
-    // Inputs may come back as strings from the number input when cleared.
-    const actual = Number(closeActual.value) || 0;
-    const closingCash = Number(closeClosing.value) || 0;
-    const finalSummary = await closeShift(id, actual, closingCash);
-    ui.addToast('success', t('posShift.toastClosed'));
-    closeDialog.value = false;
-    diffConfirm.value = false;
-    closedResult.value = finalSummary;
-    resultDialog.value = true;
+    await openShift(openingCash);
+    ui.addToast('success', t('posShift.toastOpened'));
+    await refreshLive();
+    searchProducts(); // product list only renders while a shift is open
+    return true;
   } catch (err) {
     ui.addToast('error', apiMessage(err));
+    return false;
+  }
+}
+
+/** PosShiftDialogs → close the shift (composable handles idempotency). */
+async function handleCloseShift(
+  shiftId: string,
+  actualCash: number,
+  closingCash: number
+): Promise<ShiftSummary> {
+  return closeShift(shiftId, actualCash, closingCash);
+}
+
+/** PosShiftDialogs → OUT/IN item ledger rows for the close dialog. */
+async function handleFetchShiftItems(
+  shiftId: string
+): Promise<{ out: ShiftItem[]; in: ShiftItem[] }> {
+  try {
+    const [outRes, inRes] = await Promise.all([
+      cashierService.listShiftItems({ id: shiftId, direction: 'OUT', page: 1, per_page: 50 }),
+      cashierService.listShiftItems({ id: shiftId, direction: 'IN', page: 1, per_page: 50 }),
+    ]);
+    return { out: outRes.items ?? [], in: inRes.items ?? [] };
+  } catch {
+    // Items are auxiliary; ignore failures so the dialogs still work.
+    return { out: [], in: [] };
   }
 }
 
@@ -163,7 +119,6 @@ const searchQuery = ref('');
 const searchResults = ref<Product[]>([]);
 const searching = ref(false);
 const barcodeInput = ref('');
-const searchInputRef = ref<HTMLInputElement | null>(null);
 
 const cart = ref<CartItem[]>([]);
 const discount = ref(0);
@@ -174,19 +129,17 @@ const customers = ref<Customer[]>([]);
 const customersLoading = ref(false);
 
 const paymentOpen = ref(false);
-const paymentMethod = ref('CASH');
-const amountPaid = ref(0);
 const processing = ref(false);
-
-// Ensure amountPaid is always a number (Input component may not propagate type="number")
-function setAmountPaid(value: string | number) {
-  amountPaid.value = Number(value) || 0;
-}
 
 const subtotal = computed(() => cart.value.reduce((sum, item) => sum + item.unit_price * item.quantity, 0));
 const taxAmount = computed(() => Math.round(subtotal.value * (taxRate.value / 100)));
 const grandTotal = computed(() => subtotal.value + taxAmount.value - discount.value);
-const change = computed(() => Math.max(0, amountPaid.value - grandTotal.value));
+/** SKU → total quantity in the cart (live stock badges in PosProductBrowser). */
+const cartQuantities = computed(() => {
+  const quantities: Record<string, number> = {};
+  for (const i of cart.value) quantities[i.sku_id] = (quantities[i.sku_id] ?? 0) + i.quantity;
+  return quantities;
+});
 
 async function searchProducts() {
   const q = searchQuery.value.trim();
@@ -207,8 +160,7 @@ async function searchProducts() {
   }
 }
 
-async function lookupBarcode() {
-  const code = barcodeInput.value.trim();
+async function lookupBarcode(code: string) {
   if (!code) return;
   try {
     const sku = await productService.getSKUByBarcode(code);
@@ -272,12 +224,6 @@ function removeItem(item: CartItem) {
   ui.addToast('success', t('admin.pos.toastRemoved'));
 }
 
-/** Calculate remaining stock for a SKU after cart deductions */
-function skuRemainingStock(skuId: string, originalStock: number): number {
-  const inCart = cart.value.filter(i => i.sku_id === skuId).reduce((sum, i) => sum + i.quantity, 0);
-  return originalStock - inCart;
-}
-
 function clearCart() {
   cart.value = [];
   discount.value = 0;
@@ -285,11 +231,203 @@ function clearCart() {
   selectedCustomerId.value = '';
 }
 
+// ---- Held orders (docs/pos-hold-order.md) --------------------------------
+const heldOrdersApi = useHeldOrders();
+const { holds, holdsCount } = heldOrdersApi;
+
+const restoring = ref(false);
+/** Single-flight guard so two rapid clicks cannot hold the same cart twice. */
+let holdingCart = false;
+
+/** Snapshot of the current cart lines (mirrors CartItem shape). */
+const holdableCartItems = computed<HeldOrderItem[]>(() =>
+  cart.value.map((i) => ({
+    product_id: i.product_id,
+    sku_id: i.sku_id,
+    name: i.name,
+    sku_code: i.sku_code,
+    unit_price: i.unit_price,
+    quantity: i.quantity,
+    stock: i.stock,
+    original_stock: i.original_stock,
+  }))
+);
+
+/**
+ * Hold the current cart (R2–R3): snapshot → save → clear cart so the cashier
+ * can serve the next customer. Returns false when nothing was held.
+ */
+async function holdCurrentCart(opts: { silent?: boolean } = {}): Promise<boolean> {
+  if (cart.value.length === 0) {
+    if (!opts.silent) ui.addToast('error', t('posHold.toastHeldCartEmpty'));
+    return false;
+  }
+  if (holdsCount.value >= HOLD_LIMIT) {
+    ui.addToast('error', t('posHold.toastLimit', { limit: HOLD_LIMIT }));
+    return false;
+  }
+  if (holdingCart) return false;
+  holdingCart = true;
+  try {
+    // Best-effort resolve the customer name for the hold label.
+    const hasCustomer =
+      selectedCustomerId.value && selectedCustomerId.value !== NO_CUSTOMER;
+    let customerName: string | undefined;
+    if (hasCustomer) {
+      customerName = customers.value.find((c) => c.id === selectedCustomerId.value)?.name;
+      if (!customerName && customers.value.length === 0 && !customersLoading.value) {
+        await loadCustomers();
+        customerName = customers.value.find((c) => c.id === selectedCustomerId.value)?.name;
+      }
+    }
+    const n = holdsCount.value + 1;
+    const label = customerName
+      ? t('posHold.holdLabelWithCustomer', { n, customer: customerName })
+      : t('posHold.holdLabel', { n });
+    heldOrdersApi.holdCart({
+      label,
+      items: holdableCartItems.value,
+      discount: discount.value,
+      tax_rate: taxRate.value,
+      customer_id: hasCustomer ? selectedCustomerId.value : '',
+      customer_name: customerName,
+    });
+    clearCart();
+    if (!opts.silent) {
+      ui.addToast('success', t('posHold.toastHeld'));
+    }
+    return true;
+  } finally {
+    holdingCart = false;
+  }
+}
+
+/**
+ * --- Actions triggered by <PosHeldOrders> ------------------------------
+ * The component only asks; cart/hold business logic stays here so the POS page
+ * remains the single owner of the cart and the shift state.
+ */
+function handleRestoreHeld(h: HeldOrder) {
+  void performRestore(h); // child guarantees the cart is empty here
+}
+
+async function handleHoldCurrentAndRestore(h: HeldOrder) {
+  const held = await holdCurrentCart({ silent: true });
+  if (!held) return; // limit reached — current cart preserved, error toasted
+  await performRestore(h);
+}
+
+async function handleReplaceAndRestore(h: HeldOrder) {
+  clearCart();
+  await performRestore(h);
+}
+
+function handleDeleteHeld(h: HeldOrder) {
+  if (heldOrdersApi.deleteHold(h.id)) {
+    ui.addToast('success', t('posHold.toastDeleted'));
+  }
+}
+
+/**
+ * Live stock/availability revalidation before filling the cart (spec §5.6,
+ * R6). Best-effort: if the refresh fails (offline), items are restored from
+ * the snapshot and the server still validates stock at payment time.
+ */
+async function resolveRestoredItems(items: HeldOrderItem[]): Promise<{
+  items: HeldOrderItem[];
+  notices: { type: 'error' | 'warning' | 'info'; text: string }[];
+}> {
+  const notices: { type: 'error' | 'warning' | 'info'; text: string }[] = [];
+  const uniqueProductIds = [...new Set(items.map((i) => i.product_id))];
+  const productsById = new Map<string, Product>();
+  try {
+    const settled = await Promise.allSettled(
+      uniqueProductIds.map((id) => productService.get(id, true))
+    );
+    settled.forEach((res, idx) => {
+      if (res.status === 'fulfilled') {
+        productsById.set(uniqueProductIds[idx], res.value);
+      }
+    });
+  } catch {
+    // No refresh at all → fall back to snapshot below.
+  }
+  const liveKnown = productsById.size > 0;
+  const resolved: HeldOrderItem[] = [];
+  for (const it of items) {
+    const product = productsById.get(it.product_id);
+    const sku = product?.skus?.find((s) => s.id === it.sku_id);
+    if (liveKnown && (!product || !sku)) {
+      // The product/SKU no longer exists → drop the line (can't be paid).
+      notices.push({ type: 'error', text: t('posHold.itemUnavailable', { name: it.name }) });
+      continue;
+    }
+    if (product && sku) {
+      if (!product.is_active || !sku.is_active || Number(sku.stock) <= 0) {
+        notices.push({ type: 'error', text: t('posHold.itemUnavailable', { name: it.name }) });
+        continue;
+      }
+      const liveStock = Number(sku.stock) || 0;
+      if (it.quantity > liveStock) {
+        notices.push({
+          type: 'warning',
+          text: t('posHold.stockAdjusted', {
+            name: it.name,
+            old: it.quantity,
+            new: liveStock,
+          }),
+        });
+        resolved.push({ ...it, quantity: liveStock, stock: liveStock, original_stock: liveStock });
+      } else {
+        resolved.push({ ...it, stock: liveStock, original_stock: liveStock });
+      }
+      continue;
+    }
+    // No live data (offline) → restore from snapshot as-is.
+    resolved.push({ ...it });
+  }
+  return { items: resolved, notices };
+}
+
+function pushItemsToCart(items: HeldOrderItem[]) {
+  for (const it of items) {
+    const existing = cart.value.find((i) => i.sku_id === it.sku_id);
+    if (existing) {
+      existing.quantity += it.quantity;
+    } else {
+      cart.value.push({
+        product_id: it.product_id,
+        sku_id: it.sku_id,
+        name: it.name,
+        sku_code: it.sku_code,
+        unit_price: it.unit_price,
+        quantity: it.quantity,
+        stock: it.stock,
+        original_stock: it.original_stock,
+      });
+    }
+  }
+}
+
+async function performRestore(h: HeldOrder) {
+  restoring.value = true;
+  try {
+    const order = heldOrdersApi.restoreHold(h.id);
+    if (!order) return; // already restored/removed in another tab
+    const { items, notices } = await resolveRestoredItems(order.items);
+    for (const n of notices) ui.addToast(n.type, n.text);
+    pushItemsToCart(items);
+    discount.value = order.discount || 0;
+    taxRate.value = order.tax_rate;
+    selectedCustomerId.value = order.customer_id || '';
+    ui.addToast('success', t('posHold.toastRestored'));
+  } finally {
+    restoring.value = false;
+  }
+}
+
 function openPayment() {
   if (cart.value.length === 0) return;
-  // Biarkan amountPaid kosong agar user bisa input sendiri
-  amountPaid.value = 0;
-  paymentMethod.value = 'CASH';
   paymentOpen.value = true;
   loadCustomers();
 }
@@ -307,7 +445,11 @@ async function loadCustomers() {
   }
 }
 
-async function submitSale() {
+async function submitSale(payload: {
+  customer_id: string;
+  payment_method: string;
+  amount_paid: number;
+}) {
   // Gate: never send a sale while the shift is not OPEN (server enforces it
   // too — this keeps the cart intact and lets the cashier re-try after
   // opening/re-opening the shift).
@@ -315,7 +457,7 @@ async function submitSale() {
     ui.addToast('error', t('posShift.notOpened'));
     return;
   }
-  if (amountPaid.value < grandTotal.value) {
+  if (payload.amount_paid < grandTotal.value) {
     ui.addToast('error', t('admin.pos.insufficient'));
     return;
   }
@@ -328,7 +470,7 @@ async function submitSale() {
   try {
     await saleService.create({
       store_id: storeId,
-      customer_id: selectedCustomerId.value && selectedCustomerId.value !== NO_CUSTOMER ? selectedCustomerId.value : undefined,
+      customer_id: payload.customer_id && payload.customer_id !== NO_CUSTOMER ? payload.customer_id : undefined,
       items: cart.value.map(i => ({
         product_id: i.product_id,
         sku_id: i.sku_id,
@@ -337,15 +479,14 @@ async function submitSale() {
       })),
       discount: discount.value,
       tax_rate: taxRate.value,
-      payment_method: paymentMethod.value,
-      amount_paid: amountPaid.value,
+      payment_method: payload.payment_method,
+      amount_paid: payload.amount_paid,
     });
     ui.addToast('success', t('admin.pos.toastSaleCreated'));
     paymentOpen.value = false;
     clearCart();
     searchProducts(); // Refresh stock levels shown in the product list
-    loadSummary(); // Live sync: totals/items in the shift status bar
-    loadShiftItems();
+    loadSummary(); // Live sync: totals in the shift status bar
   } catch (err) {
     ui.addToast('error', apiMessage(err));
     // The shift may have been closed from another tab/device while the
@@ -366,11 +507,12 @@ watch(isReady, async (r) => {
     checkingShift.value = true;
     try {
       await refreshLive();
+      heldOrdersApi.reload();
       if (currentShift.value) searchProducts();
     } finally {
       checkingShift.value = false;
     }
-    searchInputRef.value?.focus();
+    productBrowserRef.value?.focusSearch();
   }
 }, { immediate: true });
 </script>
@@ -400,7 +542,7 @@ watch(isReady, async (r) => {
         <h3 class="mt-4 text-xl font-semibold">{{ t('posShift.notOpened') }}</h3>
         <p class="mt-2 text-sm text-muted-foreground">{{ t('posShift.notOpenedDesc') }}</p>
         <p class="mt-1 text-xs text-muted-foreground">{{ t('posShift.checkoutLocked') }}</p>
-        <Button class="mt-6" @click="openOpenShift">{{ t('posShift.openShift') }}</Button>
+        <Button class="mt-6" @click="shiftDialogsRef?.openOpenShiftDialog()">{{ t('posShift.openShift') }}</Button>
       </div>
     </div>
 
@@ -436,106 +578,58 @@ watch(isReady, async (r) => {
           <Button variant="outline" size="sm" class="ml-auto" @click="refreshLive">
             {{ t('posShift.refresh') }}
           </Button>
-          <Button variant="destructive" @click="openCloseDialog">{{ t('posShift.closeShift') }}</Button>
+          <Button variant="destructive" @click="shiftDialogsRef?.openCloseDialog()">{{ t('posShift.closeShift') }}</Button>
         </CardContent>
       </Card>
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1">
-        <!-- Left: Search & Product List -->
+        <!-- Left: Search & Product List (PosProductBrowser.vue) -->
         <div class="lg:col-span-2 flex flex-col gap-4">
-          <div class="flex gap-2">
-            <div class="flex-1">
-              <Input
-                ref="searchInputRef"
-                v-model="searchQuery"
-                :placeholder="t('admin.pos.searchPlaceholder')"
-                @keyup.enter="searchProducts"
-                class="text-base h-11"
-              />
-            </div>
-            <Button @click="searchProducts" class="h-11 px-6">{{ t('admin.shared.search') }}</Button>
-          </div>
-
-          <div class="flex gap-2">
-            <Input
-              v-model="barcodeInput"
-              placeholder="Barcode / SKU"
-              class="flex-1"
-              @keyup.enter="lookupBarcode"
-            />
-            <Button variant="outline" @click="lookupBarcode">{{ t('admin.products.scanBarcode') }}</Button>
-          </div>
-
-          <Card>
-            <CardContent class="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{{ t('admin.pos.productName') }}</TableHead>
-                    <TableHead>SKU</TableHead>
-                    <TableHead class="text-right">{{ t('admin.pos.price') }}</TableHead>
-                    <TableHead class="text-right">{{ t('admin.pos.stock') }}</TableHead>
-                    <TableHead class="text-right">{{ t('admin.shared.actions') }}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow v-if="searching">
-                    <TableCell :colspan="5" class="text-center py-8 text-muted-foreground">{{ t('admin.shared.loading') }}</TableCell>
-                  </TableRow>
-                  <template v-else>
-                    <TableRow v-if="searchResults.filter(p => p.skus && p.skus.length > 0).length === 0">
-                      <TableCell :colspan="5" class="text-center py-8 text-muted-foreground">
-                        {{ t('admin.pos.noProducts') }}
-                      </TableCell>
-                    </TableRow>
-                    <template v-for="p in searchResults.filter(p => p.skus && p.skus.length > 0)" :key="p.id">
-                      <!-- Product header row -->
-                      <TableRow class="bg-muted/30">
-                        <TableCell colspan="5" class="font-semibold">{{ p.name }}</TableCell>
-                      </TableRow>
-                      <!-- SKU rows -->
-                      <TableRow v-for="sku in (p.skus ?? [])" :key="sku.id" class="hover:bg-muted/50">
-                        <TableCell class="pl-8">
-                          <span class="text-muted-foreground text-xs">{{ sku.sku }}</span>
-                          <span v-if="sku.variant" class="text-xs text-muted-foreground ml-1">· {{ sku.variant }}</span>
-                          <span v-if="sku.size" class="text-xs text-muted-foreground ml-1">· {{ sku.size }}</span>
-                        </TableCell>
-                        <TableCell></TableCell>
-                        <TableCell class="text-right tabular-nums text-sm">{{ formatCurrency(sku.selling_price) }}</TableCell>
-                        <TableCell class="text-right tabular-nums">
-                          <Badge :variant="skuRemainingStock(sku.id, sku.stock) > 0 ? 'default' : 'destructive'">
-                            {{ skuRemainingStock(sku.id, sku.stock) }}
-                          </Badge>
-                        </TableCell>
-                        <TableCell class="text-right">
-                          <Button
-                            size="sm"
-                            :disabled="skuRemainingStock(sku.id, sku.stock) <= 0"
-                            @click="addToCart(p, sku)"
-                          >{{ t('admin.pos.addToCart') }}</Button>
-                        </TableCell>
-                      </TableRow>
-                      <!-- No SKUs fallback -->
-                      <TableRow v-if="!p.skus?.length">
-                        <TableCell colspan="5" class="pl-8 text-sm text-muted-foreground">No SKUs</TableCell>
-                      </TableRow>
-                    </template>
-                  </template>
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          <PosProductBrowser
+            ref="productBrowserRef"
+            :products="searchResults"
+            :searching="searching"
+            :cart-quantities="cartQuantities"
+            v-model:search-query="searchQuery"
+            v-model:barcode-input="barcodeInput"
+            @search="searchProducts"
+            @lookup="lookupBarcode"
+            @add="addToCart"
+          />
         </div>
 
         <!-- Right: Cart -->
         <div class="flex flex-col gap-4">
           <Card class="flex-1 flex flex-col">
-            <CardHeader class="flex flex-row items-center justify-between pb-2">
+            <CardHeader class="flex flex-row items-center justify-between gap-2 pb-2">
               <CardTitle class="text-lg">{{ t('admin.pos.cart') }}</CardTitle>
-              <div class="flex gap-2">
-                <Button variant="outline" size="sm" @click="clearCart" :disabled="cart.length === 0">{{ t('admin.pos.clearCart') }}</Button>
+              <div class="flex gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  class="h-8 px-2.5"
+                  :disabled="cart.length === 0"
+                  @click="holdCurrentCart()"
+                >{{ t('admin.pos.holdCart') }}</Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  class="h-8 px-2.5"
+                  :disabled="cart.length === 0"
+                  @click="clearCart"
+                >{{ t('admin.pos.clearCart') }}</Button>
               </div>
             </CardHeader>
+            <!-- Held orders (docs/pos-hold-order.md) — UI lives in PosHeldOrders.vue -->
+            <PosHeldOrders
+              :orders="holds"
+              :restoring="restoring"
+              :cart-count="cart.length"
+              @restore="handleRestoreHeld"
+              @hold-current-and-restore="handleHoldCurrentAndRestore"
+              @replace-and-restore="handleReplaceAndRestore"
+              @delete="handleDeleteHeld"
+            />
             <CardContent class="flex-1 flex flex-col p-0">
               <div v-if="cart.length === 0" class="flex items-center justify-center flex-1 py-12 text-muted-foreground text-sm">
                 {{ t('admin.pos.emptyCart') }}
@@ -609,259 +703,31 @@ watch(isReady, async (r) => {
       </div>
     </div>
 
-    <!-- Open Shift Dialog -->
-    <Dialog v-model:open="openDialog">
-      <DialogContent class="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>{{ t('posShift.openShiftTitle') }}</DialogTitle>
-          <DialogDescription>{{ t('posShift.openShiftDesc') }}</DialogDescription>
-        </DialogHeader>
-        <div class="space-y-2">
-          <Label>{{ t('posShift.openingCashLabel') }}</Label>
-          <Input v-model.number="openForm.opening_cash" type="number" min="0" :placeholder="t('posShift.placeholderCash')" />
-        </div>
-        <DialogFooter>
-          <Button variant="outline" @click="openDialog = false">{{ t('admin.shared.cancel') }}</Button>
-          <Button :disabled="opening" @click="submitOpenShift">
-            {{ opening ? t('posShift.opening') : t('posShift.openShift') }}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <!-- Cashier shift dialogs (PosShiftDialogs.vue) -->
+    <PosShiftDialogs
+      ref="shiftDialogsRef"
+      :current-shift="currentShift"
+      :summary="summary"
+      :summary-loading="summaryLoading"
+      :opening="opening"
+      :closing="closing"
+      :open-shift-action="handleOpenShift"
+      :close-shift-action="handleCloseShift"
+      :load-summary-action="loadSummary"
+      :fetch-shift-items-action="handleFetchShiftItems"
+    />
 
-    <!-- Close Shift Dialog -->
-    <Dialog v-model:open="closeDialog">
-      <DialogContent class="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{{ t('posShift.closeShiftTitle') }}</DialogTitle>
-          <DialogDescription>{{ t('posShift.closeShiftDesc') }}</DialogDescription>
-        </DialogHeader>
-
-        <div v-if="summaryLoading" class="text-center py-10 text-muted-foreground">{{ t('admin.shared.loading') }}</div>
-        <template v-else-if="summary">
-          <!-- Reconciliation (server numbers) -->
-          <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm rounded-lg bg-muted/40 p-3">
-            <div>
-              <div class="text-muted-foreground">{{ t('posShift.openingCashLabel') }}</div>
-              <div class="font-medium tabular-nums">{{ formatCurrency(summary.opening_cash) }}</div>
-            </div>
-            <div>
-              <div class="text-muted-foreground">{{ t('posShift.cashSales') }}</div>
-              <div class="font-medium tabular-nums">{{ formatCurrency(summary.cash_sales) }}</div>
-            </div>
-            <div>
-              <div class="text-muted-foreground">{{ t('posShift.cashRefund') }}</div>
-              <div class="font-medium tabular-nums">{{ formatCurrency(summary.cash_refund) }}</div>
-            </div>
-            <div>
-              <div class="text-muted-foreground">{{ t('posShift.totalTransactions') }}</div>
-              <div class="font-medium tabular-nums">{{ summary.total_transactions }}</div>
-            </div>
-            <div>
-              <div class="text-muted-foreground">{{ t('posShift.totalSalesAmount') }}</div>
-              <div class="font-medium tabular-nums">{{ formatCurrency(summary.total_sales_amount) }}</div>
-            </div>
-            <div>
-              <div class="text-muted-foreground">{{ t('posShift.expectedCash') }}</div>
-              <div class="font-medium tabular-nums">{{ formatCurrency(summary.expected_cash) }}</div>
-            </div>
-          </div>
-
-          <!-- Cashier inputs -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-            <div class="space-y-1">
-              <Label>{{ t('posShift.actualCashLabel') }}</Label>
-              <Input v-model.number="closeActual" type="number" min="0" class="text-lg h-11 tabular-nums" :placeholder="t('posShift.actualPlaceholder')" />
-            </div>
-            <div class="space-y-1">
-              <Label>{{ t('posShift.closingCashLabel') }}</Label>
-              <Input v-model.number="closeClosing" type="number" min="0" class="text-lg h-11 tabular-nums" :placeholder="t('posShift.placeholderCash')" />
-            </div>
-          </div>
-
-          <!-- Difference preview -->
-          <div class="rounded-lg border p-3 mt-3 flex items-center justify-between">
-            <div>
-              <div class="text-sm font-medium">{{ t('posShift.cashDifferenceLabel') }}</div>
-              <div class="text-xs text-muted-foreground">{{ t('posShift.differenceHint') }}</div>
-            </div>
-            <span
-              class="text-xl font-bold tabular-nums"
-              :class="differencePreview === 0 ? '' : (differencePreview > 0 ? 'text-emerald-600' : 'text-destructive')"
-            >{{ differencePreview > 0 ? '+' : '' }}{{ formatCurrency(differencePreview) }}</span>
-          </div>
-
-          <!-- Items moved (goods OUT/IN) -->
-          <div class="mt-4">
-            <div class="flex items-center justify-between mb-2">
-              <h4 class="font-semibold text-sm">{{ t('posShift.itemDetail') }}</h4>
-              <div class="flex gap-1">
-                <Button variant="outline" size="sm" :class="itemsDirection === 'OUT' ? 'bg-accent' : ''" @click="itemsDirection = 'OUT'">
-                  {{ t('posShift.outItems') }} ({{ summary.items_out_total ?? 0 }})
-                </Button>
-                <Button variant="outline" size="sm" :class="itemsDirection === 'IN' ? 'bg-accent' : ''" @click="itemsDirection = 'IN'">
-                  {{ t('posShift.inItems') }} ({{ summary.items_in_total ?? 0 }})
-                </Button>
-              </div>
-            </div>
-            <div v-if="itemsLoading" class="text-center py-6 text-muted-foreground text-sm">{{ t('admin.shared.loading') }}</div>
-            <div v-else-if="(itemsDirection === 'OUT' ? itemsOut : itemsIn).length === 0" class="text-center py-6 text-muted-foreground text-sm">
-              {{ t('posShift.noItems') }}
-            </div>
-            <Table v-else>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{{ t('posShift.product') }}</TableHead>
-                  <TableHead class="text-right">{{ t('posShift.qty') }}</TableHead>
-                  <TableHead class="text-right">{{ t('posShift.amount') }}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="it in (itemsDirection === 'OUT' ? itemsOut : itemsIn)" :key="it.id">
-                  <TableCell>
-                    <div class="text-sm font-medium">{{ it.product_name }}</div>
-                    <div v-if="it.sku_code || it.variant_label" class="text-xs text-muted-foreground">
-                      <span v-if="it.sku_code">{{ it.sku_code }}</span><span v-if="it.variant_label"> · {{ it.variant_label }}</span>
-                    </div>
-                    <div v-if="it.reference_no" class="text-xs text-muted-foreground font-mono">{{ it.reference_no }}</div>
-                  </TableCell>
-                  <TableCell class="text-right tabular-nums">{{ it.quantity }}</TableCell>
-                  <TableCell class="text-right tabular-nums">{{ formatCurrency(it.line_amount) }}</TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </div>
-        </template>
-
-        <DialogFooter class="mt-4">
-          <Button variant="outline" @click="closeDialog = false">{{ t('admin.shared.cancel') }}</Button>
-          <Button variant="destructive" :disabled="closing || !summary" @click="askClose">
-            {{ closing ? t('posShift.closing') : t('posShift.close') }}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-
-    <!-- Confirm close with difference -->
-    <Dialog v-model:open="diffConfirm">
-      <DialogContent class="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>{{ t('posShift.confirmTitle') }}</DialogTitle>
-          <DialogDescription>
-            {{ t('posShift.confirmDescription', { amount: formatCurrency(differencePreview) }) }}
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button variant="outline" @click="diffConfirm = false">{{ t('admin.shared.cancel') }}</Button>
-          <Button variant="destructive" :disabled="closing" @click="performClose">
-            {{ closing ? t('posShift.closing') : t('posShift.close') }}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-
-    <!-- Closed result summary -->
-    <Dialog v-model:open="resultDialog">
-      <DialogContent class="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{{ t('posShift.resultTitle') }}</DialogTitle>
-          <DialogDescription>{{ t('posShift.summaryTitle') }}</DialogDescription>
-        </DialogHeader>
-        <div v-if="closedResult" class="grid grid-cols-2 gap-3 text-sm">
-          <div>
-            <div class="text-muted-foreground">{{ t('posShift.totalTransactions') }}</div>
-            <div class="font-medium tabular-nums">{{ closedResult.total_transactions }}</div>
-          </div>
-          <div>
-            <div class="text-muted-foreground">{{ t('posShift.totalSalesAmount') }}</div>
-            <div class="font-medium tabular-nums">{{ formatCurrency(closedResult.total_sales_amount) }}</div>
-          </div>
-          <div>
-            <div class="text-muted-foreground">{{ t('posShift.expectedCash') }}</div>
-            <div class="font-medium tabular-nums">{{ formatCurrency(closedResult.expected_cash) }}</div>
-          </div>
-          <div>
-            <div class="text-muted-foreground">{{ t('posShift.actualCashLabel') }}</div>
-            <div class="font-medium tabular-nums">{{ formatCurrency(closedResult.actual_cash) }}</div>
-          </div>
-          <div>
-            <div class="text-muted-foreground">{{ t('posShift.cashDifferenceLabel') }}</div>
-            <div class="font-medium tabular-nums" :class="closedResult.cash_difference !== 0 ? (closedResult.cash_difference > 0 ? 'text-emerald-600' : 'text-destructive') : ''">
-              {{ closedResult.cash_difference > 0 ? '+' : '' }}{{ formatCurrency(closedResult.cash_difference) }}
-            </div>
-          </div>
-          <div>
-            <div class="text-muted-foreground">{{ t('posShift.itemsOut') }}</div>
-            <div class="font-medium tabular-nums">{{ closedResult.items_out_total ?? 0 }}</div>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button @click="resultDialog = false">{{ t('posShift.closeResult') }}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-
-    <!-- Payment Dialog -->
-    <Dialog v-model:open="paymentOpen">
-      <DialogContent class="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{{ t('admin.pos.paymentTitle') }}</DialogTitle>
-          <DialogDescription>{{ t('admin.pos.paymentDescription') }}</DialogDescription>
-        </DialogHeader>
-
-        <div class="space-y-4">
-          <div class="space-y-2">
-            <Label>{{ t('admin.pos.customer') }}</Label>
-            <Select v-model="selectedCustomerId">
-              <SelectTrigger class="w-full"><SelectValue :placeholder="t('admin.pos.noCustomer')" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem :value="NO_CUSTOMER">{{ t('admin.pos.noCustomer') }}</SelectItem>
-                <SelectItem v-for="c in customers" :key="c.id" :value="c.id">{{ c.name }}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div class="space-y-2">
-            <Label>{{ t('admin.pos.paymentMethod') }}</Label>
-            <Select v-model="paymentMethod">
-              <SelectTrigger class="w-full"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="CASH">Cash</SelectItem>
-                <SelectItem value="CARD">Card</SelectItem>
-                <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
-                <SelectItem value="EWALLET">E-Wallet</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div class="rounded-lg bg-muted p-4 text-center">
-            <div class="text-sm text-muted-foreground">{{ t('admin.pos.grandTotal') }}</div>
-            <div class="text-2xl font-bold tabular-nums">{{ formatCurrency(grandTotal) }}</div>
-          </div>
-
-          <div class="space-y-2">
-            <Label>{{ t('admin.pos.amountPaid') }}</Label>
-            <Input v-model="amountPaid" type="number" min="0" placeholder="0" class="text-lg h-11 tabular-nums" @update:modelValue="setAmountPaid" />
-          </div>
-
-          <div v-if="amountPaid > 0 && amountPaid < grandTotal" class="text-center text-destructive font-medium">
-            {{ t('admin.pos.insufficient') }}
-          </div>
-          <div v-else-if="amountPaid === 0" class="text-center text-muted-foreground text-sm">
-            {{ t('admin.pos.inputAmountToSeeChange') }}
-          </div>
-          <div v-else class="text-center text-emerald-600 font-medium">
-            {{ t('admin.pos.change') }}: {{ formatCurrency(change) }}
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" @click="paymentOpen = false">{{ t('admin.shared.cancel') }}</Button>
-          <Button :disabled="processing || amountPaid < grandTotal" @click="submitSale">
-            {{ processing ? t('admin.pos.processing') : t('admin.pos.pay') }}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <!-- Payment dialog (PosPaymentDialog.vue) -->
+    <PosPaymentDialog
+      :open="paymentOpen"
+      :customers="customers"
+      :grand-total="grandTotal"
+      :processing="processing"
+      :customer-id="selectedCustomerId"
+      @update:open="paymentOpen = $event"
+      @update:customer-id="selectedCustomerId = $event"
+      @cancel="paymentOpen = false"
+      @submit="submitSale"
+    />
   </DashboardShell>
 </template>

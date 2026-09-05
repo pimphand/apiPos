@@ -90,6 +90,38 @@ export default {
     refresh: 'Muat Ulang',
     closeResult: 'Selesai',
   },
+  // Hold pesanan di POS (docs/pos-hold-order.md)
+  posHold: {
+    title: 'Pesanan Ditahan',
+    description:
+      'Keranjang yang ditahan bisa dipulihkan untuk melanjutkan pembayaran.',
+    restore: 'Pulihkan',
+    restoreHold: 'Pulihkan Hold',
+    delete: 'Hapus',
+    empty: 'Tidak ada pesanan ditahan',
+    itemCount: '{count} item',
+    heldAt: 'Ditahan {time}',
+    holdLabel: 'Hold #{n}',
+    holdLabelWithCustomer: 'Hold #{n} · {customer}',
+    walkIn: 'Tanpa Nama',
+    toastHeld: 'Pesanan ditahan — keranjang dikosongkan',
+    toastRestored: 'Pesanan ditahan dipulihkan',
+    toastDeleted: 'Pesanan ditahan dihapus',
+    toastLimit:
+      'Batas hold tercapai ({limit}). Pulihkan atau hapus salah satu dulu.',
+    toastHeldCartEmpty: 'Tidak ada yang bisa ditahan',
+    confirmDeleteTitle: 'Hapus pesanan ditahan?',
+    confirmDeleteDesc:
+      '"{label}" akan dihapus dan tidak bisa dikembalikan.',
+    confirmReplaceTitle: 'Pulihkan menggantikan keranjang saat ini?',
+    confirmReplaceDesc:
+      'Keranjang saat ini berisi {count} item. Hold dulu, atau ganti?',
+    actionHoldAndRestore: 'Hold saat ini & pulihkan',
+    actionReplace: 'Ganti',
+    itemUnavailable: '{name} sudah tidak tersedia',
+    stockAdjusted:
+      '{name}: jumlah dikurangi dari {old} ke {new} (stok berubah)',
+  },
   // Auth
   auth: {
     login: {

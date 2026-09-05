@@ -286,6 +286,40 @@ export interface ListSalesResponse extends PaginationResponse {
   sales: Sale[];
 }
 
+// POS hold order types (docs/pos-hold-order.md)
+/** One snapshot cart line at the moment the order was held. */
+export interface HeldOrderItem {
+  product_id: string;
+  sku_id: string;
+  name: string; // product name snapshot (display only)
+  sku_code: string; // SKU/variant code snapshot (display only)
+  unit_price: number; // selling price AT hold time (R7)
+  quantity: number;
+  stock: number; // stock at hold time (snapshot reference)
+  original_stock: number; // same as stock — kept to match CartItem shape
+}
+
+export interface HeldOrder {
+  id: string;
+  store_id: string; // local tenancy scope (R11)
+  user_id: string; // cashier scope (R11)
+  username: string;
+  label: string; // e.g. "Hold #1 · Budi" (display in list)
+  items: HeldOrderItem[];
+  discount: number; // cart discount snapshot
+  tax_rate: number; // cart tax-rate snapshot
+  customer_id: string; // '' = walk-in
+  customer_name?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Shape persisted in localStorage (pos.held_orders.v1). */
+export interface HeldOrderStore {
+  version: number;
+  holds: HeldOrder[];
+}
+
 // Payment types
 export interface Payment {
   id: string;

@@ -90,6 +90,35 @@ export default {
     refresh: 'Refresh',
     closeResult: 'Done',
   },
+  // POS hold order (docs/pos-hold-order.md)
+  posHold: {
+    title: 'Held Orders',
+    description: 'Held carts can be restored to continue checkout later.',
+    restore: 'Restore',
+    restoreHold: 'Restore Hold',
+    delete: 'Delete',
+    empty: 'No held orders',
+    itemCount: '{count} items',
+    heldAt: 'Held {time}',
+    holdLabel: 'Hold #{n}',
+    holdLabelWithCustomer: 'Hold #{n} · {customer}',
+    walkIn: 'Walk-in',
+    toastHeld: 'Order held — cart cleared',
+    toastRestored: 'Held order restored',
+    toastDeleted: 'Held order deleted',
+    toastLimit: 'Hold limit reached ({limit}). Restore or delete one first.',
+    toastHeldCartEmpty: 'Nothing to hold',
+    confirmDeleteTitle: 'Delete held order?',
+    confirmDeleteDesc: '"{label}" will be removed and cannot be restored.',
+    confirmReplaceTitle: 'Restore over current cart?',
+    confirmReplaceDesc:
+      'Current cart has {count} items. Hold it first, or replace it?',
+    actionHoldAndRestore: 'Hold current & restore',
+    actionReplace: 'Replace',
+    itemUnavailable: '{name} is no longer available',
+    stockAdjusted:
+      '{name}: quantity reduced from {old} to {new} (stock changed)',
+  },
   // Auth
   auth: {
     login: {
