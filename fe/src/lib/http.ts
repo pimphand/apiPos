@@ -66,22 +66,27 @@ export interface RefreshResult {
   permissions?: string[];
 }
 
+/** POST the refresh token and return the raw response data (throws on failure). */
+async function postRefresh(rt: string): Promise<Record<string, unknown>> {
+  const response = await axios.post(
+    `${import.meta.env.PUBLIC_API_BASE_URL || '/api'}/v1/auth/refresh`,
+    { refresh_token: rt, device_id: getDeviceId() }
+  );
+  return (response.data ?? {}) as Record<string, unknown>;
+}
+
 /**
  * Perform a token refresh and persist the rotated refresh token.
  *
- * This is the SINGLE refresh path for both the axios 401 interceptor and the
- * auth store (`refreshAccessToken`). It is single-flight: concurrent callers
- * (e.g. multiple tabs/components restoring a session at once) share one refresh
- * request instead of racing and revoking each other's tokens — the backend
- * rotates (revokes) the presented refresh token on every use.
- *
- * Returns the new access token (plus embedded permissions), or null if no
- * refresh token exists / refresh failed. On success the rotated refresh token
- * is persisted to authStorage so a page reload after an interceptor-driven
- * refresh does NOT log the user out.
+ * The backend rotates (revokes) the presented refresh token on EVERY use, so a
+ * stale in-memory copy fails with 401 once it has been consumed elsewhere
+ * (another tab, or a short-lived context that booted the app and restored the
+ * session). To stay correct we try the in-memory token first and, if it was
+ * already rotated away, fall back to the persisted token — the latest rotation
+ * is always persisted synchronously first (see authStorage), so the persisted
+ * value is the most recent valid one across contexts.
  */
 export async function refreshTokens(): Promise<RefreshResult | null> {
-  console.log('[DBG refreshTokens] entry isRefreshing=', isRefreshing, 'moduleRT=', refreshToken ? refreshToken.slice(0, 12) + '...' : null);
   if (isRefreshing) {
     return new Promise<RefreshResult | null>((resolve, reject) => {
       failedQueue.push({
@@ -93,44 +98,54 @@ export async function refreshTokens(): Promise<RefreshResult | null> {
 
   isRefreshing = true;
   try {
-    // Fall back to the persisted refresh token (e.g. right after a page reload
-    // before restoreSession has run) so a stray 401 doesn't force a logout.
-    let rt = refreshToken;
-    if (!rt) {
-      rt = await authStorage.getRefreshToken();
-      if (!rt) return null;
-      refreshToken = rt;
+    // Candidate tokens, most-recent first. The in-memory token is tried first;
+    // if it was already rotated away (revoked) by another context, the
+    // persisted one — always kept current by setRefreshToken — is tried next.
+    const candidates: string[] = [];
+    if (refreshToken) candidates.push(refreshToken);
+    // Read the persisted token ignoring the in-memory mirror: another JS
+    // context (e.g. the Astro transition iframe) may have rotated it and
+    // updated localStorage while this context's mirror stayed stale.
+    const persisted = await authStorage.getRefreshToken({ ignoreCache: true });
+    if (persisted && !candidates.includes(persisted)) candidates.push(persisted);
+    if (candidates.length === 0) return null;
+
+    let lastErr: unknown = null;
+    for (const rt of candidates) {
+      try {
+        const resData = await postRefresh(rt);
+        const access_token = (resData.access_token ?? resData.accessToken) as string | undefined;
+        const newRefreshToken = (resData.refresh_token ?? resData.refreshToken) as string | undefined;
+        const permissions = Array.isArray(resData.permissions)
+          ? resData.permissions.map(String)
+          : undefined;
+        if (!access_token || !newRefreshToken) {
+          throw new Error('Refresh response missing tokens');
+        }
+
+        accessToken = access_token;
+        refreshToken = newRefreshToken;
+
+        // CRITICAL: persist the rotated refresh token. setRefreshToken writes
+        // the raw value synchronously BEFORE the async encryption, so the write
+        // survives even if this JS context is torn down mid-refresh (another
+        // tab closing, a page navigation) — otherwise the next page reload
+        // refreshes with the now-revoked previous token and logs the user out.
+        await authStorage.setRefreshToken(newRefreshToken);
+        authStorage.setAccessToken(access_token);
+
+        const result: RefreshResult = { accessToken: access_token, permissions };
+        processQueue(null, result);
+        return result;
+      } catch (err) {
+        // Token rejected (e.g. already rotated/revoked) → try the next
+        // candidate. Any other error (network, 5xx) also falls through — if no
+        // candidate succeeds the refresh is treated as failed below.
+        lastErr = err;
+      }
     }
-    console.log('[DBG refreshTokens] using rt=', rt.slice(0, 12) + '...');
 
-    const response = await axios.post(
-      `${import.meta.env.PUBLIC_API_BASE_URL || '/api'}/v1/auth/refresh`,
-      { refresh_token: rt, device_id: getDeviceId() }
-    );
-
-    const resData = response.data ?? {};
-    const access_token = resData.access_token ?? resData.accessToken;
-    const newRefreshToken = resData.refresh_token ?? resData.refreshToken;
-    const permissions = Array.isArray(resData.permissions)
-      ? resData.permissions.map(String)
-      : undefined;
-
-    accessToken = access_token;
-    refreshToken = newRefreshToken;
-    console.log('[DBG refreshTokens] SUCCESS newRT=', newRefreshToken.slice(0, 12) + '...');
-
-    // CRITICAL: persist the rotated refresh token. Without this, an
-    // interceptor-driven refresh leaves the old (revoked) token in storage and
-    // the next page reload fails to refresh -> logout.
-    await authStorage.setRefreshToken(newRefreshToken);
-    authStorage.setAccessToken(access_token);
-
-    const result: RefreshResult = { accessToken: access_token, permissions };
-    processQueue(null, result);
-    return result;
-  } catch (err) {
-    console.log('[DBG refreshTokens] FAILED', (err as Error)?.message);
-    processQueue(err as Error, null);
+    processQueue(lastErr as Error, null);
     return null;
   } finally {
     isRefreshing = false;
@@ -173,7 +188,6 @@ http.interceptors.response.use(
       !originalRequest._retry &&
       !isAuthEndpoint(originalRequest.url)
     ) {
-      console.log('[DBG interceptor] 401 on', originalRequest.url, 'retrying');
       originalRequest._retry = true;
 
       // Single shared refresh (single-flight — safe for concurrent callers).

@@ -140,7 +140,6 @@ export const useAuthStore = defineStore('auth', () => {
   let restorePromise: Promise<User | null> | null = null;
 
   function refreshAccessToken() {
-    console.log('[DBG refreshAccessToken] called');
     // Single-flight: if a refresh is already in progress, share it. The
     // backend rotates (revokes) the refresh token on use, so concurrent
     // refresh calls with the same token would race and the second one would
@@ -159,7 +158,6 @@ export const useAuthStore = defineStore('auth', () => {
 
     const pending = (async () => {
       try {
-        console.log('[DBG refreshAccessToken] awaiting refreshTokens');
         const refreshed = await refreshTokens();
         if (!refreshed) {
           throw new Error('No refresh token available');
@@ -232,7 +230,6 @@ export const useAuthStore = defineStore('auth', () => {
    * in-memory access token. Idempotent — safe to call on every guarded page.
    */
   async function restoreSession(): Promise<User | null> {
-    console.log('[DBG restoreSession] called isAuth=', isAuthenticated.value, 'at=', !!accessToken.value);
     // Already have a live session in memory; nothing to restore.
     if (isAuthenticated.value && !!accessToken.value) {
       return user.value;
@@ -248,7 +245,6 @@ export const useAuthStore = defineStore('auth', () => {
     restorePromise = (async () => {
       const persistedRefresh = await authStorage.getRefreshToken();
       const cachedUser = await authStorage.getUser();
-      console.log('[DBG restoreSession] persistedRT=', persistedRefresh ? persistedRefresh.slice(0, 12) + '...' : null, 'cachedUser=', cachedUser?.username);
 
       if (!persistedRefresh) {
         return null;

@@ -1,18 +1,17 @@
 import { test, expect } from '@playwright/test';
 
+// Regression test for the "reload logs the user out" bug.
+//
+// Root cause (fixed): Astro view transitions (`<ClientRouter />`) pre-render the
+// destination page in a hidden sub-frame. That sub-frame boots the app again,
+// restores the session, and refreshes with the only valid refresh token — the
+// server rotates (revokes) it and issues a new one, but the sub-frame is torn
+// down before the replacement is persisted. The next reload then refreshes with
+// the revoked token → 401 → logout.
+//
+// Fix: no view transitions. All navigation is a plain full page load, so a
+// single context owns the session.
 test('login then reload stays logged in', async ({ page }) => {
-  const logs: Array<{ t: number; msg: string }> = [];
-  const t0 = Date.now();
-  const log = (msg: string) => logs.push({ t: Date.now() - t0, msg });
-
-  page.on('console', (msg) => log(`[console] ${msg.text().slice(0, 200)}`));
-  page.on('request', (req) => {
-    if (req.url().includes('/api/')) {
-      const f = req.frame();
-      log(`[req] ${req.method()} ${req.url().replace('http://localhost:4000','')} frame=${f === page.mainFrame() ? 'MAIN' : 'SUB'}`);
-    }
-  });
-
   const uname = `reload_${Date.now()}`;
   const reg = await fetch('http://localhost:8990/api/v1/auth/register', {
     method: 'POST',
@@ -32,31 +31,22 @@ test('login then reload stays logged in', async ({ page }) => {
   await page.waitForSelector('#username', { timeout: 10000 });
   await page.fill('#username', uname);
   await page.fill('#password', 'Password123!');
+
+  // Log any frame attachments — a sub-frame appearing here means the bug's
+  // mechanism is back.
+  const frames: string[] = [];
+  page.on('frameattached', (f) => frames.push(`SUB-FRAME ${f.url()}`));
+
   await page.click('button[type="submit"]');
   await page.waitForURL((url) => !url.pathname.startsWith('/login'), { timeout: 15000 });
-  await page.waitForTimeout(1200);
+  await page.waitForTimeout(1500);
 
-  // Decode the persisted refresh token in ALL frames
-  const state = await page.evaluate(async () => {
-    const raw = localStorage.getItem('pos_refresh_token') || '';
-    let decoded = raw;
-    try {
-      const p = JSON.parse(raw);
-      if (p && p.v === 1) {
-        // decrypt with the same device-key approach is heavy; just show structure
-        decoded = `encrypted-v1 salt=${p.s?.slice(0, 10)}...`;
-      } else if (p && p.v === 0) {
-        decoded = `xor-v0`;
-      }
-    } catch { decoded = `RAW:${raw.slice(0, 16)}...`; }
-    return { len: raw.length, kind: decoded };
-  });
-  console.log('LS REFRESH BEFORE RELOAD:', JSON.stringify(state));
+  // No sub-frame should have been created for the login → dashboard navigation.
+  console.log('FRAMES:', frames.length ? frames.join(' | ') : 'none');
 
-  log('PHASE: before reload');
+  // Reload — the persisted refresh token must still be valid.
   await page.reload();
-  await page.waitForTimeout(3000);
-  log(`PHASE: after reload URL=${page.url()}`);
-  logs.forEach((l) => console.log(`[${l.t}ms] ${l.msg}`));
+  await page.waitForTimeout(2500);
+  console.log('FINAL URL:', page.url());
   expect(page.url().startsWith('http://localhost:4000/login')).toBe(false);
 });

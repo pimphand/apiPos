@@ -36,11 +36,20 @@ export const authStorage = {
     authStorage._accessToken = token;
   },
 
-  async getRefreshToken(): Promise<string | null> {
-    if (authStorage._refreshToken) return authStorage._refreshToken;
+  async getRefreshToken(opts?: { ignoreCache?: boolean }): Promise<string | null> {
+    if (!opts?.ignoreCache && authStorage._refreshToken) return authStorage._refreshToken;
     if (typeof window === 'undefined') return null;
     const stored = window.localStorage.getItem(REFRESH_KEY);
     if (!stored) return null;
+    // setRefreshToken writes the raw token first (synchronously) and then
+    // overwrites it with the encrypted payload. If the writing JS context was
+    // torn down before the async encryption finished (e.g. a page navigation
+    // or a closing tab right after a refresh), the stored value is the raw
+    // token — accept it directly. Encrypted payloads are JSON.
+    if (!stored.trimStart().startsWith('{')) {
+      authStorage._refreshToken = stored;
+      return stored;
+    }
     const decrypted = await decryptValue(stored);
     if (decrypted === null) return null;
     authStorage._refreshToken = decrypted;
@@ -51,7 +60,18 @@ export const authStorage = {
     authStorage._refreshToken = token;
     if (typeof window === 'undefined') return;
     if (token) {
-      window.localStorage.setItem(REFRESH_KEY, await encryptValue(token));
+      // CRITICAL: persist the raw token SYNCHRONOUSLY first. Encryption is
+      // async (~100ms of PBKDF2) and the current JS context can be discarded
+      // while the encryption is still in flight (page navigation, another
+      // context restoring the session). The rotated refresh token must survive
+      // that teardown or the next page reload refreshes with the now-revoked
+      // previous token and logs the user out.
+      window.localStorage.setItem(REFRESH_KEY, token);
+      try {
+        window.localStorage.setItem(REFRESH_KEY, await encryptValue(token));
+      } catch {
+        // Encryption is best-effort hardening; the raw write above stands.
+      }
     } else {
       window.localStorage.removeItem(REFRESH_KEY);
     }
