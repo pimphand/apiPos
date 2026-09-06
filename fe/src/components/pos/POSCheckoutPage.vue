@@ -22,19 +22,23 @@ import type {
   HeldOrder,
   HeldOrderItem,
   StoreSettings,
+  OrderChannel,
 } from '@/types';
+import { ORDER_CHANNEL_LABELS } from '@/types';
 import type { ReceiptData } from '@/components/pos/PosReceiptPaper.vue';
 import DashboardShell from '@/components/layout/DashboardShell.vue';
-import PosHeldOrders from '@/components/pos/PosHeldOrders.vue';
+import PosCartCard from '@/components/pos/PosCartCard.vue';
 import PosPaymentDialog from '@/components/pos/PosPaymentDialog.vue';
 import PosReceiptDialog from '@/components/pos/PosReceiptDialog.vue';
+import PosOrderChannelSelector from '@/components/pos/PosOrderChannelSelector.vue';
 import PosProductBrowser from '@/components/pos/PosProductBrowser.vue';
 import PosShiftDialogs from '@/components/pos/PosShiftDialogs.vue';
+import PosShiftStatusBar from '@/components/pos/PosShiftStatusBar.vue';
 import Button from '@/components/ui/button/Button.vue';
 import Input from '@/components/ui/input/Input.vue';
 import Badge from '@/components/ui/badge/Badge.vue';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
 
 const { isReady, allowed, authStore } = usePageGuard('sales.create');
 const ui = useUiStore();
@@ -143,9 +147,17 @@ const defaultTaxRate = computed(() => {
   return typeof v === 'number' && Number.isFinite(v) ? v : 11;
 });
 
+/** Order channel (dine-in / take-away). */
+const orderChannel = ref<OrderChannel>('dinein');
+
 /** Last successful sale → receipt/struk dialog after payment. */
 const receiptOpen = ref(false);
 const lastReceipt = ref<ReceiptData | null>(null);
+
+/** Reset channel to the documented default whenever the cart is cleared. */
+function resetChannel() {
+  orderChannel.value = 'dinein';
+}
 
 /** Map payment-method code to a localized label (reuses admin.payments keys). */
 const PAY_METHOD_KEYS: Record<string, string> = {
@@ -263,6 +275,7 @@ function clearCart() {
   discount.value = 0;
   taxRate.value = defaultTaxRate.value;
   selectedCustomerId.value = '';
+  orderChannel.value = 'dinein';
 }
 
 // ---- Held orders (docs/pos-hold-order.md) --------------------------------
@@ -556,6 +569,7 @@ async function submitSale(payload: {
       total: totalN,
       paid: paidAmount,
       change: Math.max(0, paidAmount - totalN),
+      orderChannel: orderChannel.value,
     };
 
     clearCart();
@@ -625,40 +639,13 @@ watch(isReady, async (r) => {
     </div>
 
     <!-- Open shift → POS usable -->
-    <div v-else class="flex flex-col gap-4 min-h-[calc(100vh-8rem)]">
-      <!-- Shift status bar (live numbers synced with transactions) -->
-      <Card>
-        <CardContent class="p-3 flex flex-wrap items-center gap-x-6 gap-y-2">
-          <div class="flex items-center gap-2">
-            <Badge variant="default">{{ t('posShift.shiftStatusOpen') }}</Badge>
-            <span class="text-sm text-muted-foreground">{{ t('posShift.openedSince', { time: formatDateTime(currentShift.opened_at) }) }}</span>
-          </div>
-          <div class="text-sm">
-            <span class="text-muted-foreground">{{ t('posShift.totalTransactions') }}:</span>
-            <span class="ml-1 font-semibold tabular-nums">{{ summary?.total_transactions ?? 0 }}</span>
-          </div>
-          <div class="text-sm">
-            <span class="text-muted-foreground">{{ t('posShift.totalSalesAmount') }}:</span>
-            <span class="ml-1 font-semibold tabular-nums">{{ formatCurrency(summary?.total_sales_amount ?? 0) }}</span>
-          </div>
-          <div class="text-sm">
-            <span class="text-muted-foreground">{{ t('posShift.cashSales') }}:</span>
-            <span class="ml-1 font-semibold tabular-nums">{{ formatCurrency(summary?.cash_sales ?? 0) }}</span>
-          </div>
-          <div class="text-sm">
-            <span class="text-muted-foreground">{{ t('posShift.itemsOut') }}:</span>
-            <span class="ml-1 font-semibold tabular-nums">{{ summary?.items_out_total ?? 0 }}</span>
-          </div>
-          <div class="text-sm">
-            <span class="text-muted-foreground">{{ t('posShift.itemsIn') }}:</span>
-            <span class="ml-1 font-semibold tabular-nums">{{ summary?.items_in_total ?? 0 }}</span>
-          </div>
-          <Button variant="outline" size="sm" class="ml-auto" @click="refreshLive">
-            {{ t('posShift.refresh') }}
-          </Button>
-          <Button variant="destructive" @click="shiftDialogsRef?.openCloseDialog()">{{ t('posShift.closeShift') }}</Button>
-        </CardContent>
-      </Card>
+    <div v-else class="flex flex-col gap-4 min-h-[calc(100vh-8rem)]">      <!-- Shift status bar (live numbers synced with transactions) -->
+      <PosShiftStatusBar
+        :current-shift="currentShift"
+        :summary="summary"
+        :refresh="refreshLive"
+        :open-close-dialog="shiftDialogsRef?.openCloseDialog"
+      />
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1">
         <!-- Left: Search & Product List (PosProductBrowser.vue) -->
@@ -678,76 +665,24 @@ watch(isReady, async (r) => {
 
         <!-- Right: Cart -->
         <div class="flex flex-col gap-4">
-          <Card class="flex-1 flex flex-col">
-            <CardHeader class="flex flex-row items-center justify-between gap-2 pb-2">
-              <CardTitle class="text-lg">{{ t('admin.pos.cart') }}</CardTitle>
-              <div class="flex gap-1.5">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  class="h-8 px-2.5"
-                  :disabled="cart.length === 0"
-                  @click="holdCurrentCart()"
-                >{{ t('admin.pos.holdCart') }}</Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  class="h-8 px-2.5"
-                  :disabled="cart.length === 0"
-                  @click="clearCart"
-                >{{ t('admin.pos.clearCart') }}</Button>
-              </div>
-            </CardHeader>
-            <!-- Held orders (docs/pos-hold-order.md) — UI lives in PosHeldOrders.vue -->
-            <PosHeldOrders
-              :orders="holds"
-              :restoring="restoring"
-              :cart-count="cart.length"
-              @restore="handleRestoreHeld"
-              @hold-current-and-restore="handleHoldCurrentAndRestore"
-              @replace-and-restore="handleReplaceAndRestore"
-              @delete="handleDeleteHeld"
-            />
-            <CardContent class="flex-1 flex flex-col p-0">
-              <div v-if="cart.length === 0" class="flex items-center justify-center flex-1 py-12 text-muted-foreground text-sm">
-                {{ t('admin.pos.emptyCart') }}
-              </div>
-              <div v-else class="flex-1 overflow-y-auto max-h-[40vh]">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{{ t('admin.pos.productName') }}</TableHead>
-                      <TableHead class="text-center">{{ t('admin.pos.qty') }}</TableHead>
-                      <TableHead class="text-right">{{ t('admin.pos.subtotal') }}</TableHead>
-                      <TableHead class="w-10"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <TableRow v-for="item in cart" :key="item.sku_id">
-                      <TableCell>
-                        <div class="font-medium text-sm">{{ item.name }}</div>
-                        <div class="text-xs text-muted-foreground">{{ item.sku_code }} · {{ formatCurrency(item.unit_price) }}</div>
-                      </TableCell>
-                      <TableCell>
-                        <div class="flex items-center justify-center gap-1">
-                          <Button variant="outline" size="sm" class="h-7 w-7 p-0" @click="updateQty(item, -1)">−</Button>
-                          <span class="w-8 text-center text-sm tabular-nums">{{ item.quantity }}</span>
-                          <Button variant="outline" size="sm" class="h-7 w-7 p-0" @click="updateQty(item, 1)" :disabled="item.quantity >= item.stock">+</Button>
-                        </div>
-                      </TableCell>
-                      <TableCell class="text-right text-sm tabular-nums">{{ formatCurrency(item.unit_price * item.quantity) }}</TableCell>
-                      <TableCell>
-                        <Button variant="ghost" size="sm" class="h-7 w-7 p-0 text-destructive" @click="removeItem(item)">×</Button>
-                      </TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
+          <PosCartCard
+            :cart="cart"
+            :holds="holds"
+            :restoring="restoring"
+            :cart-count="cart.length"
+            @add-to-cart="addToCart"
+            @update-qty="updateQty"
+            @remove-item="removeItem"
+            @clear-cart="clearCart"
+            @hold-cart="holdCurrentCart"
+            @restore="handleRestoreHeld"
+            @hold-and-restore="handleHoldCurrentAndRestore"
+            @replace-and-restore="handleReplaceAndRestore"
+            @delete-hold="handleDeleteHeld"
+          />
 
           <!-- Totals & Payment -->
-          <Card>
+          <Card>            
             <CardContent class="p-4 space-y-3">
               <div class="space-y-2">
                 <div class="flex justify-between text-sm">
@@ -756,25 +691,28 @@ watch(isReady, async (r) => {
                 </div>
                 <div class="flex items-center justify-between text-sm">
                   <span class="text-muted-foreground">{{ t('admin.pos.discount') }}</span>
-                  <Input v-model.number="discount" type="number" min="0" class="w-28 h-8 text-right text-sm tabular-nums" />
+                  <Input v-model.number="discount" type="number" min="0" class="w-24 h-8 text-right text-sm tabular-nums" />
                 </div>
-                <div class="flex items-center justify-between text-sm">
-                  <span class="text-muted-foreground">{{ t('admin.pos.taxRate') }}</span>
-                  <Input v-model.number="taxRate" type="number" min="0" max="100" class="w-20 h-8 text-right text-sm tabular-nums" />
-                </div>
-                <div class="flex justify-between text-sm">
-                  <span class="text-muted-foreground">{{ t('admin.pos.taxRate') }}</span>
+                <div class="flex items-center justify-between text-sm" v-if="taxRate > 0 ">
+                  <span class="text-muted-foreground">{{ t('admin.pos.taxRate') }} {{ taxRate > 0 ? "("+taxRate+")" : "" }}</span>
+                  <Input hidden v-model.number="taxRate" type="number" min="0" max="100" class="w-20 h-8 text-right text-sm tabular-nums" />
                   <span class="tabular-nums">{{ formatCurrency(taxAmount) }}</span>
-                </div>
-                <div class="border-t pt-2 flex justify-between font-semibold">
-                  <span>{{ t('admin.pos.total') }}</span>
-                  <span class="tabular-nums text-lg">{{ formatCurrency(grandTotal) }}</span>
                 </div>
               </div>
 
-              <Button class="w-full h-11 text-base" :disabled="cart.length === 0" @click="openPayment">
-                {{ t('admin.pos.pay') }} {{ formatCurrency(grandTotal) }}
-              </Button>
+              <!-- Grand total bar: channel selector, total, dan action terpisah -->
+              <div class="flex flex-wrap items-center justify-between gap-3 rounded-md border-t pt-3">
+                <PosOrderChannelSelector v-model:model-value="orderChannel" />
+                <div class="flex items-center gap-2">
+                  <Button
+                    class="h-8 min-w-0 px-4 text-sm"
+                    :disabled="cart.length === 0"
+                    @click="openPayment"
+                  >
+                    {{ t('admin.pos.pay') }} {{ formatCurrency(grandTotal) }}
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>

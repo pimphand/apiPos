@@ -123,6 +123,14 @@ export default {
     stockAdjusted:
       '{name}: jumlah dikurangi dari {old} ke {new} (stok berubah)',
   },
+  // Jenis channel pesanan (dine-in / take-away)
+  orderChannel: {
+    title: 'Jenis pesanan',
+    dineIn: 'Dine-in',
+    takeAway: 'Take-away',
+    selectToChange: 'Pilih Dine-in atau Take-away',
+    showInReceipt: 'Jenis pesanan muncul di struk',
+  },
   // Struk POS (docs/pos-store-settings.md)
   posReceipt: {
     title: 'Struk',
@@ -737,7 +745,7 @@ export default {
       total: 'Total',
       discount: 'Diskon',
       discountPlaceholder: '0',
-      taxRate: 'Pajak (%)',
+      taxRate: 'Pajak',
       taxRatePlaceholder: '11',
       customer: 'Pelanggan',
       noCustomer: 'Pelanggan Umum',

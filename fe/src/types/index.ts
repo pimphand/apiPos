@@ -594,6 +594,16 @@ export interface StoreSettings {
   updated_at: string;
 }
 
+// Order channel / jenis channel di POS
+// Nanti bisa dipetakan ke kolom `order_channel` / `order_type` bila backend
+// pernah migrasi; saat ini hanya dipakai di sisi FE.
+export type OrderChannel = 'dinein' | 'takeaway';
+
+export const ORDER_CHANNEL_LABELS: Record<OrderChannel, string> = {
+  dinein: 'Dine-in',
+  takeaway: 'Take-away',
+};
+
 // Error types
 export interface ApiError {
   code: string;

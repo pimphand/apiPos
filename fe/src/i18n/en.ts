@@ -120,6 +120,14 @@ export default {
     stockAdjusted:
       '{name}: quantity reduced from {old} to {new} (stock changed)',
   },
+  // Order channel (dine-in / take-away)
+  orderChannel: {
+    title: 'Order type',
+    dineIn: 'Dine-in',
+    takeAway: 'Take-away',
+    selectToChange: 'Select Dine-in or Take-away',
+    showInReceipt: 'Order type will appear on the receipt',
+  },
   // POS receipt / struk (docs/pos-store-settings.md)
   posReceipt: {
     title: 'Receipt',
@@ -730,7 +738,7 @@ export default {
       total: 'Total',
       discount: 'Discount',
       discountPlaceholder: '0',
-      taxRate: 'Tax Rate (%)',
+      taxRate: 'Tax Rate',
       taxRatePlaceholder: '11',
       customer: 'Customer',
       noCustomer: 'Walk-in Customer',

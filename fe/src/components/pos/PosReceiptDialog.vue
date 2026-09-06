@@ -7,7 +7,10 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
 import PosReceiptPaper, { type ReceiptData } from '@/components/pos/PosReceiptPaper.vue';
-import type { StoreSettings } from '@/types';
+import {
+  ORDER_CHANNEL_LABELS,
+  type StoreSettings,
+} from '@/types';
 
 const props = defineProps<{
   open: boolean;
@@ -57,6 +60,9 @@ function buildPrintHtml(): string {
   if (s.show_cashier !== false && d.cashier_name) lines.push(row(esc(t('posReceipt.cashier')), esc(d.cashier_name)));
   if (s.show_customer !== false) {
     lines.push(row(esc(t('posReceipt.customer')), esc(d.customer_name || t('posReceipt.walkIn'))));
+  }
+  if (d.orderChannel) {
+    lines.push(row(esc(t('orderChannel.title')), esc(ORDER_CHANNEL_LABELS[d.orderChannel])));
   }
   lines.push(dash);
 

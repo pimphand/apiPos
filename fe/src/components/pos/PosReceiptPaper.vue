@@ -6,7 +6,7 @@
  */
 import { useLocaleStore } from '@/stores/locale';
 import { formatCurrency } from '@/lib/utils';
-import type { StoreSettings } from '@/types';
+import { ORDER_CHANNEL_LABELS, type OrderChannel, type StoreSettings } from '@/types';
 
 export interface ReceiptLine {
   name: string;
@@ -26,6 +26,7 @@ export interface ReceiptData {
   customer_name?: string;
   tax_rate?: number;
   payment_method_label?: string;
+  orderChannel?: OrderChannel;
   items: ReceiptLine[];
   subtotal: number;
   discount: number;
@@ -127,6 +128,15 @@ const s = () =>
       <div v-if="s().show_change && data.change > 0" class="flex justify-between">
         <span>{{ t('posReceipt.change') }}</span>
         <span class="tabular-nums">{{ formatCurrency(data.change) }}</span>
+      </div>
+    </template>
+
+    <!-- Order channel (dine-in / take-away) -->
+    <template v-if="data.orderChannel">
+      <div class="my-1 border-t border-dashed border-neutral-400"></div>
+      <div class="flex justify-between">
+        <span>{{ t('orderChannel.title') }}</span>
+        <span>{{ ORDER_CHANNEL_LABELS[data.orderChannel] }}</span>
       </div>
     </template>
 
