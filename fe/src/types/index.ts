@@ -237,6 +237,7 @@ export interface Sale {
   grand_total: number;
   status: 'PENDING' | 'PAID' | 'CANCELLED' | 'REFUNDED';
   item_count?: number;
+  notes?: string;
   created_at: string;
   updated_at: string;
 }
@@ -258,12 +259,17 @@ export interface SaleItem {
 export interface CreateSaleRequest {
   store_id: string;
   customer_id?: string;
+  // Customer can also be given by name only (cashier types the name). The
+  // backend reuses an existing customer with the same name in the store, or
+  // creates one — never a duplicate for an existing name.
+  customer_name?: string;
   items: SaleItemInput[];
   discount?: number;
   tax_rate?: number;
   payment_method: string;
   amount_paid: number;
   payment_reference?: string;
+  notes?: string;
 }
 
 export interface SaleItemInput {
@@ -580,6 +586,8 @@ export interface StoreSettings {
   tax_rate: number; // default tax % for new POS carts
   receipt_header: string;
   receipt_footer: string;
+  // Footer text alignment: 'left' | 'center' | 'right' (empty = center).
+  receipt_footer_align: string;
   show_store_name: boolean;
   show_store_contact: boolean;
   show_cashier: boolean;
@@ -590,6 +598,7 @@ export interface StoreSettings {
   show_tax: boolean;
   show_payment: boolean;
   show_change: boolean;
+  show_kitchen_print: boolean;
   updated_by: string;
   updated_at: string;
 }
@@ -603,6 +612,13 @@ export const ORDER_CHANNEL_LABELS: Record<OrderChannel, string> = {
   dinein: 'Dine-in',
   takeaway: 'Take-away',
 };
+
+// Editable identity block of the user's store (settings page)
+export interface StoreInfo {
+  name: string;    // read-only
+  address: string;
+  phone: string;
+}
 
 // Error types
 export interface ApiError {

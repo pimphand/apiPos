@@ -41,13 +41,13 @@ type CreatePaymentRequest struct {
 
 // PaymentSummary holds payment summary for a sale
 type PaymentSummary struct {
-	SaleID      string
-	GrandTotal  float64
-	TotalPaid   float64
-	Remaining   float64
-	Change      float64
-	Status      string
-	Payments    []gormdb.Payment
+	SaleID     string
+	GrandTotal float64
+	TotalPaid  float64
+	Remaining  float64
+	Change     float64
+	Status     string
+	Payments   []gormdb.Payment
 }
 
 // PaginationResult holds pagination metadata

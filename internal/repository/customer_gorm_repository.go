@@ -30,9 +30,9 @@ type CustomerListParams struct {
 
 // CustomerSearchParams holds parameters for searching customers
 type CustomerSearchParams struct {
-	Query    string
-	Page     int32
-	PerPage  int32
+	Query   string
+	Page    int32
+	PerPage int32
 }
 
 // CustomerRepo implements CustomerRepository using GORM

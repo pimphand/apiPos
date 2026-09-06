@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
 	"gorm.io/gorm"
@@ -38,6 +39,43 @@ func (f *fakeSettingsRepo) Upsert(ctx context.Context, setting *gormdb.StoreSett
 
 func newFake() *fakeSettingsRepo {
 	return &fakeSettingsRepo{rows: map[string]*gormdb.StoreSetting{}}
+}
+
+// fakeStoreRepo satisfies repository.StoreRepository for tests. It only
+// implements the methods the settings service touches; the rest panic loudly.
+type fakeStoreRepo struct {
+	rows map[string]*gormdb.Store
+}
+
+func (f *fakeStoreRepo) mustImplement(name string) {
+	panic("fakeStoreRepo: unexpected call to " + name)
+}
+
+func (f *fakeStoreRepo) GetByID(ctx context.Context, id string) (*gormdb.Store, error) {
+	if s, ok := f.rows[id]; ok {
+		return s, nil
+	}
+	return nil, gorm.ErrRecordNotFound
+}
+
+func (f *fakeStoreRepo) Update(ctx context.Context, store *gormdb.Store) error {
+	f.rows[store.ID.String()] = store
+	return nil
+}
+
+func (f *fakeStoreRepo) Create(ctx context.Context, store *gormdb.Store) error {
+	f.mustImplement("Create")
+	return nil
+}
+
+func (f *fakeStoreRepo) GetByName(ctx context.Context, name string) (*gormdb.Store, error) {
+	f.mustImplement("GetByName")
+	return nil, nil
+}
+
+func (f *fakeStoreRepo) List(ctx context.Context, params repository.StoreListParams) ([]gormdb.Store, int64, error) {
+	f.mustImplement("List")
+	return nil, 0, nil
 }
 
 func claimsCtx(role string) context.Context {
@@ -114,7 +152,10 @@ func TestUpdateSettings_InvalidTaxRate(t *testing.T) {
 
 func TestUpdateSettings_AdminUpsertsAndReadsBack(t *testing.T) {
 	fake := newFake()
-	repos := &repository.Repositories{Settings: fake}
+	stores := &fakeStoreRepo{rows: map[string]*gormdb.Store{
+		testStoreID: {ID: uuid.MustParse(testStoreID), Name: "Toko Uji"},
+	}}
+	repos := &repository.Repositories{Settings: fake, Store: stores}
 	svc := NewService(repos)
 
 	_, err := svc.UpdateSettings(claimsCtx("admin"), UpdateParams{
@@ -144,9 +185,31 @@ func TestUpdateSettings_AdminUpsertsAndReadsBack(t *testing.T) {
 }
 
 func TestUpdateSettings_ManagerAllowed(t *testing.T) {
-	repos := &repository.Repositories{Settings: newFake()}
+	stores := &fakeStoreRepo{rows: map[string]*gormdb.Store{
+		testStoreID: {ID: uuid.MustParse(testStoreID), Name: "Toko Uji"},
+	}}
+	repos := &repository.Repositories{Settings: newFake(), Store: stores}
 	svc := NewService(repos)
 
 	_, err := svc.UpdateSettings(claimsCtx("manager"), UpdateParams{TaxRate: 5})
 	assert.NoError(t, err)
+}
+
+func TestStoreInfo_UpdateAddressAndPhone(t *testing.T) {
+	stores := &fakeStoreRepo{rows: map[string]*gormdb.Store{
+		testStoreID: {ID: uuid.MustParse(testStoreID), Name: "Toko Uji", Address: "Alamat Lama", Phone: "0811"},
+	}}
+	repos := &repository.Repositories{Settings: newFake(), Store: stores}
+	svc := NewService(repos)
+
+	store, err := svc.UpdateStoreInfo(claimsCtx("admin"), "Jl. Baru No. 2", "0822")
+	assert.NoError(t, err)
+	assert.Equal(t, "Jl. Baru No. 2", store.Address)
+	assert.Equal(t, "0822", store.Phone)
+	assert.Equal(t, "Toko Uji", store.Name) // name is read-only
+
+	// Cashier may not change store info.
+	_, err = svc.UpdateStoreInfo(claimsCtx("cashier"), "x", "y")
+	assert.Error(t, err)
+	assert.Equal(t, codes.PermissionDenied, grpcCode(err))
 }

@@ -14,12 +14,12 @@ import (
 
 // TransactionType constants
 const (
-	TypePurchase    = "PURCHASE"
-	TypeSale        = "SALE"
-	TypeReturn      = "RETURN"
-	TypeAdjustment  = "ADJUSTMENT"
-	TypeDamage      = "DAMAGE"
-	TypeTransfer    = "TRANSFER"
+	TypePurchase   = "PURCHASE"
+	TypeSale       = "SALE"
+	TypeReturn     = "RETURN"
+	TypeAdjustment = "ADJUSTMENT"
+	TypeDamage     = "DAMAGE"
+	TypeTransfer   = "TRANSFER"
 )
 
 // Service handles inventory business logic

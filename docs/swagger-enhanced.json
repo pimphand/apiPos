@@ -3686,6 +3686,45 @@
           "SettingsService"
         ]
       }
+    },
+    "/api/v1/settings/store-info": {
+      "put": {
+        "summary": "UpdateStoreInfo saves the store's address & phone.",
+        "description": "The store name is identity and stays read-only. Only admin & manager can change store info.",
+        "operationId": "SettingsService_UpdateStoreInfo",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1SettingsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1UpdateStoreInfoRequest"
+            }
+          }
+        ],
+        "tags": [
+          "SettingsService"
+        ]
+      }
     }
   },
   "definitions": {
@@ -6393,6 +6432,40 @@
       "properties": {
         "settings": {
           "$ref": "#/definitions/v1StoreSettings"
+        },
+        "store_info": {
+          "$ref": "#/definitions/v1StoreInfo"
+        }
+      }
+    },
+    "v1StoreInfo": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Read-only: the store name is set at registration.",
+          "example": "Toko Maju Jaya"
+        },
+        "address": {
+          "type": "string",
+          "example": "Jl. Contoh No. 1, Jakarta"
+        },
+        "phone": {
+          "type": "string",
+          "example": "0812-3456-7890"
+        }
+      }
+    },
+    "v1UpdateStoreInfoRequest": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string",
+          "example": "Jl. Contoh No. 1, Jakarta"
+        },
+        "phone": {
+          "type": "string",
+          "example": "0812-3456-7890"
         }
       }
     }

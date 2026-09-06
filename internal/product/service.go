@@ -527,16 +527,16 @@ type CreateProductRequest struct {
 	MinimumStock int32
 
 	// Default SKU fields
-	SKU          string
-	Barcode      string
-	Variant      string
-	Color        string
-	Size         string
-	Unit         string
-	Weight       float64
-	Volume       float64
-	BatchNumber  string
-	Location     string
+	SKU         string
+	Barcode     string
+	Variant     string
+	Color       string
+	Size        string
+	Unit        string
+	Weight      float64
+	Volume      float64
+	BatchNumber string
+	Location    string
 }
 
 // UpdateProductRequest represents the request to update a product

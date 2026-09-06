@@ -4,6 +4,7 @@
  * should print, driven by the store settings toggles (docs/pos-store-settings.md).
  * Shared by the settings preview (SettingsPage) and the POS receipt dialog.
  */
+import { computed } from 'vue';
 import { useLocaleStore } from '@/stores/locale';
 import { formatCurrency } from '@/lib/utils';
 import { ORDER_CHANNEL_LABELS, type OrderChannel, type StoreSettings } from '@/types';
@@ -27,6 +28,7 @@ export interface ReceiptData {
   tax_rate?: number;
   payment_method_label?: string;
   orderChannel?: OrderChannel;
+  notes?: string;
   items: ReceiptLine[];
   subtotal: number;
   discount: number;
@@ -56,6 +58,13 @@ const s = () =>
     show_payment: true,
     show_change: true,
   } as Partial<StoreSettings>;
+
+/** Footer text alignment: 'left' | 'center' | 'right'. */
+const footerAlign = computed(() => {
+  const a = (props.settings?.receipt_footer_align || 'center').toLowerCase();
+  return a === 'left' || a === 'right' ? a : 'center';
+});
+const footerText = computed(() => props.settings?.receipt_footer || '');
 </script>
 
 <template>
@@ -140,10 +149,10 @@ const s = () =>
       </div>
     </template>
 
-    <!-- Free footer -->
-    <template v-if="settings?.receipt_footer">
+    <!-- Free footer: rendered once at the end, text aligned per setting -->
+    <template v-if="footerText">
       <div class="my-1 border-t border-dashed border-neutral-400"></div>
-      <div class="whitespace-pre-line text-center">{{ settings.receipt_footer }}</div>
+      <div class="whitespace-pre-line" :class="footerAlign === 'left' ? 'text-left' : footerAlign === 'right' ? 'text-right' : 'text-center'">{{ footerText }}</div>
     </template>
   </div>
 </template>

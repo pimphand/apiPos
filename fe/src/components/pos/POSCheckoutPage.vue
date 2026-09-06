@@ -22,6 +22,7 @@ import type {
   HeldOrder,
   HeldOrderItem,
   StoreSettings,
+  StoreInfo,
   OrderChannel,
 } from '@/types';
 import { ORDER_CHANNEL_LABELS } from '@/types';
@@ -36,6 +37,7 @@ import PosShiftDialogs from '@/components/pos/PosShiftDialogs.vue';
 import PosShiftStatusBar from '@/components/pos/PosShiftStatusBar.vue';
 import Button from '@/components/ui/button/Button.vue';
 import Input from '@/components/ui/input/Input.vue';
+import Label from '@/components/ui/label/Label.vue';
 import Badge from '@/components/ui/badge/Badge.vue';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -131,8 +133,8 @@ const barcodeInput = ref('');
 const cart = ref<CartItem[]>([]);
 const discount = ref(0);
 const taxRate = ref(11);
-const selectedCustomerId = ref('');
-const NO_CUSTOMER = 'none'; // reka-ui disallows empty-string SelectItem values
+/** Free-text customer name typed by the cashier ('' = walk-in). */
+const customerName = ref('');
 const customers = ref<Customer[]>([]);
 const customersLoading = ref(false);
 
@@ -141,6 +143,8 @@ const processing = ref(false);
 
 // ---- Store settings (docs/pos-store-settings.md) -------------------------
 const settings = ref<StoreSettings | null>(null);
+/** Store identity (name/address/phone) from GET /settings — printed on the nota. */
+const storeInfo = ref<StoreInfo>({ name: '', address: '', phone: '' });
 /** Default tax % for fresh carts — from store settings, fallback 11. */
 const defaultTaxRate = computed(() => {
   const v = settings.value?.tax_rate;
@@ -154,11 +158,6 @@ const orderChannel = ref<OrderChannel>('dinein');
 const receiptOpen = ref(false);
 const lastReceipt = ref<ReceiptData | null>(null);
 
-/** Reset channel to the documented default whenever the cart is cleared. */
-function resetChannel() {
-  orderChannel.value = 'dinein';
-}
-
 /** Map payment-method code to a localized label (reuses admin.payments keys). */
 const PAY_METHOD_KEYS: Record<string, string> = {
   CASH: 'cash',
@@ -170,7 +169,9 @@ const PAY_METHOD_KEYS: Record<string, string> = {
 
 async function loadStoreSettings() {
   try {
-    settings.value = await settingsService.get();
+    const res = await settingsService.get();
+    settings.value = res.settings;
+    storeInfo.value = res.store_info || { name: '', address: '', phone: '' };
   } catch {
     // Best-effort only — POS keeps working with the built-in 11% default.
     settings.value = null;
@@ -274,7 +275,7 @@ function clearCart() {
   cart.value = [];
   discount.value = 0;
   taxRate.value = defaultTaxRate.value;
-  selectedCustomerId.value = '';
+  customerName.value = '';
   orderChannel.value = 'dinein';
 }
 
@@ -316,28 +317,20 @@ async function holdCurrentCart(opts: { silent?: boolean } = {}): Promise<boolean
   if (holdingCart) return false;
   holdingCart = true;
   try {
-    // Best-effort resolve the customer name for the hold label.
-    const hasCustomer =
-      selectedCustomerId.value && selectedCustomerId.value !== NO_CUSTOMER;
-    let customerName: string | undefined;
-    if (hasCustomer) {
-      customerName = customers.value.find((c) => c.id === selectedCustomerId.value)?.name;
-      if (!customerName && customers.value.length === 0 && !customersLoading.value) {
-        await loadCustomers();
-        customerName = customers.value.find((c) => c.id === selectedCustomerId.value)?.name;
-      }
-    }
+    // The typed customer name (if any) travels with the hold so restoring
+    // keeps the same name for the next checkout.
+    const holdName = customerName.value.trim();
     const n = holdsCount.value + 1;
-    const label = customerName
-      ? t('posHold.holdLabelWithCustomer', { n, customer: customerName })
+    const label = holdName
+      ? t('posHold.holdLabelWithCustomer', { n, customer: holdName })
       : t('posHold.holdLabel', { n });
     heldOrdersApi.holdCart({
       label,
       items: holdableCartItems.value,
       discount: discount.value,
       tax_rate: taxRate.value,
-      customer_id: hasCustomer ? selectedCustomerId.value : '',
-      customer_name: customerName,
+      customer_id: '',
+      customer_name: holdName || undefined,
     });
     clearCart();
     if (!opts.silent) {
@@ -466,7 +459,12 @@ async function performRestore(h: HeldOrder) {
     pushItemsToCart(items);
     discount.value = order.discount || 0;
     taxRate.value = order.tax_rate;
-    selectedCustomerId.value = order.customer_id || '';
+    // Holds saved before the name-input era only carry customer_id — resolve
+    // its name (best-effort) so the field isn't silently blanked.
+    customerName.value =
+      order.customer_name ||
+      customers.value.find((c) => c.id === order.customer_id)?.name ||
+      '';
     ui.addToast('success', t('posHold.toastRestored'));
   } finally {
     restoring.value = false;
@@ -493,9 +491,10 @@ async function loadCustomers() {
 }
 
 async function submitSale(payload: {
-  customer_id: string;
+  customer_name: string;
   payment_method: string;
   amount_paid: number;
+  notes: string;
 }) {
   // Gate: never send a sale while the shift is not OPEN (server enforces it
   // too — this keeps the cart intact and lets the cashier re-try after
@@ -520,14 +519,16 @@ async function submitSale(payload: {
     quantity: i.quantity,
     unit_price: i.unit_price,
   }));
-  const customer = customers.value.find(c => c.id === payload.customer_id);
+  const typedName = payload.customer_name.trim();
   const paidAmount = payload.amount_paid;
 
   processing.value = true;
   try {
     const detail = await saleService.create({
       store_id: storeId,
-      customer_id: payload.customer_id && payload.customer_id !== NO_CUSTOMER ? payload.customer_id : undefined,
+      // Name only: the backend reuses an existing customer with the same
+      // name in this store, or creates a new one. No duplicate records.
+      customer_name: typedName || undefined,
       items: cart.value.map(i => ({
         product_id: i.product_id,
         sku_id: i.sku_id,
@@ -538,6 +539,7 @@ async function submitSale(payload: {
       tax_rate: taxRate.value,
       payment_method: payload.payment_method,
       amount_paid: paidAmount,
+      notes: payload.notes || undefined,
     });
     ui.addToast('success', t('admin.pos.toastSaleCreated'));
     paymentOpen.value = false;
@@ -551,15 +553,13 @@ async function submitSale(payload: {
     const storeAny = authStore.currentUser as any;
 
     lastReceipt.value = {
-      store_name: storeAny?.store_name || storeAny?.store?.name || '',
-      store_address: storeAny?.store?.address || '',
-      store_phone: storeAny?.store?.phone || '',
+      store_name: storeInfo.value.name || storeAny?.store_name || storeAny?.store?.name || '',
+      store_address: storeInfo.value.address || storeAny?.store?.address || '',
+      store_phone: storeInfo.value.phone || storeAny?.store?.phone || '',
       invoice_number: detail.sale.invoice_number || '',
       created_at: detail.sale.created_at || new Date().toISOString(),
       cashier_name: authStore.userName,
-      customer_name: payload.customer_id && payload.customer_id !== NO_CUSTOMER
-        ? (customer?.name || '')
-        : '',
+      customer_name: typedName,
       tax_rate: taxRate.value,
       payment_method_label: t(`admin.payments.${methodLabelKey}`),
       items: saleLines,
@@ -570,6 +570,7 @@ async function submitSale(payload: {
       paid: paidAmount,
       change: Math.max(0, paidAmount - totalN),
       orderChannel: orderChannel.value,
+      notes: payload.notes || undefined,
     };
 
     clearCart();
@@ -600,6 +601,7 @@ watch(isReady, async (r) => {
       if (cart.value.length === 0) taxRate.value = defaultTaxRate.value;
       await refreshLive();
       heldOrdersApi.reload();
+      loadCustomers(); // datalist suggestions for the customer name input
       if (currentShift.value) searchProducts();
     } finally {
       checkingShift.value = false;
@@ -682,8 +684,9 @@ watch(isReady, async (r) => {
           />
 
           <!-- Totals & Payment -->
-          <Card>            
+          <Card>
             <CardContent class="p-4 space-y-3">
+
               <div class="space-y-2">
                 <div class="flex justify-between text-sm">
                   <span class="text-muted-foreground">{{ t('admin.pos.subtotal') }}</span>
@@ -739,9 +742,9 @@ watch(isReady, async (r) => {
       :customers="customers"
       :grand-total="grandTotal"
       :processing="processing"
-      :customer-id="selectedCustomerId"
+      :customer-name="customerName"
       @update:open="paymentOpen = $event"
-      @update:customer-id="selectedCustomerId = $event"
+      @update:customer-name="customerName = $event"
       @cancel="paymentOpen = false"
       @submit="submitSale"
     />

@@ -5,8 +5,8 @@ import (
 
 	customerv1 "apiPos/gen/customer/v1"
 	"apiPos/internal/apperror"
-	gormdb "apiPos/internal/database/gorm"
 	"apiPos/internal/customer"
+	gormdb "apiPos/internal/database/gorm"
 	"apiPos/internal/response"
 )
 
@@ -67,10 +67,10 @@ func (h *CustomerHandler) ListCustomers(ctx context.Context, req *customerv1.Lis
 	}
 
 	return &customerv1.ListCustomersResponse{
-		Customers:   customers,
-		TotalCount:  result.Pagination.TotalCount,
-		Page:        result.Pagination.Page,
-		PerPage:     result.Pagination.PerPage,
+		Customers:  customers,
+		TotalCount: result.Pagination.TotalCount,
+		Page:       result.Pagination.Page,
+		PerPage:    result.Pagination.PerPage,
 	}, nil
 }
 
@@ -87,10 +87,10 @@ func (h *CustomerHandler) SearchCustomers(ctx context.Context, req *customerv1.S
 	}
 
 	return &customerv1.ListCustomersResponse{
-		Customers:   customers,
-		TotalCount:  result.Pagination.TotalCount,
-		Page:        result.Pagination.Page,
-		PerPage:     result.Pagination.PerPage,
+		Customers:  customers,
+		TotalCount: result.Pagination.TotalCount,
+		Page:       result.Pagination.Page,
+		PerPage:    result.Pagination.PerPage,
 	}, nil
 }
 
@@ -168,10 +168,10 @@ func (h *CustomerHandler) GetPurchaseHistory(ctx context.Context, req *customerv
 	}
 
 	return &customerv1.PurchaseHistoryResponse{
-		Purchases:   protoSales,
-		TotalCount:  pagination.TotalCount,
-		Page:        pagination.Page,
-		PerPage:     pagination.PerPage,
+		Purchases:  protoSales,
+		TotalCount: pagination.TotalCount,
+		Page:       pagination.Page,
+		PerPage:    pagination.PerPage,
 	}, nil
 }
 

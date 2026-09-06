@@ -45,7 +45,7 @@ type DatabaseConfig struct {
 
 // JWTConfig holds JWT configuration.
 type JWTConfig struct {
-	Secret      string
+	Secret     string
 	AccessTTL  time.Duration
 	RefreshTTL time.Duration
 }

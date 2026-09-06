@@ -31,13 +31,13 @@ type CreateCustomerRequest struct {
 
 // UpdateCustomerRequest represents the request to update a customer
 type UpdateCustomerRequest struct {
-	ID        string
-	Code      string
-	Name      string
-	Email     string
-	Phone     string
-	Address   string
-	IsActive  bool
+	ID       string
+	Code     string
+	Name     string
+	Email    string
+	Phone    string
+	Address  string
+	IsActive bool
 }
 
 // PaginationResult holds pagination metadata
@@ -49,7 +49,7 @@ type PaginationResult struct {
 
 // ListResult holds the result of listing customers
 type ListResult struct {
-	Customers []gormdb.Customer
+	Customers  []gormdb.Customer
 	Pagination PaginationResult
 }
 
@@ -63,11 +63,11 @@ func (s *Service) CreateCustomer(ctx context.Context, req CreateCustomerRequest)
 	}
 
 	customer := &gormdb.Customer{
-		Code:    req.Code,
-		Name:    req.Name,
-		Email:   req.Email,
-		Phone:   req.Phone,
-		Address: req.Address,
+		Code:     req.Code,
+		Name:     req.Name,
+		Email:    req.Email,
+		Phone:    req.Phone,
+		Address:  req.Address,
 		IsActive: true,
 	}
 

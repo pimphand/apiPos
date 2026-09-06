@@ -25,6 +25,15 @@ service SettingsService {
       body: "*"
     };
   }
+
+  // UpdateStoreInfo saves the store's own contact info (address & phone).
+  // The store name is identity and stays read-only here.
+  rpc UpdateStoreInfo(UpdateStoreInfoRequest) returns (SettingsResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/settings/store-info"
+      body: "*"
+    };
+  }
 }
 
 // StoreSettings holds per-store business settings used by the POS.
@@ -36,6 +45,9 @@ message StoreSettings {
   string receipt_header = 3;
   // Free-form nota footer lines (e.g. returns policy, contact).
   string receipt_footer = 4;
+  // How the footer text is aligned on the nota: "left", "center" or
+  // "right". Empty is treated as "center".
+  string receipt_footer_align = 17;
   // Whether the nota header prints the store name.
   bool show_store_name = 5;
   // Whether the nota header prints store address & phone.
@@ -56,6 +68,10 @@ message StoreSettings {
   bool show_payment = 13;
   // Whether the nota shows the change row (cash payments).
   bool show_change = 14;
+  // Whether the kitchen receipt (Nota Dapur) button is enabled in the POS
+  // receipt dialog. When true, a separate item-only receipt can be printed
+  // for the kitchen after each sale.
+  bool show_kitchen_print = 18;
   string updated_by = 15;
   string updated_at = 16;
 }
@@ -69,6 +85,8 @@ message UpdateSettingsRequest {
   double tax_rate = 1;
   string receipt_header = 2;
   string receipt_footer = 3;
+  // "left" | "center" | "right" (empty = center).
+  string receipt_footer_align = 14;
   bool show_store_name = 4;
   bool show_store_contact = 5;
   bool show_cashier = 6;
@@ -79,8 +97,25 @@ message UpdateSettingsRequest {
   bool show_tax = 11;
   bool show_payment = 12;
   bool show_change = 13;
+  bool show_kitchen_print = 15;
 }
 
 message SettingsResponse {
   StoreSettings settings = 1;
+  // The authenticated user's store contact info (echoed so the UI can show
+  // current values and the receipt can print them).
+  StoreInfo store_info = 2;
+}
+
+// StoreInfo is the editable identity block of the authenticated user's store.
+message StoreInfo {
+  // Read-only: the store name is set at registration.
+  string name = 1;
+  string address = 2;
+  string phone = 3;
+}
+
+message UpdateStoreInfoRequest {
+  string address = 1;
+  string phone = 2;
 }

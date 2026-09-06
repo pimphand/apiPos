@@ -41,11 +41,11 @@ func (h *SaleHandler) CreateSale(ctx context.Context, req *salev1.CreateSaleRequ
 			Discount:  item.Discount,
 		})
 	}
-
 	detail, err := h.service.CreateSale(ctx, sale.CreateSaleRequest{
 		StoreID:          req.StoreId,
 		CustomerID:       req.CustomerId,
 		CustomerName:     req.CustomerName,
+		Notes:            req.Notes,
 		Items:            items,
 		Discount:         req.Discount,
 		TaxRate:          req.TaxRate,
@@ -165,6 +165,7 @@ func toProtoSale(s *gormdb.Sale, repos *repository.Repositories) *salev1.Sale {
 		StoreId:       s.StoreID.String(),
 		CashierId:     s.CashierID.String(),
 		CustomerId:    customerIDStr(s.CustomerID),
+		Notes:         strPtrVal(s.Notes),
 		Subtotal:      s.Subtotal,
 		Discount:      s.Discount,
 		Tax:           s.Tax,
@@ -254,7 +255,6 @@ func toProtoSaleDetail(detail *sale.SaleDetail, repos *repository.Repositories) 
 			PaidAt:        p.PaidAt.Format("2006-01-02T15:04:05Z07:00"),
 		})
 	}
-
 	return &salev1.SaleDetailResponse{
 		Sale:       protoSale,
 		Items:      items,
@@ -262,4 +262,12 @@ func toProtoSaleDetail(detail *sale.SaleDetail, repos *repository.Repositories) 
 		AmountPaid: detail.AmountPaid,
 		Change:     detail.Change,
 	}
+}
+
+// strPtrVal dereferences a *string, returning "" for nil.
+func strPtrVal(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }

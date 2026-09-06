@@ -47,6 +47,7 @@ type CreateSaleRequest struct {
 	StoreID          string
 	CustomerID       string
 	CustomerName     string
+	Notes            string
 	Items            []SaleItemInput
 	Discount         float64
 	TaxRate          float64
@@ -130,9 +131,7 @@ func (s *Service) CreateSale(ctx context.Context, req CreateSaleRequest) (*SaleD
 		customerID, useCustomer, err := s.resolveCustomer(ctx, tx, req, storeID)
 		if err != nil {
 			return err
-		}
-
-		// 1. Create sale
+		} // 1. Create sale
 		sale := &gormdb.Sale{
 			InvoiceNumber: invoiceNumber,
 			StoreID:       storeID,
@@ -143,6 +142,9 @@ func (s *Service) CreateSale(ctx context.Context, req CreateSaleRequest) (*SaleD
 			GrandTotal:    grandTotal,
 			Status:        StatusPending,
 			ShiftID:       shiftID,
+		}
+		if n := strings.TrimSpace(req.Notes); n != "" {
+			sale.Notes = &n
 		}
 		if useCustomer {
 			sale.CustomerID = customerID

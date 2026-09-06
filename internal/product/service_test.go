@@ -16,15 +16,15 @@ import (
 
 // mockProductRepo is a mock for ProductRepository
 type mockProductRepo struct {
-	createFunc          func(ctx context.Context, product *gormdb.Product) error
-	getByIDFunc         func(ctx context.Context, id string) (*gormdb.Product, error)
-	listFunc            func(ctx context.Context, params repository.ProductListParams) ([]gormdb.Product, int64, error)
-	searchByNameFunc    func(ctx context.Context, params repository.ProductSearchParams) ([]gormdb.Product, int64, error)
-	updateFunc          func(ctx context.Context, product *gormdb.Product) error
-	deleteFunc          func(ctx context.Context, id string) error
-	activateFunc        func(ctx context.Context, id string) error
-	deactivateFunc      func(ctx context.Context, id string) error
-	getLowStockFunc     func(ctx context.Context, params repository.PaginationParams) ([]gormdb.Product, int64, error)
+	createFunc       func(ctx context.Context, product *gormdb.Product) error
+	getByIDFunc      func(ctx context.Context, id string) (*gormdb.Product, error)
+	listFunc         func(ctx context.Context, params repository.ProductListParams) ([]gormdb.Product, int64, error)
+	searchByNameFunc func(ctx context.Context, params repository.ProductSearchParams) ([]gormdb.Product, int64, error)
+	updateFunc       func(ctx context.Context, product *gormdb.Product) error
+	deleteFunc       func(ctx context.Context, id string) error
+	activateFunc     func(ctx context.Context, id string) error
+	deactivateFunc   func(ctx context.Context, id string) error
+	getLowStockFunc  func(ctx context.Context, params repository.PaginationParams) ([]gormdb.Product, int64, error)
 }
 
 func (m *mockProductRepo) Create(ctx context.Context, product *gormdb.Product) error {

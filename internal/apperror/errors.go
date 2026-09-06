@@ -52,10 +52,10 @@ var (
 	ErrInvalidReference = errors.New("invalid reference")
 
 	// General errors
-	ErrNotFound          = errors.New("resource not found")
-	ErrAlreadyExists     = errors.New("resource already exists")
-	ErrInvalidRequest    = errors.New("invalid request")
-	ErrInternal          = errors.New("internal server error")
+	ErrNotFound           = errors.New("resource not found")
+	ErrAlreadyExists      = errors.New("resource already exists")
+	ErrInvalidRequest     = errors.New("invalid request")
+	ErrInternal           = errors.New("internal server error")
 	ErrFailedPrecondition = errors.New("failed precondition")
 )
 

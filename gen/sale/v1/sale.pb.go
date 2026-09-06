@@ -36,7 +36,9 @@ type CreateSaleRequest struct {
 	// Customer can be specified by name. When provided and no customer_id is
 	// given, the system looks up an existing customer with the same name
 	// (in the same store) and reuses it, or creates a new one.
-	CustomerName  string `protobuf:"bytes,9,opt,name=customer_name,json=customerName,proto3" json:"customer_name,omitempty"`
+	CustomerName string `protobuf:"bytes,9,opt,name=customer_name,json=customerName,proto3" json:"customer_name,omitempty"`
+	// Optional order notes (e.g. kitchen instructions). Nullable.
+	Notes         string `protobuf:"bytes,10,opt,name=notes,proto3" json:"notes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -130,6 +132,13 @@ func (x *CreateSaleRequest) GetPaymentReference() string {
 func (x *CreateSaleRequest) GetCustomerName() string {
 	if x != nil {
 		return x.CustomerName
+	}
+	return ""
+}
+
+func (x *CreateSaleRequest) GetNotes() string {
+	if x != nil {
+		return x.Notes
 	}
 	return ""
 }
@@ -708,6 +717,7 @@ type Sale struct {
 	ItemCount     int32                  `protobuf:"varint,14,opt,name=item_count,json=itemCount,proto3" json:"item_count,omitempty"`
 	CreatedAt     string                 `protobuf:"bytes,15,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt     string                 `protobuf:"bytes,16,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	Notes         string                 `protobuf:"bytes,17,opt,name=notes,proto3" json:"notes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -850,6 +860,13 @@ func (x *Sale) GetCreatedAt() string {
 func (x *Sale) GetUpdatedAt() string {
 	if x != nil {
 		return x.UpdatedAt
+	}
+	return ""
+}
+
+func (x *Sale) GetNotes() string {
+	if x != nil {
+		return x.Notes
 	}
 	return ""
 }
@@ -1066,7 +1083,7 @@ var File_sale_v1_sale_proto protoreflect.FileDescriptor
 
 const file_sale_v1_sale_proto_rawDesc = "" +
 	"\n" +
-	"\x12sale/v1/sale.proto\x12\asale.v1\x1a\x1cgoogle/api/annotations.proto\"\xce\x02\n" +
+	"\x12sale/v1/sale.proto\x12\asale.v1\x1a\x1cgoogle/api/annotations.proto\"\xe4\x02\n" +
 	"\x11CreateSaleRequest\x12\x19\n" +
 	"\bstore_id\x18\x01 \x01(\tR\astoreId\x12\x1f\n" +
 	"\vcustomer_id\x18\x02 \x01(\tR\n" +
@@ -1078,7 +1095,9 @@ const file_sale_v1_sale_proto_rawDesc = "" +
 	"\vamount_paid\x18\a \x01(\x01R\n" +
 	"amountPaid\x12+\n" +
 	"\x11payment_reference\x18\b \x01(\tR\x10paymentReference\x12#\n" +
-	"\rcustomer_name\x18\t \x01(\tR\fcustomerName\"\x9c\x01\n" +
+	"\rcustomer_name\x18\t \x01(\tR\fcustomerName\x12\x14\n" +
+	"\x05notes\x18\n" +
+	" \x01(\tR\x05notes\"\x9c\x01\n" +
 	"\rSaleItemInput\x12\x1d\n" +
 	"\n" +
 	"product_id\x18\x01 \x01(\tR\tproductId\x12\x15\n" +
@@ -1123,7 +1142,7 @@ const file_sale_v1_sale_proto_rawDesc = "" +
 	"\bpayments\x18\x03 \x03(\v2\x10.sale.v1.PaymentR\bpayments\x12\x1f\n" +
 	"\vamount_paid\x18\x04 \x01(\x01R\n" +
 	"amountPaid\x12\x16\n" +
-	"\x06change\x18\x05 \x01(\x01R\x06change\"\xdf\x03\n" +
+	"\x06change\x18\x05 \x01(\x01R\x06change\"\xf5\x03\n" +
 	"\x04Sale\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12%\n" +
 	"\x0einvoice_number\x18\x02 \x01(\tR\rinvoiceNumber\x12\x19\n" +
@@ -1148,7 +1167,8 @@ const file_sale_v1_sale_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x0f \x01(\tR\tcreatedAt\x12\x1d\n" +
 	"\n" +
-	"updated_at\x18\x10 \x01(\tR\tupdatedAt\"\xb9\x02\n" +
+	"updated_at\x18\x10 \x01(\tR\tupdatedAt\x12\x14\n" +
+	"\x05notes\x18\x11 \x01(\tR\x05notes\"\xb9\x02\n" +
 	"\bSaleItem\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\asale_id\x18\x02 \x01(\tR\x06saleId\x12\x1d\n" +

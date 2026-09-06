@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/select';
 import { useLocaleStore } from '@/stores/locale';
 import { formatCurrency } from '@/lib/utils';
+import { Textarea } from '@/components/ui/textarea';
 import type { Customer } from '@/types';
 
 /**
@@ -34,29 +35,33 @@ const props = defineProps<{
   customers: Customer[];
   grandTotal: number;
   processing?: boolean;
-  customerId: string; // v-model — value 'none' means walk-in
+  customerName: string; // v-model — '' means walk-in
 }>();
 
 const emit = defineEmits<{
   'update:open': [value: boolean];
-  'update:customerId': [value: string];
+  'update:customerName': [value: string];
   cancel: [];
   submit: [
-    payload: { customer_id: string; payment_method: string; amount_paid: number }
+    payload: { customer_name: string; payment_method: string; amount_paid: number; notes: string }
   ];
 }>();
 
 const t = useLocaleStore().t;
 
-const NO_CUSTOMER = 'none'; // reka-ui disallows empty-string SelectItem values
-
 const paymentMethod = ref('CASH');
 const amountPaid = ref(0);
+const orderNotes = ref('');
 
-// Local view-model for the customer select (props are read-only).
-const customerId = computed({
-  get: () => props.customerId,
-  set: (v: string) => emit('update:customerId', v),
+/** Quick-cash buttons: denominations ADD UP (like counting the notes handed
+ * over). 'Uang Pas' sets the exact grand total. */
+const QUICK_CASH = [10000, 20000, 50000, 100000] as const;
+const fmtId = (n: number) => new Intl.NumberFormat('id-ID').format(n);
+
+// Local view-model for the customer name input (props are read-only).
+const customerName = computed({
+  get: () => props.customerName,
+  set: (v: string) => emit('update:customerName', v),
 });
 
 const change = computed(() => Math.max(0, amountPaid.value - props.grandTotal));
@@ -68,6 +73,7 @@ watch(
     if (open) {
       paymentMethod.value = 'CASH';
       amountPaid.value = 0;
+      orderNotes.value = '';
     }
   }
 );
@@ -77,6 +83,16 @@ function setAmountPaid(value: string | number) {
   amountPaid.value = Number(value) || 0;
 }
 
+/** Add a quick-cash denomination to the tendered amount (counting cash). */
+function addQuickCash(note: number) {
+  amountPaid.value = (Number(amountPaid.value) || 0) + note;
+}
+
+/** 'Uang Pas': tendered amount = the exact grand total. */
+function payExact() {
+  amountPaid.value = props.grandTotal;
+}
+
 function cancel() {
   emit('cancel');
 }
@@ -84,9 +100,10 @@ function cancel() {
 function submit() {
   if (props.processing || amountPaid.value < props.grandTotal) return;
   emit('submit', {
-    customer_id: customerId.value,
+    customer_name: customerName.value.trim(),
     payment_method: paymentMethod.value,
     amount_paid: amountPaid.value,
+    notes: orderNotes.value.trim(),
   });
 }
 </script>
@@ -102,15 +119,14 @@ function submit() {
       <div class="space-y-4">
         <div class="space-y-2">
           <Label>{{ t('admin.pos.customer') }}</Label>
-          <Select v-model="customerId">
-            <SelectTrigger class="w-full">
-              <SelectValue :placeholder="t('admin.pos.noCustomer')" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem :value="NO_CUSTOMER">{{ t('admin.pos.noCustomer') }}</SelectItem>
-              <SelectItem v-for="c in customers" :key="c.id" :value="c.id">{{ c.name }}</SelectItem>
-            </SelectContent>
-          </Select>
+          <Input
+            v-model="customerName"
+            list="pos-customer-suggestions"
+            :placeholder="t('admin.pos.customerNamePlaceholder')"
+          />
+          <datalist id="pos-customer-suggestions">
+            <option v-for="c in customers" :key="c.id" :value="c.name" />
+          </datalist>
         </div>
 
         <div class="space-y-2">
@@ -140,6 +156,40 @@ function submit() {
             placeholder="0"
             class="text-lg h-11 tabular-nums"
             @update:modelValue="setAmountPaid"
+          />
+
+          <!-- Quick cash shortcuts: denominations add up like counting notes. -->
+          <div class="space-y-1.5 pt-1">
+            <Button
+              variant="outline"
+              size="sm"
+              class="h-8 w-full font-semibold"
+              @click="payExact"
+            >
+              {{ t('admin.pos.exactCash') }}
+            </Button>
+            <div class="grid grid-cols-4 gap-1.5">
+              <Button
+                v-for="note in QUICK_CASH"
+                :key="note"
+                variant="outline"
+                size="sm"
+                class="h-8 px-0 tabular-nums"
+                @click="addQuickCash(note)"
+              >
+                {{ fmtId(note) }}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <Label>{{ t('admin.pos.orderNotes') }}</Label>
+          <Textarea
+            v-model="orderNotes"
+            rows="2"
+            :placeholder="t('admin.pos.orderNotesPlaceholder')"
+            class="text-sm"
           />
         </div>
 

@@ -157,10 +157,10 @@ func (h *InventoryHandler) GetLowStockAlert(ctx context.Context, req *inventoryv
 	}
 
 	return &inventoryv1.LowStockAlertResponse{
-		Products:    products,
-		TotalCount:  result.Pagination.TotalCount,
-		Page:        result.Pagination.Page,
-		PerPage:     result.Pagination.PerPage,
+		Products:   products,
+		TotalCount: result.Pagination.TotalCount,
+		Page:       result.Pagination.Page,
+		PerPage:    result.Pagination.PerPage,
 	}, nil
 }
 

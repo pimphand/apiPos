@@ -3434,6 +3434,39 @@
         ]
       }
     },
+    "/api/v1/settings/store-info": {
+      "put": {
+        "summary": "UpdateStoreInfo saves the store's own contact info (address \u0026 phone).\nThe store name is identity and stays read-only here.",
+        "operationId": "SettingsService_UpdateStoreInfo",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1SettingsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1UpdateStoreInfoRequest"
+            }
+          }
+        ],
+        "tags": [
+          "SettingsService"
+        ]
+      }
+    },
     "/api/v1/stores": {
       "get": {
         "summary": "ListStores lists all stores (with optional status filter)",
@@ -4601,6 +4634,9 @@
         },
         "updatedAt": {
           "type": "string"
+        },
+        "notes": {
+          "type": "string"
         }
       }
     },
@@ -5060,6 +5096,10 @@
         "customerName": {
           "type": "string",
           "description": "Customer can be specified by name. When provided and no customer_id is\ngiven, the system looks up an existing customer with the same name\n(in the same store) and reuses it, or creates a new one."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional order notes (e.g. kitchen instructions). Nullable."
         }
       }
     },
@@ -6496,6 +6536,10 @@
       "properties": {
         "settings": {
           "$ref": "#/definitions/v1StoreSettings"
+        },
+        "storeInfo": {
+          "$ref": "#/definitions/v1StoreInfo",
+          "description": "The authenticated user's store contact info (echoed so the UI can show\ncurrent values and the receipt can print them)."
         }
       }
     },
@@ -6697,6 +6741,22 @@
         }
       }
     },
+    "v1StoreInfo": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Read-only: the store name is set at registration."
+        },
+        "address": {
+          "type": "string"
+        },
+        "phone": {
+          "type": "string"
+        }
+      },
+      "description": "StoreInfo is the editable identity block of the authenticated user's store."
+    },
     "v1StoreResponse": {
       "type": "object",
       "properties": {
@@ -6723,6 +6783,10 @@
         "receiptFooter": {
           "type": "string",
           "description": "Free-form nota footer lines (e.g. returns policy, contact)."
+        },
+        "receiptFooterAlign": {
+          "type": "string",
+          "description": "How the footer text is aligned on the nota: \"left\", \"center\" or\n\"right\". Empty is treated as \"center\"."
         },
         "showStoreName": {
           "type": "boolean",
@@ -6764,6 +6828,10 @@
           "type": "boolean",
           "description": "Whether the nota shows the change row (cash payments)."
         },
+        "showKitchenPrint": {
+          "type": "boolean",
+          "description": "Whether the kitchen receipt (Nota Dapur) button is enabled in the POS\nreceipt dialog. When true, a separate item-only receipt can be printed\nfor the kitchen after each sale."
+        },
         "updatedBy": {
           "type": "string"
         },
@@ -6795,6 +6863,10 @@
         "receiptFooter": {
           "type": "string"
         },
+        "receiptFooterAlign": {
+          "type": "string",
+          "description": "\"left\" | \"center\" | \"right\" (empty = center)."
+        },
         "showStoreName": {
           "type": "boolean"
         },
@@ -6824,6 +6896,20 @@
         },
         "showChange": {
           "type": "boolean"
+        },
+        "showKitchenPrint": {
+          "type": "boolean"
+        }
+      }
+    },
+    "v1UpdateStoreInfoRequest": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "phone": {
+          "type": "string"
         }
       }
     },

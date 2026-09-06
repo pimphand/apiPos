@@ -67,6 +67,8 @@ message CreateSaleRequest {
   // given, the system looks up an existing customer with the same name
   // (in the same store) and reuses it, or creates a new one.
   string customer_name = 9;
+  // Optional order notes (e.g. kitchen instructions). Nullable.
+  string notes = 10;
 }
 
 message SaleItemInput {
@@ -142,6 +144,7 @@ message Sale {
   int32 item_count = 14;
   string created_at = 15;
   string updated_at = 16;
+  string notes = 17;
 }
 
 message SaleItem {

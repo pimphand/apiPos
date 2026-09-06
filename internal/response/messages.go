@@ -3,17 +3,17 @@ package response
 // Success messages
 const (
 	// Auth
-	MsgLoginSuccess       = "Login successful"
-	MsgRegisterSuccess    = "Registration successful"
-	MsgLogoutSuccess      = "Logout successful"
-	MsgTokenRefreshed     = "Token refreshed successfully"
+	MsgLoginSuccess    = "Login successful"
+	MsgRegisterSuccess = "Registration successful"
+	MsgLogoutSuccess   = "Logout successful"
+	MsgTokenRefreshed  = "Token refreshed successfully"
 
 	// User
-	MsgUserCreated        = "User created successfully"
-	MsgUserUpdated        = "User updated successfully"
-	MsgUserDeleted        = "User deleted successfully"
-	MsgUserRoleUpdated    = "User role updated successfully"
-	MsgUserDeactivated    = "User deactivated successfully"
+	MsgUserCreated     = "User created successfully"
+	MsgUserUpdated     = "User updated successfully"
+	MsgUserDeleted     = "User deleted successfully"
+	MsgUserRoleUpdated = "User role updated successfully"
+	MsgUserDeactivated = "User deactivated successfully"
 
 	// Product
 	MsgProductCreated     = "Product created successfully"
@@ -35,23 +35,23 @@ const (
 	MsgCustomerDeactivated = "Customer deactivated successfully"
 
 	// Sale
-	MsgSaleCreated    = "Sale created successfully"
-	MsgSaleUpdated    = "Sale updated successfully"
-	MsgSaleDeleted    = "Sale deleted successfully"
-	MsgSaleCancelled  = "Sale cancelled successfully"
+	MsgSaleCreated   = "Sale created successfully"
+	MsgSaleUpdated   = "Sale updated successfully"
+	MsgSaleDeleted   = "Sale deleted successfully"
+	MsgSaleCancelled = "Sale cancelled successfully"
 
 	// Payment
 	MsgPaymentCreated = "Payment recorded successfully"
 	MsgPaymentDeleted = "Payment deleted successfully"
 
 	// Cashier
-	MsgShiftOpened    = "Shift opened successfully"
-	MsgShiftClosed    = "Shift closed successfully"
+	MsgShiftOpened = "Shift opened successfully"
+	MsgShiftClosed = "Shift closed successfully"
 
 	// Role
-	MsgRoleCreated  = "Role created successfully"
-	MsgRoleUpdated  = "Role updated successfully"
-	MsgRoleDeleted  = "Role deleted successfully"
+	MsgRoleCreated = "Role created successfully"
+	MsgRoleUpdated = "Role updated successfully"
+	MsgRoleDeleted = "Role deleted successfully"
 
 	// Permission
 	MsgPermissionCreated  = "Permission created successfully"
@@ -73,8 +73,8 @@ const (
 	ErrForbidden          = "Insufficient permissions"
 
 	// User
-	ErrUserNotFound      = "User not found"
-	ErrUserAlreadyExists = "Username already exists"
+	ErrUserNotFound       = "User not found"
+	ErrUserAlreadyExists  = "Username already exists"
 	ErrEmailAlreadyExists = "Email already exists"
 
 	// Product
@@ -93,10 +93,10 @@ const (
 	ErrCustomerAlreadyExists = "Customer already exists"
 
 	// Sale
-	ErrSaleNotFound          = "Sale not found"
-	ErrSaleAlreadyExists     = "Invoice number already exists"
-	ErrInvalidSaleStatus     = "Invalid sale status"
-	ErrPaymentInsufficient   = "Payment amount insufficient"
+	ErrSaleNotFound        = "Sale not found"
+	ErrSaleAlreadyExists   = "Invoice number already exists"
+	ErrInvalidSaleStatus   = "Invalid sale status"
+	ErrPaymentInsufficient = "Payment amount insufficient"
 
 	// Cashier
 	ErrShiftNotFound    = "Shift not found"

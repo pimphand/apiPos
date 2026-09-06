@@ -3,6 +3,7 @@ package settings
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -19,20 +20,26 @@ const DefaultTaxRate = 11.00
 
 // UpdateParams carries the full desired settings state (upsert semantics).
 type UpdateParams struct {
-	TaxRate          float64
-	ReceiptHeader    string
-	ReceiptFooter    string
-	ShowStoreName    bool
-	ShowStoreContact bool
-	ShowCashier      bool
-	ShowCustomer     bool
-	ShowItemSKU      bool
-	ShowItemBarcode  bool
-	ShowDiscount     bool
-	ShowTax          bool
-	ShowPayment      bool
-	ShowChange       bool
+	TaxRate       float64
+	ReceiptHeader string
+	ReceiptFooter string
+	// ReceiptFooterAlign: "left", "center" or "right" (empty = center).
+	ReceiptFooterAlign string
+	ShowStoreName      bool
+	ShowStoreContact   bool
+	ShowCashier        bool
+	ShowCustomer       bool
+	ShowItemSKU        bool
+	ShowItemBarcode    bool
+	ShowDiscount       bool
+	ShowTax            bool
+	ShowPayment        bool
+	ShowChange         bool
+	ShowKitchenPrint   bool
 }
+
+// validFooterAligns lists the allowed receipt footer alignments.
+var validFooterAligns = map[string]bool{"": true, "left": true, "center": true, "right": true}
 
 // Service handles per-store settings business logic.
 type Service struct {
@@ -80,7 +87,7 @@ func (s *Service) GetSettings(ctx context.Context) (*gormdb.StoreSetting, error)
 
 // UpdateSettings validates and upserts settings for the authenticated user's
 // store. Only admin & manager roles may change settings.
-func (s *Service) UpdateSettings(ctx context.Context, params UpdateParams) (*gormdb.StoreSetting, error) {
+func (s *Service) UpdateSettings(ctx context.Context, params UpdateParams) (*SaveResult, error) {
 	claims, ok := auth.ClaimsFromContext(ctx)
 	if !ok || claims == nil {
 		return nil, apperror.Wrap(apperror.ErrUnauthorized, "Authentication required", nil)
@@ -95,6 +102,13 @@ func (s *Service) UpdateSettings(ctx context.Context, params UpdateParams) (*gor
 	if params.TaxRate < 0 || params.TaxRate > 100 {
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Tax rate must be between 0 and 100", nil)
 	}
+	if !validFooterAligns[params.ReceiptFooterAlign] {
+		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Footer align must be left, center or right", nil)
+	}
+	align := params.ReceiptFooterAlign
+	if align == "" {
+		align = "center"
+	}
 
 	storeID, err := s.SettingsStoreID(ctx)
 	if err != nil {
@@ -102,20 +116,21 @@ func (s *Service) UpdateSettings(ctx context.Context, params UpdateParams) (*gor
 	}
 
 	now := gormdb.StoreSetting{
-		StoreID:          uuid.MustParse(storeID),
-		TaxRate:          params.TaxRate,
-		ReceiptHeader:    params.ReceiptHeader,
-		ReceiptFooter:    params.ReceiptFooter,
-		ShowStoreName:    params.ShowStoreName,
-		ShowStoreContact: params.ShowStoreContact,
-		ShowCashier:      params.ShowCashier,
-		ShowCustomer:     params.ShowCustomer,
-		ShowItemSKU:      params.ShowItemSKU,
-		ShowItemBarcode:  params.ShowItemBarcode,
-		ShowDiscount:     params.ShowDiscount,
-		ShowTax:          params.ShowTax,
+		StoreID:            uuid.MustParse(storeID),
+		TaxRate:            params.TaxRate,
+		ReceiptHeader:      params.ReceiptHeader,
+		ReceiptFooter:      params.ReceiptFooter,
+		ReceiptFooterAlign: align,
+		ShowStoreName:      params.ShowStoreName,
+		ShowStoreContact:   params.ShowStoreContact,
+		ShowCashier:        params.ShowCashier,
+		ShowCustomer:       params.ShowCustomer,
+		ShowItemSKU:        params.ShowItemSKU,
+		ShowItemBarcode:    params.ShowItemBarcode,
+		ShowDiscount:       params.ShowDiscount, ShowTax: params.ShowTax,
 		ShowPayment:      params.ShowPayment,
 		ShowChange:       params.ShowChange,
+		ShowKitchenPrint: params.ShowKitchenPrint,
 	}
 
 	if uid, err := uuid.Parse(claims.UserID); err == nil {
@@ -128,9 +143,72 @@ func (s *Service) UpdateSettings(ctx context.Context, params UpdateParams) (*gor
 
 	saved, err := s.repos.Settings.GetByStoreID(ctx, claims.StoreID)
 	if err != nil {
-		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to save store settings", err)
+		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to save settings", err)
 	}
-	return saved, nil
+
+	// Store info is auxiliary for the response; a failure here must not
+	// invalidate the settings save that already succeeded.
+	info, infoErr := s.StoreInfo(ctx)
+	if infoErr != nil {
+		info = nil
+	}
+	return &SaveResult{Settings: saved, StoreInfo: info}, nil
+}
+
+// StoreInfo returns the authenticated user's store identity block (name,
+// address, phone) for the settings page and receipt printing.
+func (s *Service) StoreInfo(ctx context.Context) (*gormdb.Store, error) {
+	storeID, err := s.SettingsStoreID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	store, err := s.repos.Store.GetByID(ctx, storeID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, apperror.Wrap(apperror.ErrNotFound, "Store not found", nil)
+		}
+		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to get store info", err)
+	}
+	return store, nil
+}
+
+// UpdateStoreInfo saves the store's own address & phone. The store name is
+// identity and stays read-only. Only admin & manager may change it (same
+// guard as settings).
+func (s *Service) UpdateStoreInfo(ctx context.Context, address, phone string) (*gormdb.Store, error) {
+	claims, ok := auth.ClaimsFromContext(ctx)
+	if !ok || claims == nil {
+		return nil, apperror.Wrap(apperror.ErrUnauthorized, "Authentication required", nil)
+	}
+	if claims.RoleName != "admin" && claims.RoleName != "manager" {
+		return nil, apperror.Wrap(apperror.ErrForbidden, "Only admin or manager can change store info", nil)
+	}
+
+	storeID, err := s.SettingsStoreID(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	store, err := s.repos.Store.GetByID(ctx, storeID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, apperror.Wrap(apperror.ErrNotFound, "Store not found", nil)
+		}
+		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to load store info", err)
+	}
+
+	store.Address = strings.TrimSpace(address)
+	store.Phone = strings.TrimSpace(phone)
+	if err := s.repos.Store.Update(ctx, store); err != nil {
+		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to save store info", err)
+	}
+	return store, nil
+}
+
+// SaveResult bundles settings and store info so callers get both in one trip.
+type SaveResult struct {
+	Settings  *gormdb.StoreSetting
+	StoreInfo *gormdb.Store
 }
 
 // defaultSetting returns a settings row carrying the documented defaults.
@@ -149,5 +227,6 @@ func defaultSetting(storeID string) *gormdb.StoreSetting {
 		ShowTax:          true,
 		ShowPayment:      true,
 		ShowChange:       true,
+		ShowKitchenPrint: true,
 	}
 }

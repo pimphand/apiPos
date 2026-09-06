@@ -82,9 +82,12 @@ function buildPrintHtml(): string {
     lines.push(row(esc(d.payment_method_label || t('posReceipt.paid')), fmt.format(d.paid)));
     if (s.show_change !== false && d.change > 0) lines.push(row(esc(t('posReceipt.change')), fmt.format(d.change)));
   }
+  // Free footer: rendered once at the end, text aligned per setting.
   if (s.receipt_footer) {
+    const footerAlign = String(s.receipt_footer_align || 'center').toLowerCase();
+    const align = footerAlign === 'left' ? 'left' : footerAlign === 'right' ? 'right' : 'center';
     lines.push(dash);
-    lines.push(`  <div style="white-space:pre-line;text-align:center">${esc(s.receipt_footer)}</div>\n`);
+    lines.push(`  <div style="white-space:pre-line;text-align:${align}">${esc(s.receipt_footer)}</div>\n`);
   }
 
   return `<!DOCTYPE html>
@@ -105,6 +108,51 @@ function printReceipt() {
   w.document.write(buildPrintHtml());
   w.document.close();
 }
+
+/** Builds a kitchen-only receipt: items, quantities, variant — no prices. */
+function buildKitchenHtml(): string {
+  const d = props.data;
+  if (!d) return '';
+  const fmt = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 });
+  const lines: string[] = [];
+  const dash = '<div style="border-top:1px dashed #666;margin:4px 0"></div>\n';
+
+  lines.push(`  <div style="text-align:center;font-weight:bold;text-transform:uppercase;font-size:14px">${esc(t('posReceipt.kitchenTitle'))}</div>\n`);
+  lines.push(dash);
+  if (d.invoice_number) lines.push(`  <div>Invoice: ${esc(d.invoice_number)}</div>\n`);
+  if (d.created_at) lines.push(`  <div>${esc(d.created_at)}</div>\n`);
+  if (d.orderChannel) lines.push(`  <div>${esc(t('orderChannel.title'))}: ${esc(ORDER_CHANNEL_LABELS[d.orderChannel])}</div>\n`);
+  lines.push(dash);
+
+  for (const item of d.items) {
+    lines.push(`  <div style="font-weight:bold">${item.quantity}× ${esc(item.name)}</div>\n`);
+    if (item.sku_code) lines.push(`  <div style="color:#555">${esc(item.sku_code)}</div>\n`);
+  }
+
+  if (d.notes) {
+    lines.push(dash);
+    lines.push(`  <div style="font-weight:bold">Notes:</div>\n`);
+    lines.push(`  <div style="white-space:pre-line">${esc(d.notes)}</div>\n`);
+  }
+
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>${esc(t('posReceipt.kitchenReceipt'))}</title>
+<style>
+  @page { size: 80mm auto; margin: 4mm; }
+  body { font-family: 'Courier New', Courier, monospace; font-size: 12px; color: #000; width: 72mm; margin: 0 auto; }
+</style></head>
+<body>
+${lines.join('')}
+<script>window.onload = function(){ window.print(); }<\/script>
+</body></html>`;
+}
+
+function printKitchen() {
+  const w = window.open('', '_blank', 'width=400,height=600');
+  if (!w) return;
+  w.document.write(buildKitchenHtml());
+  w.document.close();
+}
 </script>
 
 <template>
@@ -117,7 +165,16 @@ function printReceipt() {
         <PosReceiptPaper v-if="data" :settings="paperSettings" :data="data" />
       </div>
       <DialogFooter class="flex sm:justify-between gap-2">
-        <Button variant="outline" @click="printReceipt">{{ t('posReceipt.print') }}</Button>
+        <div class="flex gap-2">
+          <Button variant="outline" @click="printReceipt">{{ t('posReceipt.print') }}</Button>
+          <Button
+            v-if="settings?.show_kitchen_print && data?.items?.length"
+            variant="outline"
+            @click="printKitchen"
+          >
+            {{ t('posReceipt.kitchenReceipt') }}
+          </Button>
+        </div>
         <Button @click="emit('new-sale')">{{ t('posReceipt.newSale') }}</Button>
       </DialogFooter>
     </DialogContent>

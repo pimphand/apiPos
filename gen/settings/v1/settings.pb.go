@@ -32,6 +32,9 @@ type StoreSettings struct {
 	ReceiptHeader string `protobuf:"bytes,3,opt,name=receipt_header,json=receiptHeader,proto3" json:"receipt_header,omitempty"`
 	// Free-form nota footer lines (e.g. returns policy, contact).
 	ReceiptFooter string `protobuf:"bytes,4,opt,name=receipt_footer,json=receiptFooter,proto3" json:"receipt_footer,omitempty"`
+	// How the footer text is aligned on the nota: "left", "center" or
+	// "right". Empty is treated as "center".
+	ReceiptFooterAlign string `protobuf:"bytes,17,opt,name=receipt_footer_align,json=receiptFooterAlign,proto3" json:"receipt_footer_align,omitempty"`
 	// Whether the nota header prints the store name.
 	ShowStoreName bool `protobuf:"varint,5,opt,name=show_store_name,json=showStoreName,proto3" json:"show_store_name,omitempty"`
 	// Whether the nota header prints store address & phone.
@@ -51,11 +54,15 @@ type StoreSettings struct {
 	// Whether the nota shows the payment method row.
 	ShowPayment bool `protobuf:"varint,13,opt,name=show_payment,json=showPayment,proto3" json:"show_payment,omitempty"`
 	// Whether the nota shows the change row (cash payments).
-	ShowChange    bool   `protobuf:"varint,14,opt,name=show_change,json=showChange,proto3" json:"show_change,omitempty"`
-	UpdatedBy     string `protobuf:"bytes,15,opt,name=updated_by,json=updatedBy,proto3" json:"updated_by,omitempty"`
-	UpdatedAt     string `protobuf:"bytes,16,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ShowChange bool `protobuf:"varint,14,opt,name=show_change,json=showChange,proto3" json:"show_change,omitempty"`
+	// Whether the kitchen receipt (Nota Dapur) button is enabled in the POS
+	// receipt dialog. When true, a separate item-only receipt can be printed
+	// for the kitchen after each sale.
+	ShowKitchenPrint bool   `protobuf:"varint,18,opt,name=show_kitchen_print,json=showKitchenPrint,proto3" json:"show_kitchen_print,omitempty"`
+	UpdatedBy        string `protobuf:"bytes,15,opt,name=updated_by,json=updatedBy,proto3" json:"updated_by,omitempty"`
+	UpdatedAt        string `protobuf:"bytes,16,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *StoreSettings) Reset() {
@@ -112,6 +119,13 @@ func (x *StoreSettings) GetReceiptHeader() string {
 func (x *StoreSettings) GetReceiptFooter() string {
 	if x != nil {
 		return x.ReceiptFooter
+	}
+	return ""
+}
+
+func (x *StoreSettings) GetReceiptFooterAlign() string {
+	if x != nil {
+		return x.ReceiptFooterAlign
 	}
 	return ""
 }
@@ -186,6 +200,13 @@ func (x *StoreSettings) GetShowChange() bool {
 	return false
 }
 
+func (x *StoreSettings) GetShowKitchenPrint() bool {
+	if x != nil {
+		return x.ShowKitchenPrint
+	}
+	return false
+}
+
 func (x *StoreSettings) GetUpdatedBy() string {
 	if x != nil {
 		return x.UpdatedBy
@@ -241,21 +262,24 @@ type UpdateSettingsRequest struct {
 	// tax_rate percent (0-100). Ignored when 0 is treated as unset? No: 0 is
 	// a valid tax rate, so field presence is conveyed by the update request
 	// always carrying the full desired state.
-	TaxRate          float64 `protobuf:"fixed64,1,opt,name=tax_rate,json=taxRate,proto3" json:"tax_rate,omitempty"`
-	ReceiptHeader    string  `protobuf:"bytes,2,opt,name=receipt_header,json=receiptHeader,proto3" json:"receipt_header,omitempty"`
-	ReceiptFooter    string  `protobuf:"bytes,3,opt,name=receipt_footer,json=receiptFooter,proto3" json:"receipt_footer,omitempty"`
-	ShowStoreName    bool    `protobuf:"varint,4,opt,name=show_store_name,json=showStoreName,proto3" json:"show_store_name,omitempty"`
-	ShowStoreContact bool    `protobuf:"varint,5,opt,name=show_store_contact,json=showStoreContact,proto3" json:"show_store_contact,omitempty"`
-	ShowCashier      bool    `protobuf:"varint,6,opt,name=show_cashier,json=showCashier,proto3" json:"show_cashier,omitempty"`
-	ShowCustomer     bool    `protobuf:"varint,7,opt,name=show_customer,json=showCustomer,proto3" json:"show_customer,omitempty"`
-	ShowItemSku      bool    `protobuf:"varint,8,opt,name=show_item_sku,json=showItemSku,proto3" json:"show_item_sku,omitempty"`
-	ShowItemBarcode  bool    `protobuf:"varint,9,opt,name=show_item_barcode,json=showItemBarcode,proto3" json:"show_item_barcode,omitempty"`
-	ShowDiscount     bool    `protobuf:"varint,10,opt,name=show_discount,json=showDiscount,proto3" json:"show_discount,omitempty"`
-	ShowTax          bool    `protobuf:"varint,11,opt,name=show_tax,json=showTax,proto3" json:"show_tax,omitempty"`
-	ShowPayment      bool    `protobuf:"varint,12,opt,name=show_payment,json=showPayment,proto3" json:"show_payment,omitempty"`
-	ShowChange       bool    `protobuf:"varint,13,opt,name=show_change,json=showChange,proto3" json:"show_change,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	TaxRate       float64 `protobuf:"fixed64,1,opt,name=tax_rate,json=taxRate,proto3" json:"tax_rate,omitempty"`
+	ReceiptHeader string  `protobuf:"bytes,2,opt,name=receipt_header,json=receiptHeader,proto3" json:"receipt_header,omitempty"`
+	ReceiptFooter string  `protobuf:"bytes,3,opt,name=receipt_footer,json=receiptFooter,proto3" json:"receipt_footer,omitempty"`
+	// "left" | "center" | "right" (empty = center).
+	ReceiptFooterAlign string `protobuf:"bytes,14,opt,name=receipt_footer_align,json=receiptFooterAlign,proto3" json:"receipt_footer_align,omitempty"`
+	ShowStoreName      bool   `protobuf:"varint,4,opt,name=show_store_name,json=showStoreName,proto3" json:"show_store_name,omitempty"`
+	ShowStoreContact   bool   `protobuf:"varint,5,opt,name=show_store_contact,json=showStoreContact,proto3" json:"show_store_contact,omitempty"`
+	ShowCashier        bool   `protobuf:"varint,6,opt,name=show_cashier,json=showCashier,proto3" json:"show_cashier,omitempty"`
+	ShowCustomer       bool   `protobuf:"varint,7,opt,name=show_customer,json=showCustomer,proto3" json:"show_customer,omitempty"`
+	ShowItemSku        bool   `protobuf:"varint,8,opt,name=show_item_sku,json=showItemSku,proto3" json:"show_item_sku,omitempty"`
+	ShowItemBarcode    bool   `protobuf:"varint,9,opt,name=show_item_barcode,json=showItemBarcode,proto3" json:"show_item_barcode,omitempty"`
+	ShowDiscount       bool   `protobuf:"varint,10,opt,name=show_discount,json=showDiscount,proto3" json:"show_discount,omitempty"`
+	ShowTax            bool   `protobuf:"varint,11,opt,name=show_tax,json=showTax,proto3" json:"show_tax,omitempty"`
+	ShowPayment        bool   `protobuf:"varint,12,opt,name=show_payment,json=showPayment,proto3" json:"show_payment,omitempty"`
+	ShowChange         bool   `protobuf:"varint,13,opt,name=show_change,json=showChange,proto3" json:"show_change,omitempty"`
+	ShowKitchenPrint   bool   `protobuf:"varint,15,opt,name=show_kitchen_print,json=showKitchenPrint,proto3" json:"show_kitchen_print,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *UpdateSettingsRequest) Reset() {
@@ -305,6 +329,13 @@ func (x *UpdateSettingsRequest) GetReceiptHeader() string {
 func (x *UpdateSettingsRequest) GetReceiptFooter() string {
 	if x != nil {
 		return x.ReceiptFooter
+	}
+	return ""
+}
+
+func (x *UpdateSettingsRequest) GetReceiptFooterAlign() string {
+	if x != nil {
+		return x.ReceiptFooterAlign
 	}
 	return ""
 }
@@ -379,9 +410,19 @@ func (x *UpdateSettingsRequest) GetShowChange() bool {
 	return false
 }
 
+func (x *UpdateSettingsRequest) GetShowKitchenPrint() bool {
+	if x != nil {
+		return x.ShowKitchenPrint
+	}
+	return false
+}
+
 type SettingsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Settings      *StoreSettings         `protobuf:"bytes,1,opt,name=settings,proto3" json:"settings,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Settings *StoreSettings         `protobuf:"bytes,1,opt,name=settings,proto3" json:"settings,omitempty"`
+	// The authenticated user's store contact info (echoed so the UI can show
+	// current values and the receipt can print them).
+	StoreInfo     *StoreInfo `protobuf:"bytes,2,opt,name=store_info,json=storeInfo,proto3" json:"store_info,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -423,16 +464,138 @@ func (x *SettingsResponse) GetSettings() *StoreSettings {
 	return nil
 }
 
+func (x *SettingsResponse) GetStoreInfo() *StoreInfo {
+	if x != nil {
+		return x.StoreInfo
+	}
+	return nil
+}
+
+// StoreInfo is the editable identity block of the authenticated user's store.
+type StoreInfo struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Read-only: the store name is set at registration.
+	Name          string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Address       string `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`
+	Phone         string `protobuf:"bytes,3,opt,name=phone,proto3" json:"phone,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StoreInfo) Reset() {
+	*x = StoreInfo{}
+	mi := &file_settings_v1_settings_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StoreInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StoreInfo) ProtoMessage() {}
+
+func (x *StoreInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_settings_v1_settings_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StoreInfo.ProtoReflect.Descriptor instead.
+func (*StoreInfo) Descriptor() ([]byte, []int) {
+	return file_settings_v1_settings_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *StoreInfo) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *StoreInfo) GetAddress() string {
+	if x != nil {
+		return x.Address
+	}
+	return ""
+}
+
+func (x *StoreInfo) GetPhone() string {
+	if x != nil {
+		return x.Phone
+	}
+	return ""
+}
+
+type UpdateStoreInfoRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Address       string                 `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
+	Phone         string                 `protobuf:"bytes,2,opt,name=phone,proto3" json:"phone,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateStoreInfoRequest) Reset() {
+	*x = UpdateStoreInfoRequest{}
+	mi := &file_settings_v1_settings_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateStoreInfoRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateStoreInfoRequest) ProtoMessage() {}
+
+func (x *UpdateStoreInfoRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_settings_v1_settings_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateStoreInfoRequest.ProtoReflect.Descriptor instead.
+func (*UpdateStoreInfoRequest) Descriptor() ([]byte, []int) {
+	return file_settings_v1_settings_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *UpdateStoreInfoRequest) GetAddress() string {
+	if x != nil {
+		return x.Address
+	}
+	return ""
+}
+
+func (x *UpdateStoreInfoRequest) GetPhone() string {
+	if x != nil {
+		return x.Phone
+	}
+	return ""
+}
+
 var File_settings_v1_settings_proto protoreflect.FileDescriptor
 
 const file_settings_v1_settings_proto_rawDesc = "" +
 	"\n" +
-	"\x1asettings/v1/settings.proto\x12\vsettings.v1\x1a\x1cgoogle/api/annotations.proto\"\xc3\x04\n" +
+	"\x1asettings/v1/settings.proto\x12\vsettings.v1\x1a\x1cgoogle/api/annotations.proto\"\xa3\x05\n" +
 	"\rStoreSettings\x12\x19\n" +
 	"\bstore_id\x18\x01 \x01(\tR\astoreId\x12\x19\n" +
 	"\btax_rate\x18\x02 \x01(\x01R\ataxRate\x12%\n" +
 	"\x0ereceipt_header\x18\x03 \x01(\tR\rreceiptHeader\x12%\n" +
-	"\x0ereceipt_footer\x18\x04 \x01(\tR\rreceiptFooter\x12&\n" +
+	"\x0ereceipt_footer\x18\x04 \x01(\tR\rreceiptFooter\x120\n" +
+	"\x14receipt_footer_align\x18\x11 \x01(\tR\x12receiptFooterAlign\x12&\n" +
 	"\x0fshow_store_name\x18\x05 \x01(\bR\rshowStoreName\x12,\n" +
 	"\x12show_store_contact\x18\x06 \x01(\bR\x10showStoreContact\x12!\n" +
 	"\fshow_cashier\x18\a \x01(\bR\vshowCashier\x12#\n" +
@@ -444,16 +607,18 @@ const file_settings_v1_settings_proto_rawDesc = "" +
 	"\bshow_tax\x18\f \x01(\bR\ashowTax\x12!\n" +
 	"\fshow_payment\x18\r \x01(\bR\vshowPayment\x12\x1f\n" +
 	"\vshow_change\x18\x0e \x01(\bR\n" +
-	"showChange\x12\x1d\n" +
+	"showChange\x12,\n" +
+	"\x12show_kitchen_print\x18\x12 \x01(\bR\x10showKitchenPrint\x12\x1d\n" +
 	"\n" +
 	"updated_by\x18\x0f \x01(\tR\tupdatedBy\x12\x1d\n" +
 	"\n" +
 	"updated_at\x18\x10 \x01(\tR\tupdatedAt\"\x14\n" +
-	"\x12GetSettingsRequest\"\xf2\x03\n" +
+	"\x12GetSettingsRequest\"\xd2\x04\n" +
 	"\x15UpdateSettingsRequest\x12\x19\n" +
 	"\btax_rate\x18\x01 \x01(\x01R\ataxRate\x12%\n" +
 	"\x0ereceipt_header\x18\x02 \x01(\tR\rreceiptHeader\x12%\n" +
-	"\x0ereceipt_footer\x18\x03 \x01(\tR\rreceiptFooter\x12&\n" +
+	"\x0ereceipt_footer\x18\x03 \x01(\tR\rreceiptFooter\x120\n" +
+	"\x14receipt_footer_align\x18\x0e \x01(\tR\x12receiptFooterAlign\x12&\n" +
 	"\x0fshow_store_name\x18\x04 \x01(\bR\rshowStoreName\x12,\n" +
 	"\x12show_store_contact\x18\x05 \x01(\bR\x10showStoreContact\x12!\n" +
 	"\fshow_cashier\x18\x06 \x01(\bR\vshowCashier\x12#\n" +
@@ -465,12 +630,23 @@ const file_settings_v1_settings_proto_rawDesc = "" +
 	"\bshow_tax\x18\v \x01(\bR\ashowTax\x12!\n" +
 	"\fshow_payment\x18\f \x01(\bR\vshowPayment\x12\x1f\n" +
 	"\vshow_change\x18\r \x01(\bR\n" +
-	"showChange\"J\n" +
+	"showChange\x12,\n" +
+	"\x12show_kitchen_print\x18\x0f \x01(\bR\x10showKitchenPrint\"\x81\x01\n" +
 	"\x10SettingsResponse\x126\n" +
-	"\bsettings\x18\x01 \x01(\v2\x1a.settings.v1.StoreSettingsR\bsettings2\xec\x01\n" +
+	"\bsettings\x18\x01 \x01(\v2\x1a.settings.v1.StoreSettingsR\bsettings\x125\n" +
+	"\n" +
+	"store_info\x18\x02 \x01(\v2\x16.settings.v1.StoreInfoR\tstoreInfo\"O\n" +
+	"\tStoreInfo\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
+	"\aaddress\x18\x02 \x01(\tR\aaddress\x12\x14\n" +
+	"\x05phone\x18\x03 \x01(\tR\x05phone\"H\n" +
+	"\x16UpdateStoreInfoRequest\x12\x18\n" +
+	"\aaddress\x18\x01 \x01(\tR\aaddress\x12\x14\n" +
+	"\x05phone\x18\x02 \x01(\tR\x05phone2\xeb\x02\n" +
 	"\x0fSettingsService\x12g\n" +
 	"\vGetSettings\x12\x1f.settings.v1.GetSettingsRequest\x1a\x1d.settings.v1.SettingsResponse\"\x18\x82\xd3\xe4\x93\x02\x12\x12\x10/api/v1/settings\x12p\n" +
-	"\x0eUpdateSettings\x12\".settings.v1.UpdateSettingsRequest\x1a\x1d.settings.v1.SettingsResponse\"\x1b\x82\xd3\xe4\x93\x02\x15:\x01*\x1a\x10/api/v1/settingsB#Z!apiPos/gen/settings/v1;settingsv1b\x06proto3"
+	"\x0eUpdateSettings\x12\".settings.v1.UpdateSettingsRequest\x1a\x1d.settings.v1.SettingsResponse\"\x1b\x82\xd3\xe4\x93\x02\x15:\x01*\x1a\x10/api/v1/settings\x12}\n" +
+	"\x0fUpdateStoreInfo\x12#.settings.v1.UpdateStoreInfoRequest\x1a\x1d.settings.v1.SettingsResponse\"&\x82\xd3\xe4\x93\x02 :\x01*\x1a\x1b/api/v1/settings/store-infoB#Z!apiPos/gen/settings/v1;settingsv1b\x06proto3"
 
 var (
 	file_settings_v1_settings_proto_rawDescOnce sync.Once
@@ -484,24 +660,29 @@ func file_settings_v1_settings_proto_rawDescGZIP() []byte {
 	return file_settings_v1_settings_proto_rawDescData
 }
 
-var file_settings_v1_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_settings_v1_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_settings_v1_settings_proto_goTypes = []any{
-	(*StoreSettings)(nil),         // 0: settings.v1.StoreSettings
-	(*GetSettingsRequest)(nil),    // 1: settings.v1.GetSettingsRequest
-	(*UpdateSettingsRequest)(nil), // 2: settings.v1.UpdateSettingsRequest
-	(*SettingsResponse)(nil),      // 3: settings.v1.SettingsResponse
+	(*StoreSettings)(nil),          // 0: settings.v1.StoreSettings
+	(*GetSettingsRequest)(nil),     // 1: settings.v1.GetSettingsRequest
+	(*UpdateSettingsRequest)(nil),  // 2: settings.v1.UpdateSettingsRequest
+	(*SettingsResponse)(nil),       // 3: settings.v1.SettingsResponse
+	(*StoreInfo)(nil),              // 4: settings.v1.StoreInfo
+	(*UpdateStoreInfoRequest)(nil), // 5: settings.v1.UpdateStoreInfoRequest
 }
 var file_settings_v1_settings_proto_depIdxs = []int32{
 	0, // 0: settings.v1.SettingsResponse.settings:type_name -> settings.v1.StoreSettings
-	1, // 1: settings.v1.SettingsService.GetSettings:input_type -> settings.v1.GetSettingsRequest
-	2, // 2: settings.v1.SettingsService.UpdateSettings:input_type -> settings.v1.UpdateSettingsRequest
-	3, // 3: settings.v1.SettingsService.GetSettings:output_type -> settings.v1.SettingsResponse
-	3, // 4: settings.v1.SettingsService.UpdateSettings:output_type -> settings.v1.SettingsResponse
-	3, // [3:5] is the sub-list for method output_type
-	1, // [1:3] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	4, // 1: settings.v1.SettingsResponse.store_info:type_name -> settings.v1.StoreInfo
+	1, // 2: settings.v1.SettingsService.GetSettings:input_type -> settings.v1.GetSettingsRequest
+	2, // 3: settings.v1.SettingsService.UpdateSettings:input_type -> settings.v1.UpdateSettingsRequest
+	5, // 4: settings.v1.SettingsService.UpdateStoreInfo:input_type -> settings.v1.UpdateStoreInfoRequest
+	3, // 5: settings.v1.SettingsService.GetSettings:output_type -> settings.v1.SettingsResponse
+	3, // 6: settings.v1.SettingsService.UpdateSettings:output_type -> settings.v1.SettingsResponse
+	3, // 7: settings.v1.SettingsService.UpdateStoreInfo:output_type -> settings.v1.SettingsResponse
+	5, // [5:8] is the sub-list for method output_type
+	2, // [2:5] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_settings_v1_settings_proto_init() }
@@ -515,7 +696,7 @@ func file_settings_v1_settings_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_settings_v1_settings_proto_rawDesc), len(file_settings_v1_settings_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

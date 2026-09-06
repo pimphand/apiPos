@@ -177,6 +177,7 @@ type Sale struct {
 	Tax           float64    `gorm:"type:numeric(15,2);default:0" json:"tax"`
 	GrandTotal    float64    `gorm:"type:numeric(15,2);default:0" json:"grand_total"`
 	Status        string     `gorm:"type:varchar(20);default:PENDING" json:"status"`
+	Notes         *string    `gorm:"type:text" json:"notes"`
 	ShiftID       *uuid.UUID `gorm:"type:uuid;index:idx_sales_shift_id" json:"shift_id"`
 	CreatedAt     time.Time  `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt     time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
@@ -413,24 +414,33 @@ func (ActivityLog) TableName() string {
 
 // StoreSetting holds per-store business settings (default tax rate and
 // receipt/nota format). One row per store (store_id is the primary key).
+//
+// NOTE: no `default:` gorm tags on purpose — GORM omits zero-valued fields
+// that carry a default tag from INSERT statements, so saving tax_rate=0 or
+// show_x=false would silently be replaced by the DB default (11.00/true) via
+// ON CONFLICT ... EXCLUDED. The DB column defaults in the migration remain as
+// raw-SQL safety nets only.
 type StoreSetting struct {
-	StoreID          uuid.UUID  `gorm:"type:uuid;primaryKey" json:"store_id"`
-	TaxRate          float64    `gorm:"type:numeric(5,2);not null;default:11.00" json:"tax_rate"`
-	ReceiptHeader    string     `gorm:"type:text;not null;default:''" json:"receipt_header"`
-	ReceiptFooter    string     `gorm:"type:text;not null;default:''" json:"receipt_footer"`
-	ShowStoreName    bool       `gorm:"not null;default:true" json:"show_store_name"`
-	ShowStoreContact bool       `gorm:"not null;default:true" json:"show_store_contact"`
-	ShowCashier      bool       `gorm:"not null;default:true" json:"show_cashier"`
-	ShowCustomer     bool       `gorm:"not null;default:true" json:"show_customer"`
-	ShowItemSKU      bool       `gorm:"not null;default:false" json:"show_item_sku"`
-	ShowItemBarcode  bool       `gorm:"not null;default:false" json:"show_item_barcode"`
-	ShowDiscount     bool       `gorm:"not null;default:true" json:"show_discount"`
-	ShowTax          bool       `gorm:"not null;default:true" json:"show_tax"`
-	ShowPayment      bool       `gorm:"not null;default:true" json:"show_payment"`
-	ShowChange       bool       `gorm:"not null;default:true" json:"show_change"`
-	UpdatedBy        *uuid.UUID `gorm:"type:uuid" json:"updated_by"`
-	CreatedAt        time.Time  `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt        time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
+	StoreID       uuid.UUID `gorm:"type:uuid;primaryKey" json:"store_id"`
+	TaxRate       float64   `gorm:"type:numeric(5,2);not null" json:"tax_rate"`
+	ReceiptHeader string    `gorm:"type:text;not null" json:"receipt_header"`
+	ReceiptFooter string    `gorm:"type:text;not null" json:"receipt_footer"`
+	// Footer text alignment on the nota: left | center | right.
+	ReceiptFooterAlign string     `gorm:"type:varchar(10);not null;default:'center'" json:"receipt_footer_align"`
+	ShowStoreName      bool       `gorm:"not null" json:"show_store_name"`
+	ShowStoreContact   bool       `gorm:"not null" json:"show_store_contact"`
+	ShowCashier        bool       `gorm:"not null" json:"show_cashier"`
+	ShowCustomer       bool       `gorm:"not null" json:"show_customer"`
+	ShowItemSKU        bool       `gorm:"not null" json:"show_item_sku"`
+	ShowItemBarcode    bool       `gorm:"not null" json:"show_item_barcode"`
+	ShowDiscount       bool       `gorm:"not null" json:"show_discount"`
+	ShowTax            bool       `gorm:"not null" json:"show_tax"`
+	ShowPayment        bool       `gorm:"not null" json:"show_payment"`
+	ShowChange         bool       `gorm:"not null" json:"show_change"`
+	ShowKitchenPrint   bool       `gorm:"not null" json:"show_kitchen_print"`
+	UpdatedBy          *uuid.UUID `gorm:"type:uuid" json:"updated_by"`
+	CreatedAt          time.Time  `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt          time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
 
 	// Relations
 	Store Store `gorm:"foreignKey:StoreID" json:"store,omitempty"`

@@ -82,7 +82,7 @@ func (h *ProductHandler) GetProduct(ctx context.Context, req *productv1.GetProdu
 
 	// Load SKUs if get_sku is true
 	if req.GetSku && h.repos != nil {
-		skus, _, err := h.repos.ProductSKU.List(ctx, 
+		skus, _, err := h.repos.ProductSKU.List(ctx,
 			p.ID,
 			"",  // search
 			"",  // variant
@@ -196,7 +196,7 @@ func (h *ProductHandler) UpdateProduct(ctx context.Context, req *productv1.Updat
 
 	// Always load SKUs after update so response shows current state
 	if h.repos != nil {
-		skus, _, err := h.repos.ProductSKU.List(ctx, 
+		skus, _, err := h.repos.ProductSKU.List(ctx,
 			p.ID,
 			"",  // search
 			"",  // variant

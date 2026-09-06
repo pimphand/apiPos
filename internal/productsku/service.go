@@ -6,8 +6,8 @@ import (
 
 	"github.com/google/uuid"
 
-	gormdb "apiPos/internal/database/gorm"
 	"apiPos/internal/apperror"
+	gormdb "apiPos/internal/database/gorm"
 	"apiPos/internal/repository"
 )
 

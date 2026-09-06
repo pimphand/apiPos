@@ -19,8 +19,9 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	SettingsService_GetSettings_FullMethodName    = "/settings.v1.SettingsService/GetSettings"
-	SettingsService_UpdateSettings_FullMethodName = "/settings.v1.SettingsService/UpdateSettings"
+	SettingsService_GetSettings_FullMethodName     = "/settings.v1.SettingsService/GetSettings"
+	SettingsService_UpdateSettings_FullMethodName  = "/settings.v1.SettingsService/UpdateSettings"
+	SettingsService_UpdateStoreInfo_FullMethodName = "/settings.v1.SettingsService/UpdateStoreInfo"
 )
 
 // SettingsServiceClient is the client API for SettingsService service.
@@ -36,6 +37,9 @@ type SettingsServiceClient interface {
 	GetSettings(ctx context.Context, in *GetSettingsRequest, opts ...grpc.CallOption) (*SettingsResponse, error)
 	// UpdateSettings saves the current store's settings (upsert).
 	UpdateSettings(ctx context.Context, in *UpdateSettingsRequest, opts ...grpc.CallOption) (*SettingsResponse, error)
+	// UpdateStoreInfo saves the store's own contact info (address & phone).
+	// The store name is identity and stays read-only here.
+	UpdateStoreInfo(ctx context.Context, in *UpdateStoreInfoRequest, opts ...grpc.CallOption) (*SettingsResponse, error)
 }
 
 type settingsServiceClient struct {
@@ -66,6 +70,16 @@ func (c *settingsServiceClient) UpdateSettings(ctx context.Context, in *UpdateSe
 	return out, nil
 }
 
+func (c *settingsServiceClient) UpdateStoreInfo(ctx context.Context, in *UpdateStoreInfoRequest, opts ...grpc.CallOption) (*SettingsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SettingsResponse)
+	err := c.cc.Invoke(ctx, SettingsService_UpdateStoreInfo_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SettingsServiceServer is the server API for SettingsService service.
 // All implementations must embed UnimplementedSettingsServiceServer
 // for forward compatibility.
@@ -79,6 +93,9 @@ type SettingsServiceServer interface {
 	GetSettings(context.Context, *GetSettingsRequest) (*SettingsResponse, error)
 	// UpdateSettings saves the current store's settings (upsert).
 	UpdateSettings(context.Context, *UpdateSettingsRequest) (*SettingsResponse, error)
+	// UpdateStoreInfo saves the store's own contact info (address & phone).
+	// The store name is identity and stays read-only here.
+	UpdateStoreInfo(context.Context, *UpdateStoreInfoRequest) (*SettingsResponse, error)
 	mustEmbedUnimplementedSettingsServiceServer()
 }
 
@@ -94,6 +111,9 @@ func (UnimplementedSettingsServiceServer) GetSettings(context.Context, *GetSetti
 }
 func (UnimplementedSettingsServiceServer) UpdateSettings(context.Context, *UpdateSettingsRequest) (*SettingsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateSettings not implemented")
+}
+func (UnimplementedSettingsServiceServer) UpdateStoreInfo(context.Context, *UpdateStoreInfoRequest) (*SettingsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateStoreInfo not implemented")
 }
 func (UnimplementedSettingsServiceServer) mustEmbedUnimplementedSettingsServiceServer() {}
 func (UnimplementedSettingsServiceServer) testEmbeddedByValue()                         {}
@@ -152,6 +172,24 @@ func _SettingsService_UpdateSettings_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SettingsService_UpdateStoreInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateStoreInfoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SettingsServiceServer).UpdateStoreInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SettingsService_UpdateStoreInfo_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SettingsServiceServer).UpdateStoreInfo(ctx, req.(*UpdateStoreInfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SettingsService_ServiceDesc is the grpc.ServiceDesc for SettingsService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -166,6 +204,10 @@ var SettingsService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateSettings",
 			Handler:    _SettingsService_UpdateSettings_Handler,
+		},
+		{
+			MethodName: "UpdateStoreInfo",
+			Handler:    _SettingsService_UpdateStoreInfo_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

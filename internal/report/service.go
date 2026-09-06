@@ -29,8 +29,8 @@ type DailySalesReport struct {
 
 // DailySalesResult holds daily sales report result
 type DailySalesResult struct {
-	Reports    []DailySalesReport
-	TotalSales float64
+	Reports     []DailySalesReport
+	TotalSales  float64
 	TotalAmount float64
 }
 
@@ -58,10 +58,10 @@ type SalesByDateResult struct {
 
 // CashierSalesReport holds cashier sales report
 type CashierSalesReport struct {
-	CashierID        string
-	CashierName      string
+	CashierID         string
+	CashierName       string
 	TotalTransactions int64
-	TotalAmount      float64
+	TotalAmount       float64
 }
 
 // ProductSalesReport holds product sales report
@@ -104,10 +104,10 @@ type InventoryReport struct {
 
 // InventoryResult holds inventory summary result
 type InventoryResult struct {
-	Reports      []InventoryReport
+	Reports       []InventoryReport
 	TotalProducts int64
-	TotalStock   int64
-	TotalValue   float64
+	TotalStock    int64
+	TotalValue    float64
 }
 
 // LowStockReport holds low stock report
@@ -219,10 +219,10 @@ func (s *Service) GetSalesByDateRange(ctx context.Context, startDate, endDate, s
 // GetSalesByCashier gets sales grouped by cashier
 func (s *Service) GetSalesByCashier(ctx context.Context, startDate, endDate, storeID string) ([]CashierSalesReport, error) {
 	var results []struct {
-		CashierID        string
-		CashierName      string
+		CashierID         string
+		CashierName       string
 		TotalTransactions int64
-		TotalAmount      float64
+		TotalAmount       float64
 	}
 
 	query := s.repos.DB().WithContext(ctx).
@@ -248,10 +248,10 @@ func (s *Service) GetSalesByCashier(ctx context.Context, startDate, endDate, sto
 	reports := make([]CashierSalesReport, 0, len(results))
 	for _, r := range results {
 		reports = append(reports, CashierSalesReport{
-			CashierID:        r.CashierID,
-			CashierName:      r.CashierName,
+			CashierID:         r.CashierID,
+			CashierName:       r.CashierName,
 			TotalTransactions: r.TotalTransactions,
-			TotalAmount:      r.TotalAmount,
+			TotalAmount:       r.TotalAmount,
 		})
 	}
 

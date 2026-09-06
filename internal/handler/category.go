@@ -61,10 +61,10 @@ func (h *CategoryHandler) ListCategories(ctx context.Context, req *categoryv1.Li
 	}
 
 	return &categoryv1.ListCategoriesResponse{
-		Categories:  protoCategories,
-		TotalCount:  result.Pagination.TotalCount,
-		Page:        result.Pagination.Page,
-		PerPage:     result.Pagination.PerPage,
+		Categories: protoCategories,
+		TotalCount: result.Pagination.TotalCount,
+		Page:       result.Pagination.Page,
+		PerPage:    result.Pagination.PerPage,
 	}, nil
 }
 

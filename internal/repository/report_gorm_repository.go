@@ -28,8 +28,8 @@ type ReportParams struct {
 
 // DailySalesReport holds daily sales report data
 type DailySalesReport struct {
-	Date       string  `json:"date"`
-	TotalSales int64   `json:"total_sales"`
+	Date        string  `json:"date"`
+	TotalSales  int64   `json:"total_sales"`
 	TotalAmount float64 `json:"total_amount"`
 }
 

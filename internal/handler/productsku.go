@@ -47,7 +47,7 @@ func (h *ProductSKUHandler) CreateProductSKU(ctx context.Context, req *productsk
 		}
 	}
 
-	productSKU, err := h.service.CreateProductSKU(ctx, 
+	productSKU, err := h.service.CreateProductSKU(ctx,
 		req.ProductId, req.Sku, req.Barcode, req.Variant, req.Color, req.Size, req.Unit,
 		req.CostPrice, req.SellingPrice, req.Stock, req.MinimumStock, req.Weight, req.Volume,
 		expiryTime, req.BatchNumber, req.Location, req.ImageUrl, req.IsActive, req.Metadata,
@@ -129,7 +129,7 @@ func (h *ProductSKUHandler) ListProductSKUs(ctx context.Context, req *productsku
 		perPage = 100
 	}
 
-	productSKUs, totalCount, err := h.service.ListProductSKUs(ctx, 
+	productSKUs, totalCount, err := h.service.ListProductSKUs(ctx,
 		req.ProductId, req.Search, req.Variant, req.Color, req.Size, nil, page, perPage,
 	)
 	if err != nil {
@@ -158,7 +158,7 @@ func (h *ProductSKUHandler) ListAllProductSKUs(ctx context.Context, req *product
 		perPage = 100
 	}
 
-	productSKUs, totalCount, err := h.service.ListAllProductSKUs(ctx, 
+	productSKUs, totalCount, err := h.service.ListAllProductSKUs(ctx,
 		req.Search, req.Variant, req.Color, req.Size, nil, req.ProductId, page, perPage,
 	)
 	if err != nil {
@@ -186,7 +186,7 @@ func (h *ProductSKUHandler) UpdateProductSKU(ctx context.Context, req *productsk
 		}
 	}
 
-	productSKU, err := h.service.UpdateProductSKU(ctx, 
+	productSKU, err := h.service.UpdateProductSKU(ctx,
 		req.Id, req.Sku, req.Barcode, req.Variant, req.Color, req.Size, req.Unit,
 		req.CostPrice, req.SellingPrice, req.Stock, req.MinimumStock, req.Weight, req.Volume,
 		expiryTime, req.BatchNumber, req.Location, req.ImageUrl, req.IsActive, req.Metadata,

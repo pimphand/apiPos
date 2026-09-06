@@ -38,13 +38,13 @@ type LogParams struct {
 // CreateLog creates a new activity log entry
 func (s *Service) CreateLog(ctx context.Context, params LogParams) (*gormdb.ActivityLog, error) {
 	log := &gormdb.ActivityLog{
-		Action:     params.Action,
-		Resource:   params.Resource,
-		ResourceID: params.ResourceID,
+		Action:      params.Action,
+		Resource:    params.Resource,
+		ResourceID:  params.ResourceID,
 		Description: generateDescription(params),
-		IPAddress:  params.IPAddress,
-		UserAgent:  params.UserAgent,
-		Metadata:   params.Metadata,
+		IPAddress:   params.IPAddress,
+		UserAgent:   params.UserAgent,
+		Metadata:    params.Metadata,
 	}
 
 	if params.UserID != "" {

@@ -124,7 +124,7 @@ func TestProductSKUService_CreateProductSKU(t *testing.T) {
 		}
 		svc := NewService(mockRepo)
 
-		productSKU, err := svc.CreateProductSKU(ctx, 
+		productSKU, err := svc.CreateProductSKU(ctx,
 			uuid.New().String(),
 			"COF-L-001",
 			"8991234567890",
@@ -166,7 +166,7 @@ func TestProductSKUService_CreateProductSKU(t *testing.T) {
 		}
 		svc := NewService(mockRepo)
 
-		_, err := svc.CreateProductSKU(ctx, 
+		_, err := svc.CreateProductSKU(ctx,
 			uuid.New().String(),
 			"COF-L-001",
 			"",
@@ -402,7 +402,7 @@ func TestProductSKUService_UpdateProductSKU(t *testing.T) {
 		}
 		svc := NewService(mockRepo)
 
-		productSKU, err := svc.UpdateProductSKU(ctx, 
+		productSKU, err := svc.UpdateProductSKU(ctx,
 			validID,
 			"COF-L-002",
 			"8991234567891",
@@ -466,7 +466,7 @@ func TestProductSKUService_UpdateProductSKU(t *testing.T) {
 		}
 		svc := NewService(mockRepo)
 
-		productSKU, err := svc.UpdateProductSKU(ctx, 
+		productSKU, err := svc.UpdateProductSKU(ctx,
 			validID,
 			"",
 			"",
