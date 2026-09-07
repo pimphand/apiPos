@@ -275,10 +275,14 @@ func (s *Server) startHTTP() error {
 		return fmt.Errorf("failed to register settings gateway: %w", err)
 	}
 
+	importHandler := handler.NewProductImportHandler(s.productService, s.categoryService, s.repositories, s.authService, s.config)
+
 	httpMux := http.NewServeMux()
 	httpMux.HandleFunc("/", s.handleSwaggerUI)
 	httpMux.HandleFunc("/swagger.json", s.handleSwaggerJSON)
 	httpMux.HandleFunc("/health", s.handleHealth)
+	httpMux.HandleFunc("/api/v1/products/import", importHandler.ServeHTTP)
+	httpMux.HandleFunc("/api/v1/products/import-sample", importHandler.ServeSampleCSV)
 	httpMux.Handle("/api/", enableCORS(mux))
 
 	addr := fmt.Sprintf(":%d", s.config.HTTP.Port)

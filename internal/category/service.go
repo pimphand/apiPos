@@ -11,6 +11,8 @@ import (
 	"apiPos/internal/apperror"
 	gormdb "apiPos/internal/database/gorm"
 	"apiPos/internal/repository"
+
+	"apiPos/internal/auth"
 )
 
 // PaginationResult holds pagination metadata
@@ -36,7 +38,7 @@ func NewService(repos *repository.Repositories) *Service {
 	return &Service{repos: repos}
 }
 
-// CreateCategory creates a new category
+// CreateCategory creates a new category (tenant-scoped).
 func (s *Service) CreateCategory(ctx context.Context, name, description string) (*gormdb.Category, error) {
 	// Check if category with same name exists
 	result, err := s.ListCategories(ctx, "", 1, 1000)
@@ -53,6 +55,16 @@ func (s *Service) CreateCategory(ctx context.Context, name, description string) 
 	category := &gormdb.Category{
 		Name:        name,
 		Description: description,
+	}
+
+	// StoreID is assigned automatically by the global store-scope callback
+	// (repository/store_scope.go) derived from the authenticated user's JWT
+	// claims. In contexts without claims (e.g. during import the http handler
+	// builds r.Context() from the request only), fall back to the token's
+	// store scope explicitly so the category is created in the right store.
+	storeID := storeScopeFromContext(ctx)
+	if storeID != "" {
+		category.StoreID, _ = uuid.Parse(storeID)
 	}
 
 	if err := s.repos.Category.Create(ctx, category); err != nil {
@@ -175,6 +187,25 @@ func (s *Service) DeactivateCategory(ctx context.Context, idStr string) error {
 	}
 
 	return s.repos.Category.Deactivate(ctx, idStr)
+}
+
+// storeScopeFromContext returns the store_id the caller is operating in.
+// Uses the same default/superadmin logic as repository/store_scope.go so that
+// service-layer create calls (e.g. category auto-create during import) land in
+// the correct tenant when the context is not already carrying store-scoped GORM
+// callbacks.
+func storeScopeFromContext(ctx context.Context) string {
+	claims, ok := auth.ClaimsFromContext(ctx)
+	if !ok || claims == nil {
+		return ""
+	}
+	if claims.RoleName == "superadmin" {
+		return ""
+	}
+	if claims.StoreID == "" {
+		return "00000000-0000-0000-0000-000000000001"
+	}
+	return claims.StoreID
 }
 
 // isValidUUID validates UUID format

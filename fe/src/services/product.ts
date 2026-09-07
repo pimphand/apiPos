@@ -5,6 +5,7 @@ import type {
   UpdateProductRequest,
   ListProductsResponse,
   ProductSKU,
+  ImportResult,
 } from '@/types';
 
 function num(v: unknown): number {
@@ -152,6 +153,32 @@ export const productService = {
   }): Promise<ListProductsResponse> {
     const response = await http.get<Record<string, unknown>>('/v1/products/low-stock', { params });
     return normalizeList(response.data);
+  },
+
+  // --- Import / Export ---
+
+  /** Download the CSV template for product import. */
+  async downloadSample(): Promise<void> {
+    const response = await http.get('/v1/products/import-sample', {
+      responseType: 'blob',
+    });
+    const url = URL.createObjectURL(new Blob([response.data]));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'product_import_template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+
+  /** Upload CSV/Excel to import products. Returns { total, imported, failed, errors }. */
+  async importProducts(file: File): Promise<ImportResult> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await http.post<ImportResult>('/v1/products/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 60_000,
+    });
+    return response.data as ImportResult;
   },
 
   // SKU methods

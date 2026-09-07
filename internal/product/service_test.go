@@ -166,6 +166,10 @@ func (m *mockProductSKURepo) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
+func (m *mockProductSKURepo) GetBySKUInStore(ctx context.Context, sku string, storeID string) (*gormdb.ProductSKU, error) {
+	return nil, gorm.ErrRecordNotFound
+}
+
 func (m *mockProductSKURepo) CountByProductIDs(ctx context.Context, productIDs []uuid.UUID) (map[string]int32, error) {
 	return make(map[string]int32), nil
 }

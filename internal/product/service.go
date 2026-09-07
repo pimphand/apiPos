@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -576,6 +577,102 @@ type SKUUpdateItem struct {
 	ImageURL     string
 	IsActive     bool
 	Metadata     map[string]string
+}
+
+// CreateProductFromImportParams carries fields for a simplified CSV/Excel import.
+type CreateProductFromImportParams struct {
+	StoreID      uuid.UUID
+	UserID       uuid.UUID
+	Name         string
+	CategoryID   string
+	CostPrice    float64
+	SellingPrice float64
+	Stock        int
+	MinimumStock int
+	SKU          string
+	Barcode      string
+	Unit         string
+	Variant      string
+}
+
+// CreateProductFromImport creates a product + default SKU from an import row.
+func (s *Service) CreateProductSKUForImport(ctx context.Context, productID uuid.UUID, p CreateProductFromImportParams) (*gormdb.ProductSKU, error) {
+	unit := p.Unit
+	if unit == "" {
+		unit = "pcs"
+	}
+	sku := &gormdb.ProductSKU{
+		ProductID:    productID,
+		StoreID:      p.StoreID,
+		SKU:          p.SKU,
+		Barcode:      p.Barcode,
+		Variant:      p.Variant,
+		Unit:         unit,
+		CostPrice:    p.CostPrice,
+		SellingPrice: p.SellingPrice,
+		Stock:        int32(p.Stock),
+		MinimumStock: int32(p.MinimumStock),
+		IsActive:     true,
+	}
+	if err := s.repos.ProductSKU.Create(ctx, sku); err != nil {
+		return nil, err
+	}
+	return sku, nil
+}
+
+// CreateProductFromImport creates a product + SKU from an import row.
+// If a product with the same name (case-insensitive) already exists in the
+// store, the SKU is added to that existing product instead of creating a
+// duplicate product.
+func (s *Service) CreateProductFromImport(ctx context.Context, p CreateProductFromImportParams) (*gormdb.Product, error) {
+	var catID uuid.UUID
+	if p.CategoryID != "" {
+		catID, _ = uuid.Parse(p.CategoryID)
+	}
+
+	// Find existing product by name in this store (case-insensitive).
+	var existing *gormdb.Product
+	if p.Name != "" {
+		products, _, err := s.repos.Product.SearchByName(ctx, repository.ProductSearchParams{
+			Name:     p.Name,
+			IsActive: "",
+			Page:     1,
+			PerPage: 1,
+		})
+		if err == nil && len(products) > 0 && products[0].Name != "" {
+			// Simple case-insensitive match on the first result.
+			if strings.EqualFold(products[0].Name, p.Name) && products[0].StoreID == p.StoreID {
+				existing = &products[0]
+			}
+		}
+	}
+
+	if existing != nil {
+		// Reuse existing product, just add the SKU.
+		if _, err := s.CreateProductSKUForImport(ctx, existing.ID, p); err != nil {
+			return existing, err
+		}
+		return existing, nil
+	}
+
+	prod := &gormdb.Product{
+		StoreID:      p.StoreID,
+		Name:         p.Name,
+		CategoryID:   catID,
+		CostPrice:    p.CostPrice,
+		SellingPrice: p.SellingPrice,
+		Stock:        int32(p.Stock),
+		MinimumStock: int32(p.MinimumStock),
+		IsActive:     true,
+	}
+	if err := s.repos.Product.Create(ctx, prod); err != nil {
+		return nil, err
+	}
+
+	if _, err := s.CreateProductSKUForImport(ctx, prod.ID, p); err != nil {
+		return prod, err
+	}
+	return prod, nil
 }
 
 // isValidUUID validates UUID format

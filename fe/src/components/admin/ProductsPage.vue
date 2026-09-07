@@ -19,6 +19,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import PaginationBar from '@/components/ui/PaginationBar.vue';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
+import ProductImportDialog from '@/components/admin/ProductImportDialog.vue';
 
 const { isReady, allowed, authStore } = usePageGuard('products.read');
 const ui = useUiStore();
@@ -308,6 +309,8 @@ function formatPriceRange(p: Product): string {
   return `${formatCurrency(min)} – ${formatCurrency(max)}`;
 }
 
+const importOpen = ref(false);
+
 const canCreate = computed(() => can(authStore.currentUser, 'products.create'));
 const canUpdate = computed(() => can(authStore.currentUser, 'products.update'));
 const canDelete = computed(() => can(authStore.currentUser, 'products.delete'));
@@ -320,6 +323,11 @@ watch(isReady, (r) => {
     load();
   }
 }, { immediate: true });
+
+// Reload after import dialog closes (import done)
+watch(importOpen, (v, old) => {
+  if (old && !v) load();
+});
 </script>
 
 <template>
@@ -338,7 +346,10 @@ watch(isReady, (r) => {
       <div>
         <h2 class="text-2xl font-bold">{{ t('admin.products.title') }}</h2>
       </div>
-      <Button v-if="canCreate" @click="openCreate">{{ t('admin.products.newProduct') }}</Button>
+      <div class="flex gap-2">
+        <Button v-if="canCreate" variant="outline" @click="importOpen = true">{{ t('admin.products.importProducts') }}</Button>
+        <Button v-if="canCreate" @click="openCreate">{{ t('admin.products.newProduct') }}</Button>
+      </div>
     </div>
 
     <Card>
@@ -468,6 +479,8 @@ watch(isReady, (r) => {
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+
+    <ProductImportDialog :open="importOpen" @update:open="importOpen = $event" />
 
     <Dialog v-model:open="formOpen">
       <DialogContent class="sm:max-w-3xl max-h-[90vh] overflow-y-auto">

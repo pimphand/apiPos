@@ -16,6 +16,7 @@ type ProductSKURepository interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*gormdb.ProductSKU, error)
 	GetByBarcode(ctx context.Context, barcode string) (*gormdb.ProductSKU, error)
 	GetBySKU(ctx context.Context, sku string) (*gormdb.ProductSKU, error)
+	GetBySKUInStore(ctx context.Context, sku string, storeID string) (*gormdb.ProductSKU, error)
 	List(ctx context.Context, productID uuid.UUID, search, variant, color, size string, isActive *bool, page, perPage int) ([]gormdb.ProductSKU, int64, error)
 	ListAll(ctx context.Context, search, variant, color, size string, isActive *bool, productID uuid.UUID, page, perPage int) ([]gormdb.ProductSKU, int64, error)
 	Update(ctx context.Context, productSKU *gormdb.ProductSKU) error
@@ -60,6 +61,15 @@ func (r *productSKURepository) GetByBarcode(ctx context.Context, barcode string)
 func (r *productSKURepository) GetBySKU(ctx context.Context, sku string) (*gormdb.ProductSKU, error) {
 	var productSKU gormdb.ProductSKU
 	err := r.WithContext(ctx).Where("sku = ? AND is_active = ?", sku, true).First(&productSKU).Error
+	if err != nil {
+		return nil, err
+	}
+	return &productSKU, nil
+}
+
+func (r *productSKURepository) GetBySKUInStore(ctx context.Context, sku string, storeID string) (*gormdb.ProductSKU, error) {
+	var productSKU gormdb.ProductSKU
+	err := r.WithContext(ctx).Where("sku = ? AND store_id = ?", sku, storeID).First(&productSKU).Error
 	if err != nil {
 		return nil, err
 	}

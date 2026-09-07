@@ -7,9 +7,15 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 
+# Cache-busting: force rebuild when source changes
+ARG CACHEBUST=1
+RUN echo "Cache bust: ${CACHEBUST}"
+
 COPY . .
 
-RUN go build -o main ./cmd/server
+# Bust Go build cache to ensure fresh compilation
+ENV GOCACHE=/tmp/go-cache
+RUN go clean -cache && go build -o main ./cmd/server
 
 FROM alpine:3.20.1 AS prod
 WORKDIR /app

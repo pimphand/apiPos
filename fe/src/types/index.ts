@@ -187,6 +187,13 @@ export interface ListProductsResponse extends PaginationResponse {
   products: Product[];
 }
 
+export interface ImportResult {
+  total: number;
+  imported: number;
+  failed: number;
+  errors?: { row: number; msg: string }[];
+}
+
 // Customer types
 export interface Customer {
   id: string;

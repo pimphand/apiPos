@@ -28,7 +28,11 @@ var tenantTables = map[string]bool{
 // defaultStoreID is used as a fallback tenant scope when a non-superadmin
 // token does not carry a store_id. All pre-existing rows were backfilled to
 // this store, so this prevents lookups from leaking across tenants.
-const defaultStoreID = "00000000-0000-0000-0000-000000000001"
+const DefaultStoreID = "00000000-0000-0000-0000-000000000001"
+
+// defaultStoreID exists for backwards compatibility with existing callers that
+// reference the unexported symbol. Prefer DefaultStoreID in new code.
+const defaultStoreID = DefaultStoreID
 
 // storeIDFromContext returns the tenant scope for the authenticated user, or
 // "" for system-wide access (superadmin, or contexts without claims such as

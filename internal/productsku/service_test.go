@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
 	gormdb "apiPos/internal/database/gorm"
 )
@@ -79,6 +80,10 @@ func (m *mockProductSKURepo) Delete(ctx context.Context, id uuid.UUID) error {
 		return m.deleteFunc(ctx, id)
 	}
 	return nil
+}
+
+func (m *mockProductSKURepo) GetBySKUInStore(ctx context.Context, sku string, storeID string) (*gormdb.ProductSKU, error) {
+	return nil, gorm.ErrRecordNotFound
 }
 
 func (m *mockProductSKURepo) CountByProductIDs(ctx context.Context, productIDs []uuid.UUID) (map[string]int32, error) {

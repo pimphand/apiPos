@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -145,5 +146,22 @@ func ContextWithClaims(ctx context.Context, claims *Claims) context.Context {
 // ClaimsFromContext extracts claims from context
 func ClaimsFromContext(ctx context.Context) (*Claims, bool) {
 	claims, ok := ctx.Value(ClaimsContextKey).(*Claims)
+	return claims, ok
+}
+
+// ClaimsFromRequest extracts JWT claims from an HTTP request's Authorization header.
+func ClaimsFromRequest(r *http.Request, secret string) (*Claims, bool) {
+	hdr := r.Header.Get("Authorization")
+	if len(hdr) < 8 || hdr[:7] != "Bearer " {
+		return nil, false
+	}
+	tokenStr := hdr[7:]
+	token, err := jwt.ParseWithClaims(tokenStr, &Claims{}, func(t *jwt.Token) (interface{}, error) {
+		return []byte(secret), nil
+	})
+	if err != nil || !token.Valid {
+		return nil, false
+	}
+	claims, ok := token.Claims.(*Claims)
 	return claims, ok
 }

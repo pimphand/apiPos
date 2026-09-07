@@ -3725,6 +3725,60 @@
           "SettingsService"
         ]
       }
+    },
+    "/api/v1/products/import": {
+      "post": {
+        "tags": [
+          "Products"
+        ],
+        "summary": "Import Products from CSV/Excel",
+        "description": "Upload a CSV or Excel file to bulk-import products into the store.",
+        "operationId": "product_import",
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "parameters": [
+          {
+            "in": "formData",
+            "name": "file",
+            "type": "file",
+            "required": true,
+            "description": "CSV or Excel file (max 10 MB)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Import result summary",
+            "schema": {
+              "$ref": "#/definitions/v1ImportResult"
+            }
+          },
+          "400": {
+            "description": "Invalid file or parse error"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          }
+        }
+      }
+    },
+    "/api/v1/products/import-sample": {
+      "get": {
+        "tags": [
+          "Products"
+        ],
+        "summary": "Download Product Import Template",
+        "description": "Download a sample CSV file for product import.",
+        "operationId": "product_import_sample",
+        "produces": [
+          "text/csv"
+        ],
+        "responses": {
+          "200": {
+            "description": "CSV file download"
+          }
+        }
+      }
     }
   },
   "definitions": {
@@ -6466,6 +6520,39 @@
         "phone": {
           "type": "string",
           "example": "0812-3456-7890"
+        }
+      }
+    },
+    "v1ImportResult": {
+      "type": "object",
+      "properties": {
+        "total": {
+          "type": "integer",
+          "example": 5
+        },
+        "imported": {
+          "type": "integer",
+          "example": 4
+        },
+        "failed": {
+          "type": "integer",
+          "example": 1
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "row": {
+                "type": "integer",
+                "example": 3
+              },
+              "msg": {
+                "type": "string",
+                "example": "name is required"
+              }
+            }
+          }
         }
       }
     }
