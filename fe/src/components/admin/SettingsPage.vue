@@ -55,6 +55,7 @@ function defaults(): StoreSettings {
     show_payment: false,
     show_change: false,
     show_kitchen_print: false,
+    self_order_enabled: false,
     updated_by: '',
     updated_at: '',
   };
@@ -115,6 +116,7 @@ async function save() {
       show_payment: !!form.value.show_payment,
       show_change: !!form.value.show_change,
       show_kitchen_print: !!form.value.show_kitchen_print,
+      self_order_enabled: !!form.value.self_order_enabled,
     });
     form.value = { ...defaults(), ...saved.settings };
     if (saved.store_info.name) storeInfo.value = saved.store_info;
@@ -236,7 +238,6 @@ watch(isReady, (r) => { if (r) void load(); }, { immediate: true });
               <p class="text-xs text-muted-foreground">{{ t('admin.settings.taxHint') }}</p>
             </CardContent>
           </Card>
-
           <Card>
             <CardHeader>
               <CardTitle>{{ t('admin.settings.receiptCard') }}</CardTitle>
@@ -300,8 +301,27 @@ watch(isReady, (r) => { if (r) void load(); }, { immediate: true });
             <div v-else class="border rounded-lg p-3 bg-muted/40">
               <PosReceiptPaper :settings="form" :data="previewData" />
             </div>
+             <Card class="mt-3">
+            <CardHeader>
+              <CardTitle>{{ t('admin.settings.selfOrderCard') }}</CardTitle>
+              <CardDescription>{{ t('admin.settings.selfOrderDesc') }}</CardDescription>
+            </CardHeader>
+            <CardContent class="space-y-2">
+              <label class="flex items-center gap-2 text-sm cursor-pointer">
+                <Checkbox
+                  :model-value="form.self_order_enabled === true"
+                  @update:model-value="(v: boolean | 'indeterminate') => (form.self_order_enabled = v === true)"
+                />
+                {{ t('admin.settings.selfOrderEnabled') }}
+              </label>
+              <p class="text-xs text-muted-foreground">{{ t('admin.settings.selfOrderHint') }}</p>
+            </CardContent>
+          </Card>
+
           </CardContent>
+          
         </Card>
+        
       </div>
     </div>
   </DashboardShell>

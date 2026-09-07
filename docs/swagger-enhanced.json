@@ -73,6 +73,14 @@
     {
       "name": "Settings",
       "description": "Per-store settings (default tax & receipt/nota format)"
+    },
+    {
+      "name": "Tables",
+      "description": "Dine-in table management and QR tokens for self ordering"
+    },
+    {
+      "name": "Self Order",
+      "description": "Public self-ordering flow (dine-in via QR table) — unauthenticated, tenant resolved server-side from the table token"
     }
   ],
   "host": "localhost:8080",
@@ -3726,6 +3734,396 @@
         ]
       }
     },
+    "/api/v1/tables": {
+      "get": {
+        "tags": [
+          "Tables"
+        ],
+        "summary": "List Tables",
+        "description": "List the store's dine-in tables with pagination.",
+        "operationId": "table_list",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "type": "string",
+            "description": "Filter by table code"
+          },
+          {
+            "name": "is_active",
+            "in": "query",
+            "type": "string",
+            "description": "Filter: '' = all, 'true' = active, 'false' = inactive"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of tables",
+            "schema": {
+              "$ref": "#/definitions/v1ListTablesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Tables"
+        ],
+        "summary": "Create Table",
+        "description": "Create a new dine-in table. Code must be unique per store.",
+        "operationId": "table_create",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreateTableRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Table created",
+            "schema": {
+              "$ref": "#/definitions/v1TableResponse"
+            }
+          },
+          "409": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
+        }
+      }
+    },
+    "/api/v1/tables/{id}": {
+      "get": {
+        "tags": [
+          "Tables"
+        ],
+        "summary": "Get Table",
+        "description": "Retrieve one table by ID (store-scoped).",
+        "operationId": "table_get",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Table details",
+            "schema": {
+              "$ref": "#/definitions/v1TableResponse"
+            }
+          },
+          "404": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Tables"
+        ],
+        "summary": "Update Table",
+        "description": "Update a table's code/name/active state (store-scoped).",
+        "operationId": "table_update",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/TableServiceUpdateTableBody"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Table updated",
+            "schema": {
+              "$ref": "#/definitions/v1TableResponse"
+            }
+          },
+          "404": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Tables"
+        ],
+        "summary": "Delete Table",
+        "description": "Delete a table. Tables referenced by sales are preserved (FK ON DELETE SET NULL) so history stays readable.",
+        "operationId": "table_delete",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Table deleted",
+            "schema": {
+              "$ref": "#/definitions/v1DeleteTableResponse"
+            }
+          },
+          "404": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
+        }
+      }
+    },
+    "/api/v1/tables/{id}/rotate-token": {
+      "post": {
+        "tags": [
+          "Tables"
+        ],
+        "summary": "Rotate Table Token",
+        "description": "Generate a new QR token, invalidating old QR codes for the table.",
+        "operationId": "table_rotate_token",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Token rotated",
+            "schema": {
+              "$ref": "#/definitions/v1TableResponse"
+            }
+          },
+          "404": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
+        }
+      }
+    },
+    "/api/v1/public/table/{tableToken}": {
+      "get": {
+        "tags": [
+          "Self Order"
+        ],
+        "summary": "Resolve Table",
+        "description": "Resolve a table token into the table + store (used by the public order page to bootstrap). NOT_FOUND when the token is unknown or the store/table is not accepting self orders. Public — no authentication.",
+        "operationId": "selforder_resolve_table",
+        "parameters": [
+          {
+            "name": "tableToken",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Table info",
+            "schema": {
+              "$ref": "#/definitions/v1TableInfoResponse"
+            }
+          },
+          "404": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
+        }
+      }
+    },
+    "/api/v1/public/menu/{tableToken}": {
+      "get": {
+        "tags": [
+          "Self Order"
+        ],
+        "summary": "Get Public Menu",
+        "description": "Return the safe dine-in menu of the store the table belongs to. Never exposes cost price, raw stock levels or the qr_token. Public — no authentication.",
+        "operationId": "selforder_get_menu",
+        "parameters": [
+          {
+            "name": "tableToken",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Public menu",
+            "schema": {
+              "$ref": "#/definitions/v1GetPublicMenuResponse"
+            }
+          },
+          "404": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
+        }
+      }
+    },
+    "/api/v1/public/orders": {
+      "post": {
+        "tags": [
+          "Self Order"
+        ],
+        "summary": "Create Public Order",
+        "description": "Submit an order: creates a PENDING sale (order_source=SELF_ORDER) and locks stock in one DB transaction. No realtime event is published at this step (see PayPublicOrder). Public — no authentication (rate limited).",
+        "operationId": "selforder_create_order",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreatePublicOrderRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order created",
+            "schema": {
+              "$ref": "#/definitions/v1OrderResponse"
+            }
+          },
+          "400": {
+            "$ref": "#/definitions/ErrorResponse"
+          },
+          "429": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
+        }
+      }
+    },
+    "/api/v1/public/orders/{orderToken}": {
+      "get": {
+        "tags": [
+          "Self Order"
+        ],
+        "summary": "Get Order Status",
+        "description": "Return the current status of the customer's order. Only reachable with the order_token of the order itself (no cross-tenant enumeration). Public — no authentication.",
+        "operationId": "selforder_get_status",
+        "parameters": [
+          {
+            "name": "orderToken",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order status",
+            "schema": {
+              "$ref": "#/definitions/v1OrderResponse"
+            }
+          },
+          "404": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
+        }
+      }
+    },
+    "/api/v1/public/orders/{orderToken}/pay": {
+      "post": {
+        "tags": [
+          "Self Order"
+        ],
+        "summary": "Pay Public Order",
+        "description": "Pay a submitted order (non-cash only). On success the sale becomes PAID, one sale.created realtime event is published (order_source=SELF_ORDER + status=PAID) and inventory.adjusted is emitted so POS product browsers update stock in real time. Public — no authentication (rate limited).",
+        "operationId": "selforder_pay",
+        "parameters": [
+          {
+            "name": "orderToken",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/SelfOrderServicePayPublicOrderBody"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order paid",
+            "schema": {
+              "$ref": "#/definitions/v1OrderResponse"
+            }
+          },
+          "400": {
+            "$ref": "#/definitions/ErrorResponse"
+          },
+          "429": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
+        }
+      }
+    },
     "/api/v1/products/import": {
       "post": {
         "tags": [
@@ -6553,6 +6951,369 @@
               }
             }
           }
+        }
+      }
+    },
+    "v1Table": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "example": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+        },
+        "store_id": {
+          "type": "string"
+        },
+        "code": {
+          "type": "string",
+          "example": "T1"
+        },
+        "name": {
+          "type": "string",
+          "example": "Meja 1"
+        },
+        "qr_url": {
+          "type": "string",
+          "description": "Relative URL \"/o/<qr_token>\" used to render/print the QR. The raw token itself is never exposed."
+        },
+        "is_active": {
+          "type": "boolean"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "v1TableResponse": {
+      "type": "object",
+      "properties": {
+        "table": {
+          "$ref": "#/definitions/v1Table"
+        }
+      }
+    },
+    "v1ListTablesResponse": {
+      "type": "object",
+      "properties": {
+        "tables": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1Table"
+          }
+        },
+        "total_count": {
+          "type": "integer",
+          "format": "int64",
+          "example": 5
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32",
+          "example": 1
+        },
+        "per_page": {
+          "type": "integer",
+          "format": "int32",
+          "example": 20
+        }
+      }
+    },
+    "v1CreateTableRequest": {
+      "type": "object",
+      "required": [
+        "code"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "example": "T1"
+        },
+        "name": {
+          "type": "string",
+          "example": "Meja 1"
+        }
+      }
+    },
+    "TableServiceUpdateTableBody": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "example": "T1"
+        },
+        "name": {
+          "type": "string",
+          "example": "Meja 1"
+        },
+        "isActive": {
+          "type": "boolean",
+          "description": "\"true\" | \"false\" — string filter per project convention"
+        }
+      }
+    },
+    "v1DeleteTableResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "v1TableInfo": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "store_id": {
+          "type": "string"
+        },
+        "store_name": {
+          "type": "string"
+        },
+        "code": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "self_order_enabled": {
+          "type": "boolean",
+          "description": "Whether self ordering is enabled for this store."
+        }
+      }
+    },
+    "v1TableInfoResponse": {
+      "type": "object",
+      "properties": {
+        "table": {
+          "$ref": "#/definitions/v1TableInfo"
+        }
+      }
+    },
+    "v1PublicCategory": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "v1PublicVariant": {
+      "type": "object",
+      "properties": {
+        "sku_id": {
+          "type": "string"
+        },
+        "sku_code": {
+          "type": "string"
+        },
+        "variant": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string"
+        },
+        "size": {
+          "type": "string"
+        },
+        "selling_price": {
+          "type": "number",
+          "format": "double"
+        },
+        "available": {
+          "type": "boolean",
+          "description": "True when the variant is active AND has stock > 0 at menu load time."
+        }
+      }
+    },
+    "v1PublicProduct": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "category_id": {
+          "type": "string"
+        },
+        "category_name": {
+          "type": "string"
+        },
+        "image_url": {
+          "type": "string"
+        },
+        "variants": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1PublicVariant"
+          }
+        }
+      }
+    },
+    "v1GetPublicMenuResponse": {
+      "type": "object",
+      "properties": {
+        "store_name": {
+          "type": "string"
+        },
+        "table_code": {
+          "type": "string"
+        },
+        "table_name": {
+          "type": "string"
+        },
+        "categories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1PublicCategory"
+          }
+        },
+        "products": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1PublicProduct"
+          }
+        }
+      }
+    },
+    "v1OrderItem": {
+      "type": "object",
+      "properties": {
+        "product_id": {
+          "type": "string"
+        },
+        "product_sku_id": {
+          "type": "string"
+        },
+        "quantity": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "v1CreatePublicOrderRequest": {
+      "type": "object",
+      "required": [
+        "tableToken",
+        "items"
+      ],
+      "properties": {
+        "tableToken": {
+          "type": "string"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1OrderItem"
+          }
+        },
+        "customerName": {
+          "type": "string",
+          "example": "Budi"
+        },
+        "notes": {
+          "type": "string",
+          "example": "Tidak pakai bawang"
+        }
+      }
+    },
+    "v1Order": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "invoice_number": {
+          "type": "string"
+        },
+        "store_id": {
+          "type": "string"
+        },
+        "table_id": {
+          "type": "string"
+        },
+        "table_no": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "example": "PAID"
+        },
+        "order_status": {
+          "type": "string",
+          "example": "ORDERED"
+        },
+        "order_source": {
+          "type": "string",
+          "example": "SELF_ORDER"
+        },
+        "customer_name": {
+          "type": "string"
+        },
+        "subtotal": {
+          "type": "number",
+          "format": "double"
+        },
+        "discount": {
+          "type": "number",
+          "format": "double"
+        },
+        "tax": {
+          "type": "number",
+          "format": "double"
+        },
+        "grand_total": {
+          "type": "number",
+          "format": "double"
+        },
+        "order_token": {
+          "type": "string"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "v1OrderResponse": {
+      "type": "object",
+      "properties": {
+        "order": {
+          "$ref": "#/definitions/v1Order"
+        }
+      }
+    },
+    "SelfOrderServicePayPublicOrderBody": {
+      "type": "object",
+      "properties": {
+        "paymentMethod": {
+          "type": "string",
+          "description": "One of CARD, BANK_TRANSFER, EWALLET, OTHER. CASH is rejected."
+        },
+        "reference": {
+          "type": "string",
+          "description": "Payment gateway reference (e.g. QRIS transaction id). Optional."
         }
       }
     }

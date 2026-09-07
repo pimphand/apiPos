@@ -58,7 +58,10 @@ type StoreSettings struct {
 	// Whether the kitchen receipt (Nota Dapur) button is enabled in the POS
 	// receipt dialog. When true, a separate item-only receipt can be printed
 	// for the kitchen after each sale.
-	ShowKitchenPrint bool   `protobuf:"varint,18,opt,name=show_kitchen_print,json=showKitchenPrint,proto3" json:"show_kitchen_print,omitempty"`
+	ShowKitchenPrint bool `protobuf:"varint,18,opt,name=show_kitchen_print,json=showKitchenPrint,proto3" json:"show_kitchen_print,omitempty"`
+	// Whether self ordering (dine-in via QR table) is enabled for this store.
+	// When false, table QR codes resolve to FAILED_PRECONDITION.
+	SelfOrderEnabled bool   `protobuf:"varint,19,opt,name=self_order_enabled,json=selfOrderEnabled,proto3" json:"self_order_enabled,omitempty"`
 	UpdatedBy        string `protobuf:"bytes,15,opt,name=updated_by,json=updatedBy,proto3" json:"updated_by,omitempty"`
 	UpdatedAt        string `protobuf:"bytes,16,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	unknownFields    protoimpl.UnknownFields
@@ -207,6 +210,13 @@ func (x *StoreSettings) GetShowKitchenPrint() bool {
 	return false
 }
 
+func (x *StoreSettings) GetSelfOrderEnabled() bool {
+	if x != nil {
+		return x.SelfOrderEnabled
+	}
+	return false
+}
+
 func (x *StoreSettings) GetUpdatedBy() string {
 	if x != nil {
 		return x.UpdatedBy
@@ -278,6 +288,7 @@ type UpdateSettingsRequest struct {
 	ShowPayment        bool   `protobuf:"varint,12,opt,name=show_payment,json=showPayment,proto3" json:"show_payment,omitempty"`
 	ShowChange         bool   `protobuf:"varint,13,opt,name=show_change,json=showChange,proto3" json:"show_change,omitempty"`
 	ShowKitchenPrint   bool   `protobuf:"varint,15,opt,name=show_kitchen_print,json=showKitchenPrint,proto3" json:"show_kitchen_print,omitempty"`
+	SelfOrderEnabled   bool   `protobuf:"varint,16,opt,name=self_order_enabled,json=selfOrderEnabled,proto3" json:"self_order_enabled,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -413,6 +424,13 @@ func (x *UpdateSettingsRequest) GetShowChange() bool {
 func (x *UpdateSettingsRequest) GetShowKitchenPrint() bool {
 	if x != nil {
 		return x.ShowKitchenPrint
+	}
+	return false
+}
+
+func (x *UpdateSettingsRequest) GetSelfOrderEnabled() bool {
+	if x != nil {
+		return x.SelfOrderEnabled
 	}
 	return false
 }
@@ -589,7 +607,7 @@ var File_settings_v1_settings_proto protoreflect.FileDescriptor
 
 const file_settings_v1_settings_proto_rawDesc = "" +
 	"\n" +
-	"\x1asettings/v1/settings.proto\x12\vsettings.v1\x1a\x1cgoogle/api/annotations.proto\"\xa3\x05\n" +
+	"\x1asettings/v1/settings.proto\x12\vsettings.v1\x1a\x1cgoogle/api/annotations.proto\"\xd1\x05\n" +
 	"\rStoreSettings\x12\x19\n" +
 	"\bstore_id\x18\x01 \x01(\tR\astoreId\x12\x19\n" +
 	"\btax_rate\x18\x02 \x01(\x01R\ataxRate\x12%\n" +
@@ -608,12 +626,13 @@ const file_settings_v1_settings_proto_rawDesc = "" +
 	"\fshow_payment\x18\r \x01(\bR\vshowPayment\x12\x1f\n" +
 	"\vshow_change\x18\x0e \x01(\bR\n" +
 	"showChange\x12,\n" +
-	"\x12show_kitchen_print\x18\x12 \x01(\bR\x10showKitchenPrint\x12\x1d\n" +
+	"\x12show_kitchen_print\x18\x12 \x01(\bR\x10showKitchenPrint\x12,\n" +
+	"\x12self_order_enabled\x18\x13 \x01(\bR\x10selfOrderEnabled\x12\x1d\n" +
 	"\n" +
 	"updated_by\x18\x0f \x01(\tR\tupdatedBy\x12\x1d\n" +
 	"\n" +
 	"updated_at\x18\x10 \x01(\tR\tupdatedAt\"\x14\n" +
-	"\x12GetSettingsRequest\"\xd2\x04\n" +
+	"\x12GetSettingsRequest\"\x80\x05\n" +
 	"\x15UpdateSettingsRequest\x12\x19\n" +
 	"\btax_rate\x18\x01 \x01(\x01R\ataxRate\x12%\n" +
 	"\x0ereceipt_header\x18\x02 \x01(\tR\rreceiptHeader\x12%\n" +
@@ -631,7 +650,8 @@ const file_settings_v1_settings_proto_rawDesc = "" +
 	"\fshow_payment\x18\f \x01(\bR\vshowPayment\x12\x1f\n" +
 	"\vshow_change\x18\r \x01(\bR\n" +
 	"showChange\x12,\n" +
-	"\x12show_kitchen_print\x18\x0f \x01(\bR\x10showKitchenPrint\"\x81\x01\n" +
+	"\x12show_kitchen_print\x18\x0f \x01(\bR\x10showKitchenPrint\x12,\n" +
+	"\x12self_order_enabled\x18\x10 \x01(\bR\x10selfOrderEnabled\"\x81\x01\n" +
 	"\x10SettingsResponse\x126\n" +
 	"\bsettings\x18\x01 \x01(\v2\x1a.settings.v1.StoreSettingsR\bsettings\x125\n" +
 	"\n" +

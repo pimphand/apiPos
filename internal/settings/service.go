@@ -36,6 +36,9 @@ type UpdateParams struct {
 	ShowPayment        bool
 	ShowChange         bool
 	ShowKitchenPrint   bool
+	// SelfOrderEnabled toggles self ordering (dine-in via QR table) for the
+	// store. When false, table QR codes resolve to FAILED_PRECONDITION.
+	SelfOrderEnabled bool
 }
 
 // validFooterAligns lists the allowed receipt footer alignments.
@@ -131,6 +134,7 @@ func (s *Service) UpdateSettings(ctx context.Context, params UpdateParams) (*Sav
 		ShowPayment:      params.ShowPayment,
 		ShowChange:       params.ShowChange,
 		ShowKitchenPrint: params.ShowKitchenPrint,
+		SelfOrderEnabled: params.SelfOrderEnabled,
 	}
 
 	if uid, err := uuid.Parse(claims.UserID); err == nil {
@@ -228,5 +232,6 @@ func defaultSetting(storeID string) *gormdb.StoreSetting {
 		ShowPayment:      true,
 		ShowChange:       true,
 		ShowKitchenPrint: true,
+		SelfOrderEnabled: false,
 	}
 }

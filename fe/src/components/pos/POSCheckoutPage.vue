@@ -14,6 +14,12 @@ import { apiMessage } from '@/lib/apiError';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
 import { HOLD_LIMIT } from '@/lib/posHold';
 import { realtime, RealtimeEventType, type RealtimeEvent } from '@/lib/realtime';
+import {
+  playSelfOrderSound,
+  unlockSelfOrderAudio,
+  isSelfOrderSoundEnabled,
+  setSelfOrderSoundEnabled,
+} from '@/lib/selfOrderSound';
 import type {
   Product,
   ProductSKU,
@@ -659,6 +665,31 @@ async function revalidateCartStock() {
   }
 }
 
+// ---- Self-order notification (docs/pos-self-order.md §8.2) ----------------
+/** Whether the POS plays the self-order arrival sound (persisted per browser). */
+const soundEnabled = ref(isSelfOrderSoundEnabled());
+
+function toggleSound() {
+  soundEnabled.value = setSelfOrderSoundEnabled(!soundEnabled.value);
+  ui.addToast('success', t(soundEnabled.value ? 'selfOrder.soundOn' : 'selfOrder.soundOff'));
+}
+
+/**
+ * React to a paid self order: play the arrival sound + toast with table &
+ * invoice. The same event also refreshes stock via onRealtimeStockEvent, so
+ * product grids and cart stock stay in sync right after payment.
+ */
+function onSelfOrderEvent(ev: RealtimeEvent) {
+  const data = ev.data as Record<string, unknown> | undefined;
+  if (data?.order_source !== 'SELF_ORDER' || data?.status !== 'PAID') return;
+  unlockSelfOrderAudio();
+  playSelfOrderSound();
+  ui.addToast('success', t('selfOrder.newOrderToast', {
+    table: String(data?.table_no ?? ''),
+    invoice: String(data?.invoice_number ?? ''),
+  }));
+}
+
 const realtimeUnsubs: Array<() => void> = [];
 
 onMounted(() => {
@@ -669,9 +700,20 @@ onMounted(() => {
     realtime.on(RealtimeEventType.productSKUCreated, onRealtimeStockEvent),
     realtime.on(RealtimeEventType.inventoryAdjusted, onRealtimeStockEvent),
     realtime.on(RealtimeEventType.saleCreated, onRealtimeStockEvent),
+    realtime.on(RealtimeEventType.saleCreated, onSelfOrderEvent),
     realtime.on(RealtimeEventType.saleCancelled, onRealtimeStockEvent),
     realtime.on(RealtimeEventType.saleRefunded, onRealtimeStockEvent),
   );
+
+  // Browsers block audio until the first user gesture; unlock on first
+  // pointer/key interaction so the self-order bell can play.
+  const unlock = () => unlockSelfOrderAudio();
+  window.addEventListener('pointerdown', unlock, { once: true });
+  window.addEventListener('keydown', unlock, { once: true });
+  realtimeUnsubs.push(() => {
+    window.removeEventListener('pointerdown', unlock);
+    window.removeEventListener('keydown', unlock);
+  });
 });
 
 onUnmounted(() => {
@@ -711,12 +753,24 @@ onUnmounted(() => {
 
     <!-- Open shift → POS usable -->
     <div v-else class="flex flex-col gap-4 min-h-[calc(100vh-8rem)]">      <!-- Shift status bar (live numbers synced with transactions) -->
-      <PosShiftStatusBar
-        :current-shift="currentShift"
-        :summary="summary"
-        :refresh="refreshLive"
-        :open-close-dialog="shiftDialogsRef?.openCloseDialog"
-      />
+      <div class="flex items-start gap-2">
+        <PosShiftStatusBar
+          class="flex-1"
+          :current-shift="currentShift"
+          :summary="summary"
+          :refresh="refreshLive"
+          :open-close-dialog="shiftDialogsRef?.openCloseDialog"
+        />
+        <Button
+          variant="outline"
+          size="icon"
+          class="shrink-0 h-9 w-9"
+          :title="t('selfOrder.soundNotification')"
+          @click="toggleSound"
+        >
+          {{ soundEnabled ? '🔔' : '🔕' }}
+        </Button>
+      </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1">
         <!-- Left: Search & Product List (PosProductBrowser.vue) -->

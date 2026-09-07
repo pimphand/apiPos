@@ -37,6 +37,28 @@ func (Store) TableName() string {
 	return "stores"
 }
 
+// Table represents a dine-in table for self ordering (QR per meja).
+// `code` is unique per store (UNIQUE(store_id, code)); `qr_token` is globally
+// unique so a QR code can never resolve to another tenant's table.
+type Table struct {
+	ID        uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	StoreID   uuid.UUID `gorm:"type:uuid;not null;index:idx_tables_store_id;uniqueIndex:idx_tables_store_code,priority:1" json:"store_id"`
+	Code      string    `gorm:"type:varchar(20);not null;uniqueIndex:idx_tables_store_code,priority:2" json:"code"`
+	Name      string    `gorm:"type:varchar(100)" json:"name"`
+	QRToken   string    `gorm:"type:varchar(64);uniqueIndex;not null" json:"-"` // never expose
+	IsActive  bool      `gorm:"default:true" json:"is_active"`
+	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`
+
+	// Relations
+	Store Store `gorm:"foreignKey:StoreID" json:"store,omitempty"`
+}
+
+// TableName returns the table name for Table
+func (Table) TableName() string {
+	return "tables"
+}
+
 // User represents the users table
 type User struct {
 	ID           uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
@@ -170,13 +192,21 @@ type Sale struct {
 	ID            uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	InvoiceNumber string     `gorm:"type:varchar(50);uniqueIndex;not null" json:"invoice_number"`
 	StoreID       uuid.UUID  `gorm:"type:uuid;not null" json:"store_id"`
-	CashierID     uuid.UUID  `gorm:"type:uuid;not null" json:"cashier_id"`
+	// CashierID is NULL for self-order sales (no cashier at the table — customer
+	// action). It is kept as a plain uuid.UUID and the self-order flow writes
+	// NULL via tx.Omit("CashierID"), the same pattern used for CustomerID.
+	CashierID     uuid.UUID  `gorm:"type:uuid" json:"cashier_id"`
 	CustomerID    uuid.UUID  `gorm:"type:uuid" json:"customer_id"`
 	Subtotal      float64    `gorm:"type:numeric(15,2);default:0" json:"subtotal"`
 	Discount      float64    `gorm:"type:numeric(15,2);default:0" json:"discount"`
 	Tax           float64    `gorm:"type:numeric(15,2);default:0" json:"tax"`
 	GrandTotal    float64    `gorm:"type:numeric(15,2);default:0" json:"grand_total"`
 	Status        string     `gorm:"type:varchar(20);default:PENDING" json:"status"`
+	OrderSource   string     `gorm:"type:varchar(20);default:CASHIER" json:"order_source"`
+	OrderStatus   string     `gorm:"type:varchar(20);default:COMPLETED" json:"order_status"`
+	TableID       *uuid.UUID `gorm:"type:uuid;index:idx_sales_table_id" json:"table_id"`
+	TableNo       string     `gorm:"type:varchar(20)" json:"table_no"`
+	OrderToken    *uuid.UUID `gorm:"type:uuid;uniqueIndex" json:"order_token"`
 	Notes         *string    `gorm:"type:text" json:"notes"`
 	ShiftID       *uuid.UUID `gorm:"type:uuid;index:idx_sales_shift_id" json:"shift_id"`
 	CreatedAt     time.Time  `gorm:"autoCreateTime" json:"created_at"`
@@ -186,6 +216,7 @@ type Sale struct {
 	Store    Store    `gorm:"foreignKey:StoreID" json:"store,omitempty"`
 	Cashier  User     `gorm:"foreignKey:CashierID" json:"cashier,omitempty"`
 	Customer Customer `gorm:"foreignKey:CustomerID" json:"customer,omitempty"`
+	Table    Table    `gorm:"foreignKey:TableID" json:"table,omitempty"`
 }
 
 // TableName returns the table name for Sale
@@ -250,7 +281,10 @@ type InventoryTransaction struct {
 	ReferenceID   uuid.UUID `gorm:"type:uuid" json:"reference_id"`
 	BeforeStock   int32     `gorm:"not null" json:"before_stock"`
 	AfterStock    int32     `gorm:"not null" json:"after_stock"`
-	CreatedBy     uuid.UUID `gorm:"type:uuid;not null" json:"created_by"`
+	// CreatedBy is NULL for customer/system actions (e.g. self-order submit /
+	// expired-order cleanup). Kept as plain uuid.UUID; NULL is written via
+	// tx.Omit("CreatedBy") like Sale.CashierID/CustomerID.
+	CreatedBy     uuid.UUID `gorm:"type:uuid" json:"created_by"`
 	CreatedAt     time.Time `gorm:"autoCreateTime" json:"created_at"`
 
 	// Relations
@@ -438,6 +472,7 @@ type StoreSetting struct {
 	ShowPayment        bool       `gorm:"not null" json:"show_payment"`
 	ShowChange         bool       `gorm:"not null" json:"show_change"`
 	ShowKitchenPrint   bool       `gorm:"not null" json:"show_kitchen_print"`
+	SelfOrderEnabled   bool       `gorm:"not null" json:"self_order_enabled"`
 	UpdatedBy          *uuid.UUID `gorm:"type:uuid" json:"updated_by"`
 	CreatedAt          time.Time  `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt          time.Time  `gorm:"autoUpdateTime" json:"updated_at"`

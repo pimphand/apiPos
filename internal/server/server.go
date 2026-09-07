@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
@@ -30,8 +31,10 @@ import (
 	reportv1 "apiPos/gen/report/v1"
 	rolev1 "apiPos/gen/role/v1"
 	salev1 "apiPos/gen/sale/v1"
+	selforderv1 "apiPos/gen/selforder/v1"
 	settingsv1 "apiPos/gen/settings/v1"
 	storev1 "apiPos/gen/store/v1"
+	tablev1 "apiPos/gen/table/v1"
 	userv1 "apiPos/gen/user/v1"
 	"apiPos/internal/activitylog"
 	"apiPos/internal/auth"
@@ -51,8 +54,10 @@ import (
 	"apiPos/internal/repository"
 	"apiPos/internal/role"
 	"apiPos/internal/sale"
+	"apiPos/internal/selforder"
 	"apiPos/internal/settings"
 	"apiPos/internal/store"
+	"apiPos/internal/table"
 	"apiPos/internal/user"
 	"apiPos/middleware"
 )
@@ -79,6 +84,8 @@ type Server struct {
 	activityLogService *activitylog.Service
 	storeService       *store.Service
 	settingsService    *settings.Service
+	selfOrderService   *selforder.Service
+	tableService       *table.Service
 	realtimeHub        *realtime.Hub
 }
 
@@ -101,6 +108,8 @@ func New(cfg *config.Config, db *gormdb.DB) *Server {
 	activityLogService := activitylog.NewService(repos)
 	storeService := store.NewService(repos)
 	settingsService := settings.NewService(repos)
+	selfOrderService := selforder.NewService(repos)
+	tableService := table.NewService(repos)
 
 	return &Server{
 		config:             cfg,
@@ -122,6 +131,8 @@ func New(cfg *config.Config, db *gormdb.DB) *Server {
 		activityLogService: activityLogService,
 		storeService:       storeService,
 		settingsService:    settingsService,
+		selfOrderService:   selfOrderService,
+		tableService:       tableService,
 		realtimeHub:        realtime.Default(),
 	}
 }
@@ -167,6 +178,7 @@ func (s *Server) startGRPC() error {
 			middleware.UnaryServerRecoveryInterceptor(),
 			middleware.UnaryServerLoggingInterceptor(),
 			middleware.UnaryServerRequestIDInterceptor(),
+			middleware.UnaryServerRateLimitInterceptor(),
 			middleware.UnaryServerAuthInterceptor(s.authService),
 			middleware.UnaryServerPermissionInterceptor(s.repositories, endpointPermissions()),
 		),
@@ -175,8 +187,28 @@ func (s *Server) startGRPC() error {
 	s.registerServices()
 	reflection.Register(s.grpcServer)
 
+	// Periodic cleanup: cancel self orders stuck in PENDING past the payment
+	// timeout and restore their stock (docs/pos-self-order.md §6.2).
+	go s.runExpiredOrderCleanup()
+
 	log.Printf("gRPC server starting on :%d", s.config.GRPC.Port)
 	return s.grpcServer.Serve(lis)
+}
+
+// runExpiredOrderCleanup periodically cancels expired PENDING self orders.
+func (s *Server) runExpiredOrderCleanup() {
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+	for range ticker.C {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		n, err := s.selfOrderService.CancelExpiredPending(ctx)
+		if err != nil {
+			log.Printf("selforder cleanup: %v", err)
+		} else if n > 0 {
+			log.Printf("selforder cleanup: cancelled %d expired order(s)", n)
+		}
+		cancel()
+	}
 }
 
 // startHTTP starts the HTTP/REST server with grpc-gateway
@@ -278,6 +310,16 @@ func (s *Server) startHTTP() error {
 		return fmt.Errorf("failed to register settings gateway: %w", err)
 	}
 
+	// Register SelfOrderService (public, unauthenticated)
+	if err := selforderv1.RegisterSelfOrderServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", s.config.GRPC.Port), opts); err != nil {
+		return fmt.Errorf("failed to register self-order gateway: %w", err)
+	}
+
+	// Register TableService (store-scoped admin CRUD)
+	if err := tablev1.RegisterTableServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", s.config.GRPC.Port), opts); err != nil {
+		return fmt.Errorf("failed to register table gateway: %w", err)
+	}
+
 	importHandler := handler.NewProductImportHandler(s.productService, s.categoryService, s.repositories, s.authService, s.config)
 
 	httpMux := http.NewServeMux()
@@ -358,6 +400,8 @@ func (s *Server) registerServices() {
 	healthServer.SetServingStatus("activitylog.v1.ActivityLogService", healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus("store.v1.StoreService", healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus("settings.v1.SettingsService", healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus("selforder.v1.SelfOrderService", healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus("table.v1.TableService", healthpb.HealthCheckResponse_SERVING)
 
 	logs := handler.NewActivityLogger(s.activityLogService)
 
@@ -408,6 +452,12 @@ func (s *Server) registerServices() {
 
 	settingsHandler := handler.NewSettingsHandler(s.settingsService, logs)
 	settingsv1.RegisterSettingsServiceServer(s.grpcServer, settingsHandler)
+
+	selfOrderHandler := handler.NewSelfOrderHandler(s.selfOrderService, logs)
+	selforderv1.RegisterSelfOrderServiceServer(s.grpcServer, selfOrderHandler)
+
+	tableHandler := handler.NewTableHandler(s.tableService, logs)
+	tablev1.RegisterTableServiceServer(s.grpcServer, tableHandler)
 
 	log.Println("All services registered")
 }
@@ -557,6 +607,14 @@ func endpointPermissions() map[string]string {
 		"/activitylog.v1.ActivityLogService/GetActivityLog":            "activity_logs.read",
 		"/activitylog.v1.ActivityLogService/GetActivityLogsByResource": "activity_logs.read",
 		"/activitylog.v1.ActivityLogService/GetActivityLogsByUser":     "activity_logs.read",
+
+		// ── Tables (self ordering) ─────────────────────────────────
+		"/table.v1.TableService/CreateTable":        "tables.create",
+		"/table.v1.TableService/ListTables":         "tables.read",
+		"/table.v1.TableService/GetTable":           "tables.read",
+		"/table.v1.TableService/UpdateTable":        "tables.update",
+		"/table.v1.TableService/DeleteTable":        "tables.delete",
+		"/table.v1.TableService/RotateTableToken":   "tables.update",
 	}
 }
 

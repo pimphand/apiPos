@@ -1,0 +1,120 @@
+syntax = "proto3";
+
+package table.v1;
+
+option go_package = "apiPos/gen/table/v1;tablev1";
+
+import "google/api/annotations.proto";
+
+// TableService manages dine-in tables per store (self ordering). Tenant
+// scoped: every operation is filtered by the authenticated user's store_id.
+service TableService {
+  // CreateTable creates a new table for the store. Code must be unique per
+  // store (ALREADY_EXISTS otherwise).
+  rpc CreateTable(CreateTableRequest) returns (TableResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/tables"
+      body: "*"
+    };
+  }
+
+  // ListTables lists the store's tables with pagination.
+  rpc ListTables(ListTablesRequest) returns (ListTablesResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/tables"
+    };
+  }
+
+  // GetTable returns one table by id (store-scoped).
+  rpc GetTable(GetTableRequest) returns (TableResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/tables/{id}"
+    };
+  }
+
+  // UpdateTable updates a table's code/name/active state (store-scoped).
+  rpc UpdateTable(UpdateTableRequest) returns (TableResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/tables/{id}"
+      body: "*"
+    };
+  }
+
+  // DeleteTable deletes a table. Tables referenced by sales are preserved
+  // (FK ON DELETE SET NULL) so history stays readable.
+  rpc DeleteTable(DeleteTableRequest) returns (DeleteTableResponse) {
+    option (google.api.http) = {
+      delete: "/api/v1/tables/{id}"
+    };
+  }
+
+  // RotateTableToken generates a new QR token, invalidating old QR codes.
+  rpc RotateTableToken(RotateTableTokenRequest) returns (TableResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/tables/{id}/rotate-token"
+      body: "*"
+    };
+  }
+}
+
+message CreateTableRequest {
+  string code = 1;
+  string name = 2;
+}
+
+message UpdateTableRequest {
+  string id = 1;
+  string code = 2;
+  string name = 3;
+  bool is_active = 4;
+}
+
+message GetTableRequest {
+  string id = 1;
+}
+
+message DeleteTableRequest {
+  string id = 1;
+}
+
+message DeleteTableResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message RotateTableTokenRequest {
+  string id = 1;
+}
+
+message ListTablesRequest {
+  string code = 1;
+  // "true" | "false" filter on is_active (string — proto3 bool would default
+  // to false and make the filter useless).
+  string is_active = 2;
+  int32 page = 3;
+  int32 per_page = 4;
+}
+
+message ListTablesResponse {
+  repeated Table tables = 1;
+  int64 total_count = 2;
+  int32 page = 3;
+  int32 per_page = 4;
+}
+
+message TableResponse {
+  Table table = 1;
+}
+
+message Table {
+  string id = 1;
+  string store_id = 2;
+  string code = 3;
+  string name = 4;
+  // Relative URL "/o/<qr_token>" used to render/print the QR. The raw token
+  // itself is never exposed (json:"-" on the model).
+  string qr_url = 5;
+  bool is_active = 6;
+  string created_at = 7;
+  string updated_at = 8;
+}

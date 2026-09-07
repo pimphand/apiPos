@@ -606,6 +606,8 @@ export interface StoreSettings {
   show_payment: boolean;
   show_change: boolean;
   show_kitchen_print: boolean;
+  /** Whether self ordering (dine-in via QR table) is enabled for the store. */
+  self_order_enabled: boolean;
   updated_by: string;
   updated_at: string;
 }
@@ -625,6 +627,110 @@ export interface StoreInfo {
   name: string;    // read-only
   address: string;
   phone: string;
+}
+
+// Self order (dine-in via QR table — docs/pos-self-order.md) ---------------
+/** A dine-in table managed in the admin panel (self ordering). */
+export interface Table {
+  id: string;
+  store_id: string;
+  code: string;
+  name: string;
+  /** Relative URL "/o/<qr_token>" used to render/print the QR. */
+  qr_url: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ListTablesResponse extends PaginationResponse {
+  tables: Table[];
+}
+
+export interface CreateTableRequest {
+  code: string;
+  name?: string;
+}
+
+export interface UpdateTableRequest {
+  code?: string;
+  name?: string;
+  is_active?: boolean;
+}
+
+/** Public (unauthenticated) self-order flow types. */
+export interface PublicTableInfo {
+  id: string;
+  store_id: string;
+  store_name: string;
+  code: string;
+  name: string;
+  self_order_enabled: boolean;
+}
+
+export interface PublicCategory {
+  id: string;
+  name: string;
+}
+
+export interface PublicVariant {
+  sku_id: string;
+  sku_code: string;
+  variant: string;
+  color: string;
+  size: string;
+  selling_price: number;
+  available: boolean;
+}
+
+export interface PublicProduct {
+  id: string;
+  name: string;
+  description: string;
+  category_id: string;
+  category_name: string;
+  image_url: string;
+  variants: PublicVariant[];
+}
+
+export interface PublicMenu {
+  store_name: string;
+  table_code: string;
+  table_name: string;
+  categories: PublicCategory[];
+  products: PublicProduct[];
+}
+
+export interface SelfOrder {
+  id: string;
+  invoice_number: string;
+  store_id: string;
+  table_id: string;
+  table_no: string;
+  status: 'PENDING' | 'PAID' | 'CANCELLED' | 'REFUNDED';
+  order_status: string;
+  order_source: string;
+  customer_name: string;
+  subtotal: number;
+  discount: number;
+  tax: number;
+  grand_total: number;
+  order_token: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreatePublicOrderRequest {
+  table_token: string;
+  items: { product_id: string; product_sku_id: string; quantity: number }[];
+  customer_name?: string;
+  notes?: string;
+}
+
+export interface PayPublicOrderRequest {
+  order_token: string;
+  payment_method: string;
+  reference?: string;
 }
 
 // Error types

@@ -31,6 +31,7 @@ import {
   Package,
   Tag,
   ClipboardList,
+  Table2,
   Users,
   DollarSign,
   CreditCard,
@@ -81,6 +82,7 @@ const menuGroups = computed(() => {
         { label: t('sidebar.products'), icon: Package, href: '/admin/products', permission: 'products.read' },
         { label: t('sidebar.categories'), icon: Tag, href: '/admin/categories', permission: 'categories.read' },
         { label: t('sidebar.inventory'), icon: ClipboardList, href: '/admin/inventory', permission: 'inventory.read' },
+        { label: t('sidebar.tables'), icon: Table2, href: '/admin/tables', permission: 'tables.read' },
       ],
     },
     {

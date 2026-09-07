@@ -67,6 +67,13 @@ server {
         proxy_send_timeout 3600s;
     }
 
+    # ---- Public self-order page (docs/pos-self-order.md) -----------------
+    # Pretty form /o/<token> maps to the static order page; the token is read
+    # client-side. The query form /o?table=<token> is served by the fallback.
+    location /o/ {
+        try_files $uri /o/index.html;
+    }
+
     # ---- SPA fallback (Astro static generated paths are real; island routing
     # relies on real paths, so a broad fallback is only for safety) --------
     location / {

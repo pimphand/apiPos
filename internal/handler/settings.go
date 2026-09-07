@@ -54,9 +54,11 @@ func (h *SettingsHandler) UpdateSettings(ctx context.Context, req *settingsv1.Up
 		ShowItemBarcode:    req.ShowItemBarcode,
 		ShowDiscount:       req.ShowDiscount,
 		ShowTax:            req.ShowTax,
-		ShowPayment:        req.ShowPayment,        ShowChange:         req.ShowChange,
-        ShowKitchenPrint:   req.ShowKitchenPrint,
-    })
+		ShowPayment:        req.ShowPayment,
+		ShowChange:         req.ShowChange,
+		ShowKitchenPrint:   req.ShowKitchenPrint,
+		SelfOrderEnabled:   req.SelfOrderEnabled,
+	})
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
@@ -126,9 +128,11 @@ func toProtoStoreSettings(s *gormdb.StoreSetting) *settingsv1.StoreSettings {
 		ShowItemBarcode:    s.ShowItemBarcode,
 		ShowDiscount:       s.ShowDiscount,
 		ShowTax:            s.ShowTax,
-		ShowPayment:        s.ShowPayment,        ShowChange:         s.ShowChange,
-        ShowKitchenPrint:   s.ShowKitchenPrint,
-        UpdatedBy:          updatedBy,
+		ShowPayment:        s.ShowPayment,
+		ShowChange:         s.ShowChange,
+		ShowKitchenPrint:   s.ShowKitchenPrint,
+		SelfOrderEnabled:   s.SelfOrderEnabled,
+		UpdatedBy:          updatedBy,
 		UpdatedAt:          updatedAt,
 	}
 }

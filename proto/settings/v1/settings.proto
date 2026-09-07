@@ -72,6 +72,9 @@ message StoreSettings {
   // receipt dialog. When true, a separate item-only receipt can be printed
   // for the kitchen after each sale.
   bool show_kitchen_print = 18;
+  // Whether self ordering (dine-in via QR table) is enabled for this store.
+  // When false, table QR codes resolve to FAILED_PRECONDITION.
+  bool self_order_enabled = 19;
   string updated_by = 15;
   string updated_at = 16;
 }
@@ -98,6 +101,7 @@ message UpdateSettingsRequest {
   bool show_payment = 12;
   bool show_change = 13;
   bool show_kitchen_print = 15;
+  bool self_order_enabled = 16;
 }
 
 message SettingsResponse {

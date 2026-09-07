@@ -45,6 +45,7 @@ function normalizeSettings(raw: Record<string, unknown> | null | undefined): Sto
     show_payment: bool(r.show_payment ?? r.showPayment),
     show_change: bool(r.show_change ?? r.showChange),
     show_kitchen_print: bool(r.show_kitchen_print ?? r.showKitchenPrint),
+    self_order_enabled: bool(r.self_order_enabled ?? r.selfOrderEnabled),
     updated_by: str(r.updated_by ?? r.updatedBy),
     updated_at: str(r.updated_at ?? r.updatedAt),
   };

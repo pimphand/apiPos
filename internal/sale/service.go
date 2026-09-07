@@ -378,6 +378,8 @@ func (s *Service) CreateSale(ctx context.Context, req CreateSaleRequest) (*SaleD
 		Data: map[string]any{
 			"invoice_number": saleDetail.Sale.InvoiceNumber,
 			"store_id":       storeID.String(),
+			"order_source":   saleDetail.Sale.OrderSource, // "CASHIER" unless self order
+			"status":         saleDetail.Sale.Status,      // always PAID at this point
 		},
 	})
 	// Also emit an inventory change so product browsers refresh stock levels.

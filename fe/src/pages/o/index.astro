@@ -1,0 +1,14 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import SelfOrderMenu from '@/components/selforder/SelfOrderMenu.vue';
+
+// Public self-ordering page (docs/pos-self-order.md), scanned from the QR code
+// on a dine-in table. No authentication — the backend resolves the tenant
+// from the table token. The token is read client-side from the query string
+// (/o?table=TOKEN) or from the pretty path (/o/TOKEN); static hosting can't
+// enumerate unknown tokens, so the page itself is a plain static route.
+---
+
+<BaseLayout title="Self Order - POS Application">
+  <SelfOrderMenu client:only="vue" />
+</BaseLayout>

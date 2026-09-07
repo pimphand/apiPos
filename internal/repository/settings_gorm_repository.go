@@ -51,10 +51,12 @@ func (r *SettingsRepo) Upsert(ctx context.Context, setting *gormdb.StoreSetting)
 		"show_item_sku",
 		"show_item_barcode",
 		"show_discount",
-		"show_tax",      "show_payment",
-      "show_change",
-      "show_kitchen_print",
-      "updated_by",
+		"show_tax",
+		"show_payment",
+		"show_change",
+		"show_kitchen_print",
+		"self_order_enabled",
+		"updated_by",
 		"updated_at",
 	}
 	return r.WithContext(ctx).Clauses(clause.OnConflict{

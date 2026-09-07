@@ -1,0 +1,164 @@
+syntax = "proto3";
+
+package selforder.v1;
+
+option go_package = "apiPos/gen/selforder/v1;selforderv1";
+
+import "google/api/annotations.proto";
+
+// SelfOrderService serves the public self-ordering flow (dine-in via QR
+// table, docs/pos-self-order.md). All methods are UNAUTHENTICATED: the store
+// and table are resolved server-side from the table token so clients can
+// never choose a tenant.
+service SelfOrderService {
+  // ResolveTable resolves a table token into the table + store (used by the
+  // public order page to bootstrap). NOT_FOUND when the token is unknown or
+  // the store/table is not accepting self orders.
+  rpc ResolveTable(ResolveTableRequest) returns (TableInfoResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/public/table/{table_token}"
+    };
+  }
+
+  // GetPublicMenu returns the safe dine-in menu of the store the table
+  // belongs to. Never exposes cost price, raw stock levels or the qr_token.
+  rpc GetPublicMenu(GetPublicMenuRequest) returns (GetPublicMenuResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/public/menu/{table_token}"
+    };
+  }
+
+  // CreatePublicOrder submits an order: creates a PENDING sale
+  // (order_source=SELF_ORDER) and locks stock in one DB transaction. No
+  // realtime event is published at this step (see PayPublicOrder).
+  rpc CreatePublicOrder(CreatePublicOrderRequest) returns (OrderResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/public/orders"
+      body: "*"
+    };
+  }
+
+  // PayPublicOrder pays a submitted order (non-cash only). On success the
+  // sale becomes PAID, one sale.created realtime event is published (with
+  // order_source=SELF_ORDER + status=PAID) and inventory.adjusted is emitted
+  // so POS product browsers update stock in real time.
+  rpc PayPublicOrder(PayPublicOrderRequest) returns (OrderResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/public/orders/{order_token}/pay"
+      body: "*"
+    };
+  }
+
+  // GetOrderStatus returns the current status of the customer's order. Only
+  // reachable with the order_token of the order itself (no cross-tenant
+  // enumeration).
+  rpc GetOrderStatus(GetOrderStatusRequest) returns (OrderResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/public/orders/{order_token}"
+    };
+  }
+}
+
+message ResolveTableRequest {
+  string table_token = 1;
+}
+
+message TableInfo {
+  string id = 1;
+  string store_id = 2;
+  string store_name = 3;
+  string code = 4;
+  string name = 5;
+  // Whether self ordering is enabled for this store.
+  bool self_order_enabled = 6;
+}
+
+message TableInfoResponse {
+  TableInfo table = 1;
+}
+
+message GetPublicMenuRequest {
+  string table_token = 1;
+}
+
+message GetPublicMenuResponse {
+  string store_name = 1;
+  string table_code = 2;
+  string table_name = 3;
+  repeated PublicCategory categories = 4;
+  repeated PublicProduct products = 5;
+}
+
+message PublicCategory {
+  string id = 1;
+  string name = 2;
+}
+
+message PublicProduct {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string category_id = 4;
+  string category_name = 5;
+  string image_url = 6;
+  repeated PublicVariant variants = 7;
+}
+
+message PublicVariant {
+  string sku_id = 1;
+  string sku_code = 2;
+  string variant = 3;
+  string color = 4;
+  string size = 5;
+  double selling_price = 6;
+  // True when the variant is active AND has stock > 0 at menu load time.
+  bool available = 7;
+}
+
+message CreatePublicOrderRequest {
+  string table_token = 1;
+  repeated OrderItem items = 2;
+  string customer_name = 3;
+  string notes = 4;
+}
+
+message OrderItem {
+  string product_id = 1;
+  string product_sku_id = 2;
+  int32 quantity = 3;
+}
+
+message PayPublicOrderRequest {
+  string order_token = 1;
+  // One of CARD, BANK_TRANSFER, EWALLET, OTHER. CASH is rejected.
+  string payment_method = 2;
+  // Payment gateway reference (e.g. QRIS transaction id). Optional.
+  string reference = 3;
+}
+
+message GetOrderStatusRequest {
+  string order_token = 1;
+}
+
+message OrderResponse {
+  Order order = 1;
+}
+
+message Order {
+  string id = 1;
+  string invoice_number = 2;
+  string store_id = 3;
+  string table_id = 4;
+  string table_no = 5;
+  string status = 6;
+  string order_status = 7;
+  string order_source = 8;
+  string customer_name = 9;
+  double subtotal = 10;
+  double discount = 11;
+  double tax = 12;
+  double grand_total = 13;
+  string order_token = 14;
+  string created_at = 15;
+  string updated_at = 16;
+}

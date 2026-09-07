@@ -12,7 +12,7 @@ export type Resource =
   | 'users' | 'roles' | 'permissions' 
   | 'categories' | 'products' | 'inventory'
   | 'customers' | 'sales' | 'payments' 
-  | 'cashier' | 'reports' | 'activity_logs';
+  | 'cashier' | 'reports' | 'activity_logs' | 'tables';
 
 // Permission actions
 export type Action = 

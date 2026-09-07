@@ -98,6 +98,13 @@ func isPublicEndpoint(method string) bool {
 		"/grpc.health.v1.Health/Check",
 		"/grpc.reflection.v1.ServerReflection/ServerReflectionInfo",
 		"/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo",
+		// Public self-order endpoints (tenant resolved server-side from the
+		// table/order token — docs/pos-self-order.md §6.1).
+		"/selforder.v1.SelfOrderService/ResolveTable",
+		"/selforder.v1.SelfOrderService/GetPublicMenu",
+		"/selforder.v1.SelfOrderService/CreatePublicOrder",
+		"/selforder.v1.SelfOrderService/PayPublicOrder",
+		"/selforder.v1.SelfOrderService/GetOrderStatus",
 	}
 
 	for _, endpoint := range publicEndpoints {

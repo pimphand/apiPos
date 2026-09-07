@@ -24,6 +24,7 @@ type Repositories struct {
 	Report         ReportRepository
 	ActivityLog    ActivityLogRepository
 	RefreshToken   RefreshTokenRepository
+	Table          TableRepository
 }
 
 // DB returns the underlying GORM DB instance
@@ -55,5 +56,6 @@ func New(db *gorm.DB) *Repositories {
 		Report:         NewReportRepository(db),
 		ActivityLog:    NewActivityLogRepository(db),
 		RefreshToken:   NewRefreshTokenRepository(db),
+		Table:          NewTableRepository(db),
 	}
 }

@@ -169,6 +169,8 @@ func describePGError(err error) (string, codes.Code) {
 			return "Store name already exists", codes.AlreadyExists
 		case strings.Contains(constraint, "sales_invoice"):
 			return "Invoice number already exists", codes.AlreadyExists
+		case strings.Contains(constraint, "tables_store_code") || strings.Contains(constraint, "idx_tables_store_code"):
+			return "Table code already exists", codes.AlreadyExists
 		default:
 			return "Record already exists", codes.AlreadyExists
 		}
