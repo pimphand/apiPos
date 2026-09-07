@@ -1,9 +1,9 @@
 # Frontend (Astro) nginx configuration for the POS app
 # Serves the static build and reverse-proxies /api to the Go gateway.
 
-# Upstream = Go grpc-gateway HTTP server (pos-app, port 8080 inside the shared network)
+# Upstream = Go grpc-gateway HTTP server (pos-app, port 8990 inside the shared network)
 upstream pos_api {
-    server pos-app:8080;
+    server pos-app:8990;
 }
 
 server {
@@ -51,6 +51,20 @@ server {
         expires 1y;
         add_header Cache-Control "public, immutable";
         try_files $uri =404;
+    }
+
+    # ---- Realtime WebSocket proxy to Go gateway ------------------------
+    location /ws {
+        proxy_pass http://pos_api;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
     }
 
     # ---- SPA fallback (Astro static generated paths are real; island routing

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { productService } from '@/services/product';
 import { customerService } from '@/services/customer';
 import { saleService } from '@/services/sale';
@@ -13,6 +13,7 @@ import { usePageGuard } from '@/composables/usePageGuard';
 import { apiMessage } from '@/lib/apiError';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
 import { HOLD_LIMIT } from '@/lib/posHold';
+import { realtime, RealtimeEventType, type RealtimeEvent } from '@/lib/realtime';
 import type {
   Product,
   ProductSKU,
@@ -229,6 +230,12 @@ async function lookupBarcode(code: string) {
 function addToCart(product: Product, sku?: ProductSKU) {
   const skuData = sku ?? product.skus?.[0];
   if (!skuData) return;
+
+  // Inactive products/SKUs must not be sellable.
+  if (!product.is_active || !skuData.is_active) {
+    ui.addToast('error', t('admin.pos.toastUnavailable', { name: product.name }));
+    return;
+  }
 
   // Calculate remaining stock for this SKU (original stock minus what's already in cart)
   const inCart = cart.value.filter(i => i.sku_id === skuData.id).reduce((sum, i) => sum + i.quantity, 0);
@@ -609,6 +616,68 @@ watch(isReady, async (r) => {
     productBrowserRef.value?.focusSearch();
   }
 }, { immediate: true });
+
+// ---- Realtime: keep POS product grid & cart stock in sync ----------------
+/**
+ * Refetch the product grid and revalidate each cart line's live stock. When a
+ * SKU's stock dropped below the quantity in the cart, clamp it (or drop the
+ * line) so the cashier never over-sells stock that another client just used.
+ */
+async function onRealtimeStockEvent(_ev: RealtimeEvent) {
+  if (currentShift.value) searchProducts();
+  await revalidateCartStock();
+}
+
+async function revalidateCartStock() {
+  if (cart.value.length === 0) return;
+  try {
+    const res = await productService.list({ page: 1, per_page: 100, get_sku: true });
+    const byId = new Map<string, Product>();
+    for (const p of res.products ?? []) byId.set(p.id, p);
+    const updated: CartItem[] = [];
+    for (const item of cart.value) {
+      const p = byId.get(item.product_id);
+      const sku = p?.skus?.find((s) => s.id === item.sku_id);
+      if (!p || !sku || !p.is_active || !sku.is_active) {
+        ui.addToast('error', t('admin.pos.toastUnavailable', { name: item.name }));
+        continue; // drop line
+      }
+      const liveStock = Math.max(0, Number(sku.stock) || 0);
+      if (item.quantity > liveStock) {
+        ui.addToast('warning', t('posHold.stockAdjusted', {
+          name: item.name, old: item.quantity, new: liveStock,
+        }));
+        if (liveStock <= 0) continue;
+        updated.push({ ...item, quantity: liveStock, stock: liveStock, original_stock: liveStock });
+      } else {
+        updated.push({ ...item, stock: liveStock, original_stock: liveStock });
+      }
+    }
+    cart.value = updated;
+  } catch {
+    // Best-effort revalidation; keep the current cart untouched on failure.
+  }
+}
+
+const realtimeUnsubs: Array<() => void> = [];
+
+onMounted(() => {
+  realtime.connect();
+  realtimeUnsubs.push(
+    realtime.on(RealtimeEventType.productUpdated, onRealtimeStockEvent),
+    realtime.on(RealtimeEventType.productSKUUpdated, onRealtimeStockEvent),
+    realtime.on(RealtimeEventType.productSKUCreated, onRealtimeStockEvent),
+    realtime.on(RealtimeEventType.inventoryAdjusted, onRealtimeStockEvent),
+    realtime.on(RealtimeEventType.saleCreated, onRealtimeStockEvent),
+    realtime.on(RealtimeEventType.saleCancelled, onRealtimeStockEvent),
+    realtime.on(RealtimeEventType.saleRefunded, onRealtimeStockEvent),
+  );
+});
+
+onUnmounted(() => {
+  for (const unsub of realtimeUnsubs) unsub();
+  realtimeUnsubs.length = 0;
+});
 </script>
 
 <template>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, ref, watch } from 'vue';
+import { reactive, ref, watch, onMounted, onUnmounted } from 'vue';
 import { inventoryService, type LowStockProduct } from '@/services/inventory';
 import { productService } from '@/services/product';
 import { useUiStore } from '@/stores/ui';
@@ -7,6 +7,8 @@ import { useLocaleStore } from '@/stores/locale';
 import { usePageGuard } from '@/composables/usePageGuard';
 import { can } from '@/lib/rbac';
 import { apiMessage } from '@/lib/apiError';
+import { debounce } from '@/lib/utils';
+import { realtime, RealtimeEventType } from '@/lib/realtime';
 import type { InventoryTransaction, Product } from '@/types';
 import DashboardShell from '@/components/layout/DashboardShell.vue';
 import Button from '@/components/ui/button/Button.vue';
@@ -195,6 +197,33 @@ watch(isReady, (r) => {
     load();
   }
 }, { immediate: true });
+
+// ---- Realtime: keep low-stock panel & transaction ledger in sync ---------
+// A sale, adjustment or SKU stock change (from any device in the store)
+// refreshes the alert list and the transaction history live.
+const realtimeUnsubs: Array<() => void> = [];
+const refreshFromRealtime = debounce(() => {
+  if (!isReady.value || !allowed.value) return;
+  loadLowStock();
+  load();
+}, 400);
+
+onMounted(() => {
+  realtime.connect();
+  realtimeUnsubs.push(
+    realtime.on(RealtimeEventType.inventoryAdjusted, refreshFromRealtime),
+    realtime.on(RealtimeEventType.saleCreated, refreshFromRealtime),
+    realtime.on(RealtimeEventType.saleCancelled, refreshFromRealtime),
+    realtime.on(RealtimeEventType.saleRefunded, refreshFromRealtime),
+    realtime.on(RealtimeEventType.productUpdated, refreshFromRealtime),
+    realtime.on(RealtimeEventType.productSKUUpdated, refreshFromRealtime),
+  );
+});
+
+onUnmounted(() => {
+  for (const unsub of realtimeUnsubs) unsub();
+  realtimeUnsubs.length = 0;
+});
 </script>
 
 <template>

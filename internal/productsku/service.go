@@ -8,6 +8,7 @@ import (
 
 	"apiPos/internal/apperror"
 	gormdb "apiPos/internal/database/gorm"
+	"apiPos/internal/realtime"
 	"apiPos/internal/repository"
 )
 
@@ -56,6 +57,12 @@ func (s *Service) CreateProductSKU(ctx context.Context, productID, sku, barcode,
 	if err := s.productSKURepo.Create(ctx, productSKU); err != nil {
 		return nil, err
 	}
+
+	realtime.PublishFromContext(ctx, realtime.Event{
+		Event:      realtime.EventProductSKUCreated,
+		Resource:   "product_skus",
+		ResourceID: productSKU.ID.String(),
+	})
 
 	return productSKU, nil
 }
@@ -199,6 +206,12 @@ func (s *Service) UpdateProductSKU(ctx context.Context, id, sku, barcode, varian
 		return nil, err
 	}
 
+	realtime.PublishFromContext(ctx, realtime.Event{
+		Event:      realtime.EventProductSKUUpdated,
+		Resource:   "product_skus",
+		ResourceID: productSKU.ID.String(),
+	})
+
 	return productSKU, nil
 }
 
@@ -209,5 +222,14 @@ func (s *Service) DeleteProductSKU(ctx context.Context, id string) error {
 		return err
 	}
 
-	return s.productSKURepo.Delete(ctx, productSKUID)
+	if err := s.productSKURepo.Delete(ctx, productSKUID); err != nil {
+		return err
+	}
+
+	realtime.PublishFromContext(ctx, realtime.Event{
+		Event:      realtime.EventProductSKUDeleted,
+		Resource:   "product_skus",
+		ResourceID: id,
+	})
+	return nil
 }

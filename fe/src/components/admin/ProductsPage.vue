@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, ref, computed, watch } from 'vue';
+import { reactive, ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { productService } from '@/services/product';
 import { categoryService } from '@/services/category';
 import { useUiStore } from '@/stores/ui';
@@ -7,6 +7,8 @@ import { useLocaleStore } from '@/stores/locale';
 import { usePageGuard } from '@/composables/usePageGuard';
 import { apiMessage } from '@/lib/apiError';
 import { can } from '@/lib/rbac';
+import { debounce } from '@/lib/utils';
+import { realtime, RealtimeEventType } from '@/lib/realtime';
 import type { Product, ProductSKU, Category } from '@/types';
 import DashboardShell from '@/components/layout/DashboardShell.vue';
 import Button from '@/components/ui/button/Button.vue';
@@ -328,6 +330,33 @@ watch(isReady, (r) => {
 watch(importOpen, (v, old) => {
   if (old && !v) load();
 });
+
+// ---- Realtime: keep product list & SKU stock in sync ---------------------
+// When a sale, inventory adjustment or SKU edit happens (from any device in
+// the store), reload the list so stock/SKU data shown here stays current.
+const realtimeUnsubs: Array<() => void> = [];
+const reloadFromRealtime = debounce(() => {
+  if (isReady.value && allowed.value) load();
+}, 400);
+
+onMounted(() => {
+  realtime.connect();
+  realtimeUnsubs.push(
+    realtime.on(RealtimeEventType.productUpdated, reloadFromRealtime),
+    realtime.on(RealtimeEventType.productSKUCreated, reloadFromRealtime),
+    realtime.on(RealtimeEventType.productSKUUpdated, reloadFromRealtime),
+    realtime.on(RealtimeEventType.productSKUDeleted, reloadFromRealtime),
+    realtime.on(RealtimeEventType.inventoryAdjusted, reloadFromRealtime),
+    realtime.on(RealtimeEventType.saleCreated, reloadFromRealtime),
+    realtime.on(RealtimeEventType.saleCancelled, reloadFromRealtime),
+    realtime.on(RealtimeEventType.saleRefunded, reloadFromRealtime),
+  );
+});
+
+onUnmounted(() => {
+  for (const unsub of realtimeUnsubs) unsub();
+  realtimeUnsubs.length = 0;
+});
 </script>
 
 <template>
@@ -413,6 +442,7 @@ watch(importOpen, (v, old) => {
                 <TableCell class="text-center tabular-nums">{{ p.sku_count ?? 0 }}</TableCell>
                 <TableCell>
                   <button
+                    v-if="canUpdate"
                     type="button"
                     class="inline-flex items-center gap-1.5 rounded px-2 py-1 text-xs font-medium transition-colors hover:opacity-80"
                     :class="p.is_active ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'"
@@ -422,6 +452,14 @@ watch(importOpen, (v, old) => {
                     <span class="size-1.5 rounded-full" :class="p.is_active ? 'bg-primary' : 'bg-muted-foreground'"></span>
                     {{ p.is_active ? t('admin.shared.active') : t('admin.shared.inactive') }}
                   </button>
+                  <span
+                    v-else
+                    class="inline-flex items-center gap-1.5 rounded px-2 py-1 text-xs font-medium"
+                    :class="p.is_active ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'"
+                  >
+                    <span class="size-1.5 rounded-full" :class="p.is_active ? 'bg-primary' : 'bg-muted-foreground'"></span>
+                    {{ p.is_active ? t('admin.shared.active') : t('admin.shared.inactive') }}
+                  </span>
                 </TableCell>
                 <TableCell v-if="showActions" class="text-right">
                   <div class="flex justify-end items-center gap-2">

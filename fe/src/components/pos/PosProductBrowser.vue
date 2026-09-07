@@ -52,6 +52,11 @@ function remainingStock(sku: ProductSKU): number {
   return sku.stock - (props.cartQuantities[sku.id] ?? 0);
 }
 
+/** Product + SKU can be sold right now (active and in stock). */
+function isAvailable(product: Product, sku: ProductSKU): boolean {
+  return product.is_active && sku.is_active && remainingStock(sku) > 0;
+}
+
 function submitSearch() {
   emit('search');
 }
@@ -139,14 +144,14 @@ defineExpose({
                     {{ formatCurrency(sku.selling_price) }}
                   </TableCell>
                   <TableCell class="text-right tabular-nums">
-                    <Badge :variant="remainingStock(sku) > 0 ? 'default' : 'destructive'">
+                    <Badge :variant="isAvailable(p, sku) ? 'default' : 'destructive'">
                       {{ remainingStock(sku) }}
                     </Badge>
                   </TableCell>
                   <TableCell class="text-right">
                     <Button
                       size="sm"
-                      :disabled="remainingStock(sku) <= 0"
+                      :disabled="!isAvailable(p, sku)"
                       @click="addToCart(p, sku)"
                     >{{ t('admin.pos.addToCart') }}</Button>
                   </TableCell>

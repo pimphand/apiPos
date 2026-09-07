@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import http, { tokenManager, refreshTokens } from '@/lib/http';
 import { authStorage } from '@/lib/auth';
+import { realtime } from '@/lib/realtime';
 import { getDeviceId } from '@/lib/device';
 import type { User, LoginRequest, RegisterRequest } from '@/types';
 
@@ -88,6 +89,9 @@ export const useAuthStore = defineStore('auth', () => {
       // Permissions are embedded in the login payload (no separate request).
       attachPermissionsFromPayload((data.user ?? {})?.permissions);
 
+      // Open the realtime socket now that we hold a valid access token.
+      realtime.connect();
+
       return userData;
     } catch (err: unknown) {
       const apiError = err as { response?: { data?: { message?: string } }; message?: string };
@@ -125,6 +129,9 @@ export const useAuthStore = defineStore('auth', () => {
 
       // Permissions are embedded in the register payload (no separate request).
       attachPermissionsFromPayload((resData.user ?? {})?.permissions);
+
+      // Open the realtime socket now that we hold a valid access token.
+      realtime.connect();
 
       return userData;
     } catch (err: unknown) {
@@ -263,6 +270,9 @@ export const useAuthStore = defineStore('auth', () => {
 
       try {
         await refreshAccessToken();
+        // Session restored: the socket may have been started before the token
+        // existed (onMounted races restoreSession), so (re)connect now.
+        realtime.connect();
         return user.value;
       } catch {
         // refreshAccessToken already clears local state on failure.
@@ -296,6 +306,10 @@ export const useAuthStore = defineStore('auth', () => {
 
     // Clear memory storage
     authStorage.clear();
+
+    // Close the realtime socket: without an access token the server would
+    // reject a reconnect, and the user should not keep receiving store events.
+    realtime.disconnect();
   }
 
   async function setUser(userData: User) {

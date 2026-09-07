@@ -44,6 +44,13 @@ export default defineConfig({
           target: apiUrl,
           changeOrigin: true,
         },
+        // Realtime WebSocket: forwarded to the Go gateway so the frontend can
+        // use a same-origin /ws URL in both dev and production.
+        '/ws': {
+          target: apiUrl,
+          changeOrigin: true,
+          ws: true,
+        },
       },
     },
     build: {

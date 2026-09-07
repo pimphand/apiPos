@@ -18,17 +18,20 @@ SELECT 'superadmin', 'System-wide role: manages admins and verifies stores'
 WHERE NOT EXISTS (SELECT 1 FROM roles WHERE name = 'superadmin');
 
 -- 3. Add store_id to every tenant-scoped table, backfilled to the default store.
-ALTER TABLE users                     ADD COLUMN store_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001' REFERENCES stores(id);
-ALTER TABLE categories                ADD COLUMN store_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001' REFERENCES stores(id);
-ALTER TABLE products                  ADD COLUMN store_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001' REFERENCES stores(id);
-ALTER TABLE product_skus              ADD COLUMN store_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001' REFERENCES stores(id);
-ALTER TABLE customers                 ADD COLUMN store_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001' REFERENCES stores(id);
-ALTER TABLE sales                     ADD COLUMN store_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001' REFERENCES stores(id);
-ALTER TABLE sale_items                ADD COLUMN store_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001' REFERENCES stores(id);
-ALTER TABLE payments                  ADD COLUMN store_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001' REFERENCES stores(id);
-ALTER TABLE inventory_transactions    ADD COLUMN store_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001' REFERENCES stores(id);
-ALTER TABLE cashier_shifts            ADD COLUMN store_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001' REFERENCES stores(id);
-ALTER TABLE activity_logs             ADD COLUMN store_id UUID NULL REFERENCES stores(id);
+-- NOTE: IF NOT EXISTS is required because 000001_init_schema already defines
+-- store_id on users/sales/inventory_transactions/cashier_shifts; this migration
+-- only adds the column on databases that predate store-level multi-tenancy.
+ALTER TABLE users                     ADD COLUMN IF NOT EXISTS store_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001' REFERENCES stores(id);
+ALTER TABLE categories                ADD COLUMN IF NOT EXISTS store_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001' REFERENCES stores(id);
+ALTER TABLE products                  ADD COLUMN IF NOT EXISTS store_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001' REFERENCES stores(id);
+ALTER TABLE product_skus              ADD COLUMN IF NOT EXISTS store_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001' REFERENCES stores(id);
+ALTER TABLE customers                 ADD COLUMN IF NOT EXISTS store_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001' REFERENCES stores(id);
+ALTER TABLE sales                     ADD COLUMN IF NOT EXISTS store_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001' REFERENCES stores(id);
+ALTER TABLE sale_items                ADD COLUMN IF NOT EXISTS store_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001' REFERENCES stores(id);
+ALTER TABLE payments                  ADD COLUMN IF NOT EXISTS store_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001' REFERENCES stores(id);
+ALTER TABLE inventory_transactions    ADD COLUMN IF NOT EXISTS store_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001' REFERENCES stores(id);
+ALTER TABLE cashier_shifts            ADD COLUMN IF NOT EXISTS store_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001' REFERENCES stores(id);
+ALTER TABLE activity_logs             ADD COLUMN IF NOT EXISTS store_id UUID NULL REFERENCES stores(id);
 
 -- 4. Indexes for every tenant-scoped table store_id.
 CREATE INDEX IF NOT EXISTS idx_users_store_id                ON users(store_id);

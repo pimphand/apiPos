@@ -12,6 +12,7 @@ import (
 
 	"apiPos/internal/apperror"
 	gormdb "apiPos/internal/database/gorm"
+	"apiPos/internal/realtime"
 	"apiPos/internal/repository"
 )
 
@@ -369,6 +370,24 @@ func (s *Service) CreateSale(ctx context.Context, req CreateSaleRequest) (*SaleD
 		return nil, err
 	}
 
+	// Notify connected POS/inventory clients that stock changed.
+	realtime.PublishFromContext(ctx, realtime.Event{
+		Event:      realtime.EventSaleCreated,
+		Resource:   "sales",
+		ResourceID: saleDetail.Sale.ID.String(),
+		Data: map[string]any{
+			"invoice_number": saleDetail.Sale.InvoiceNumber,
+			"store_id":       storeID.String(),
+		},
+	})
+	// Also emit an inventory change so product browsers refresh stock levels.
+	realtime.PublishFromContext(ctx, realtime.Event{
+		Event:      realtime.EventInventoryAdjusted,
+		Resource:   "sales",
+		ResourceID: saleDetail.Sale.ID.String(),
+		StoreID:    storeID.String(),
+	})
+
 	return &saleDetail, nil
 }
 
@@ -494,7 +513,24 @@ func (s *Service) CancelSale(ctx context.Context, id, actorID string) error {
 		return tx.Model(&gormdb.Sale{}).Where("id = ?", sale.ID).Update("status", sale.Status).Error
 	})
 
-	return err
+	if err != nil {
+		return err
+	}
+
+	realtime.PublishFromContext(ctx, realtime.Event{
+		Event:      realtime.EventSaleCancelled,
+		Resource:   "sales",
+		ResourceID: sale.ID.String(),
+		StoreID:    sale.StoreID.String(),
+	})
+	realtime.PublishFromContext(ctx, realtime.Event{
+		Event:      realtime.EventInventoryAdjusted,
+		Resource:   "sales",
+		ResourceID: sale.ID.String(),
+		StoreID:    sale.StoreID.String(),
+	})
+
+	return nil
 }
 
 // RefundSale refunds a sale and restores stock. actorID is the acting user;
@@ -549,7 +585,24 @@ func (s *Service) RefundSale(ctx context.Context, id, actorID string) error {
 		return tx.Model(&gormdb.Sale{}).Where("id = ?", sale.ID).Update("status", sale.Status).Error
 	})
 
-	return err
+	if err != nil {
+		return err
+	}
+
+	realtime.PublishFromContext(ctx, realtime.Event{
+		Event:      realtime.EventSaleRefunded,
+		Resource:   "sales",
+		ResourceID: sale.ID.String(),
+		StoreID:    sale.StoreID.String(),
+	})
+	realtime.PublishFromContext(ctx, realtime.Event{
+		Event:      realtime.EventInventoryAdjusted,
+		Resource:   "sales",
+		ResourceID: sale.ID.String(),
+		StoreID:    sale.StoreID.String(),
+	})
+
+	return nil
 }
 
 // saleWasPaidInCash reports whether the primary payment of a sale is CASH.

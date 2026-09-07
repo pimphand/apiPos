@@ -46,6 +46,7 @@ import (
 	"apiPos/internal/permission"
 	"apiPos/internal/product"
 	"apiPos/internal/productsku"
+	"apiPos/internal/realtime"
 	"apiPos/internal/report"
 	"apiPos/internal/repository"
 	"apiPos/internal/role"
@@ -78,6 +79,7 @@ type Server struct {
 	activityLogService *activitylog.Service
 	storeService       *store.Service
 	settingsService    *settings.Service
+	realtimeHub        *realtime.Hub
 }
 
 // New creates a new gRPC server
@@ -120,6 +122,7 @@ func New(cfg *config.Config, db *gormdb.DB) *Server {
 		activityLogService: activityLogService,
 		storeService:       storeService,
 		settingsService:    settingsService,
+		realtimeHub:        realtime.Default(),
 	}
 }
 
@@ -281,6 +284,7 @@ func (s *Server) startHTTP() error {
 	httpMux.HandleFunc("/", s.handleSwaggerUI)
 	httpMux.HandleFunc("/swagger.json", s.handleSwaggerJSON)
 	httpMux.HandleFunc("/health", s.handleHealth)
+	httpMux.HandleFunc("/ws", realtime.Handler(s.realtimeHub, s.authService))
 	httpMux.HandleFunc("/api/v1/products/import", importHandler.ServeHTTP)
 	httpMux.HandleFunc("/api/v1/products/import-sample", importHandler.ServeSampleCSV)
 	httpMux.Handle("/api/", enableCORS(mux))

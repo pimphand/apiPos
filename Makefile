@@ -1,9 +1,12 @@
-include .env
+-include .env
 export
 
 # POS Application Makefile
 
-.PHONY: all build test run proto sqlc migrate-up migrate-down docker-up docker-down lint clean swagger
+# Version of the golang-migrate CLI used by the migrate-* targets
+MIGRATE_VERSION := v4.19.1
+
+.PHONY: all build test run proto sqlc migrate-install migrate-up migrate-down migrate-version docker-up docker-down lint clean swagger
 
 # Build the application
 all: build test
@@ -26,14 +29,27 @@ sqlc:
 	@echo "Generating sqlc code..."
 	@sqlc generate
 
+# Install the golang-migrate CLI (required by migrate-up / migrate-down)
+# NOTE: the postgres build tag is required, otherwise the CLI reports
+# "database driver: unknown driver postgres (forgotten import?)"
+migrate-install:
+	@echo "Installing golang-migrate CLI $(MIGRATE_VERSION)..."
+	@go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@$(MIGRATE_VERSION)
+
+migrate-check:
+	@command -v migrate >/dev/null 2>&1 || (echo "migrate CLI not found, running: make migrate-install"; $(MAKE) migrate-install)
+
 # Run database migrations
-migrate-up:
+migrate-up: migrate-check
 	@echo "Running migrations up..."
 	@migrate -path db/migration -database "postgres://$(DATABASE_USER):$(DATABASE_PASSWORD)@$(DATABASE_HOST):$(DATABASE_PORT)/$(DATABASE_NAME)?sslmode=disable" up
 
-migrate-down:
+migrate-down: migrate-check
 	@echo "Running migrations down..."
 	@migrate -path db/migration -database "postgres://$(DATABASE_USER):$(DATABASE_PASSWORD)@$(DATABASE_HOST):$(DATABASE_PORT)/$(DATABASE_NAME)?sslmode=disable" down
+
+migrate-version:
+	@migrate -version
 
 # Docker commands
 docker-up:

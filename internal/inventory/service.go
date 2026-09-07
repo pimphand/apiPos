@@ -9,6 +9,7 @@ import (
 
 	"apiPos/internal/apperror"
 	gormdb "apiPos/internal/database/gorm"
+	"apiPos/internal/realtime"
 	"apiPos/internal/repository"
 )
 
@@ -180,6 +181,19 @@ func (s *Service) CreateTransaction(ctx context.Context, req CreateTransactionRe
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to create inventory transaction", err)
 	}
 
+	realtime.PublishFromContext(ctx, realtime.Event{
+		Event:      realtime.EventInventoryAdjusted,
+		Resource:   "inventory_transactions",
+		ResourceID: transaction.ID.String(),
+		Data: map[string]any{
+			"product_id":  req.ProductID,
+			"type":        req.Type,
+			"quantity":    req.Quantity,
+			"before_stock": beforeStock,
+			"after_stock":  afterStock,
+		},
+	})
+
 	return transaction, nil
 }
 
@@ -241,6 +255,19 @@ func (s *Service) AdjustStock(ctx context.Context, req AdjustStockRequest) (*gor
 	if err := s.repos.Inventory.CreateTransaction(ctx, transaction); err != nil {
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to create inventory transaction", err)
 	}
+
+	realtime.PublishFromContext(ctx, realtime.Event{
+		Event:      realtime.EventInventoryAdjusted,
+		Resource:   "inventory_transactions",
+		ResourceID: transaction.ID.String(),
+		Data: map[string]any{
+			"product_id":   req.ProductID,
+			"direction":    req.Direction,
+			"quantity":     req.Quantity,
+			"before_stock": beforeStock,
+			"after_stock":  afterStock,
+		},
+	})
 
 	return transaction, nil
 }

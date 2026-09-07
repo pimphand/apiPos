@@ -11,6 +11,7 @@ import (
 
 	"apiPos/internal/apperror"
 	gormdb "apiPos/internal/database/gorm"
+	"apiPos/internal/realtime"
 	"apiPos/internal/repository"
 	"apiPos/pkg/timeutil"
 )
@@ -98,6 +99,12 @@ func (s *Service) CreateProduct(ctx context.Context, req CreateProductRequest) (
 			return nil, apperror.Wrap(apperror.ErrInternal, "Failed to create default SKU", err)
 		}
 	}
+
+	realtime.PublishFromContext(ctx, realtime.Event{
+		Event:      realtime.EventProductCreated,
+		Resource:   "products",
+		ResourceID: product.ID.String(),
+	})
 
 	return product, nil
 }
@@ -430,6 +437,12 @@ func (s *Service) UpdateProduct(ctx context.Context, req UpdateProductRequest) (
 		}
 	}
 
+	realtime.PublishFromContext(ctx, realtime.Event{
+		Event:      realtime.EventProductUpdated,
+		Resource:   "products",
+		ResourceID: product.ID.String(),
+	})
+
 	return product, nil
 }
 
@@ -448,7 +461,16 @@ func (s *Service) DeleteProduct(ctx context.Context, idStr string) error {
 		return apperror.Wrap(apperror.ErrInternal, "Failed to get product", err)
 	}
 
-	return s.repos.Product.Delete(ctx, idStr)
+	if err := s.repos.Product.Delete(ctx, idStr); err != nil {
+		return err
+	}
+
+	realtime.PublishFromContext(ctx, realtime.Event{
+		Event:      realtime.EventProductDeleted,
+		Resource:   "products",
+		ResourceID: idStr,
+	})
+	return nil
 }
 
 // ActivateProduct activates a product
@@ -466,7 +488,16 @@ func (s *Service) ActivateProduct(ctx context.Context, idStr string) error {
 		return apperror.Wrap(apperror.ErrInternal, "Failed to get product", err)
 	}
 
-	return s.repos.Product.Activate(ctx, idStr)
+	if err := s.repos.Product.Activate(ctx, idStr); err != nil {
+		return err
+	}
+
+	realtime.PublishFromContext(ctx, realtime.Event{
+		Event:      realtime.EventProductUpdated,
+		Resource:   "products",
+		ResourceID: idStr,
+	})
+	return nil
 }
 
 // DeactivateProduct deactivates a product
@@ -484,7 +515,16 @@ func (s *Service) DeactivateProduct(ctx context.Context, idStr string) error {
 		return apperror.Wrap(apperror.ErrInternal, "Failed to get product", err)
 	}
 
-	return s.repos.Product.Deactivate(ctx, idStr)
+	if err := s.repos.Product.Deactivate(ctx, idStr); err != nil {
+		return err
+	}
+
+	realtime.PublishFromContext(ctx, realtime.Event{
+		Event:      realtime.EventProductUpdated,
+		Resource:   "products",
+		ResourceID: idStr,
+	})
+	return nil
 }
 
 // GetLowStockProducts lists products with low stock
