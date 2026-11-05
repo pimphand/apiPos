@@ -20,6 +20,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import PaginationBar from '@/components/ui/PaginationBar.vue';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
+import { Search } from '@lucide/vue';
 
 const { isReady, allowed, authStore } = usePageGuard('users.read');
 const ui = useUiStore();
@@ -171,11 +172,7 @@ watch(isReady, async (r) => {
 
 <template>
   <DashboardShell>
-  <div v-if="!isReady" class="flex items-center justify-center h-[60vh]">
-    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-  </div>
-
-  <div v-else-if="!allowed" class="flex flex-col items-center justify-center py-24 text-center bg-card rounded-xl border">
+  <div v-if="!allowed" class="flex flex-col items-center justify-center py-24 text-center bg-card rounded-xl border">
     <h3 class="text-xl font-semibold">{{ t('admin.shared.accessRestricted') }}</h3>
     <p class="text-muted-foreground mt-2 max-w-sm">
       {{ t('admin.shared.noPermission', { action: t('admin.users.noPermissionAction') }) }}
@@ -183,7 +180,7 @@ watch(isReady, async (r) => {
   </div>
 
   <div v-else class="flex flex-col gap-4">
-    <div class="flex items-start justify-between gap-4">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
       <div>
         <h2 class="text-2xl font-bold">{{ t('admin.users.title') }}</h2>
         <p class="text-muted-foreground mt-1">{{ t('admin.users.description') }}</p>
@@ -195,19 +192,19 @@ watch(isReady, async (r) => {
       <CardContent class="flex flex-wrap items-end gap-3 pt-4">
         <div class="space-y-1">
           <Label>{{ t('admin.shared.search') }}</Label>
-          <Input v-model="search" :placeholder="t('admin.users.searchPlaceholder')" class="w-64" @keyup.enter="applyFilters" />
+          <Input v-model="search" :placeholder="t('admin.users.searchPlaceholder')" class="w-full sm:w-64" @keyup.enter="applyFilters" />
         </div>
         <div class="space-y-1">
           <Label>{{ t('admin.users.role') }}</Label>
           <Select v-model="roleFilter">
-            <SelectTrigger class="w-48"><SelectValue :placeholder="t('admin.users.allRoles')" /></SelectTrigger>
+            <SelectTrigger class="w-full sm:w-48"><SelectValue :placeholder="t('admin.users.allRoles')" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{{ t('admin.users.allRoles') }}</SelectItem>
               <SelectItem v-for="r in roles" :key="r.id" :value="r.id">{{ r.name }}</SelectItem>
             </SelectContent>
           </Select>
         </div>
-        <Button variant="outline" size="icon" :title="t('admin.shared.search')" @click="applyFilters">🔍</Button>
+        <Button variant="outline" size="icon" :title="t('admin.shared.search')" :aria-label="t('admin.shared.search')" @click="applyFilters"><Search class="h-4 w-4" aria-hidden="true" /></Button>
       </CardContent>
     </Card>
 

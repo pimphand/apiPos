@@ -33,5 +33,7 @@ COPY --from=build /go/bin/migrate /usr/local/bin/migrate
 # make + Makefile so database commands work inside the container
 COPY Makefile /app/Makefile
 RUN apk add --no-cache make
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 EXPOSE 50051 8080
-CMD ["./main"]
+ENTRYPOINT ["/app/entrypoint.sh"]

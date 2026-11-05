@@ -10,6 +10,7 @@ import { formatCurrency } from '@/lib/utils';
 import Button from '@/components/ui/button/Button.vue';
 import Input from '@/components/ui/input/Input.vue';
 import type { PublicMenu, PublicProduct, PublicVariant, SelfOrder } from '@/types';
+import { Check, PhoneOff, RotateCw } from '@lucide/vue';
 
 const props = defineProps<{ tableToken?: string }>();
 
@@ -245,9 +246,9 @@ onUnmounted(stopStatusPolling);
 
     <!-- Error -->
     <div v-else-if="stage === 'error'" class="mx-auto max-w-md px-4 py-24 text-center">
-      <div class="text-4xl">📵</div>
+      <PhoneOff class="mx-auto h-10 w-10 text-muted-foreground" aria-hidden="true" />
       <p class="mt-4 font-semibold">{{ errorMessage }}</p>
-      <Button class="mt-6" @click="boot">⟳ {{ t('common.loading') }}</Button>
+      <Button class="mt-6" @click="boot"><RotateCw class="mr-2 h-4 w-4" aria-hidden="true" />{{ t('common.loading') }}</Button>
     </div>
 
     <!-- Menu + cart -->
@@ -407,7 +408,7 @@ onUnmounted(stopStatusPolling);
     <!-- Success -->
     <div v-else-if="stage === 'success' && order" class="mx-auto max-w-md px-4 pt-12 text-center">
       <div class="rounded-full bg-green-100 text-green-700 mx-auto flex h-20 w-20 items-center justify-center text-4xl dark:bg-green-900/40 dark:text-green-300">
-        ✓
+        <Check class="h-10 w-10" aria-hidden="true" />
       </div>
       <h2 class="mt-4 text-2xl font-bold">{{ t('selfOrder.paymentSuccess') }}</h2>
       <p class="mt-1 text-sm text-muted-foreground">{{ t('selfOrder.paymentSuccessDesc') }}</p>

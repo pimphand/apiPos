@@ -80,8 +80,8 @@ defineExpose({
 
 <template>
   <div class="flex flex-col gap-4">
-    <div class="flex gap-2">
-      <div class="flex-1">
+    <div class="flex min-w-0 gap-2">
+      <div class="min-w-0 flex-1">
         <Input
           ref="searchInputRef"
           v-model="searchQuery"
@@ -90,17 +90,17 @@ defineExpose({
           class="text-base h-11"
         />
       </div>
-      <Button @click="submitSearch" class="h-11 px-6">{{ t('admin.shared.search') }}</Button>
+      <Button @click="submitSearch" class="h-11 shrink-0 px-3 sm:px-6">{{ t('admin.shared.search') }}</Button>
     </div>
 
-    <div class="flex gap-2">
+    <div class="flex min-w-0 gap-2">
       <Input
         v-model="barcodeInput"
         placeholder="Barcode / SKU"
         class="flex-1"
         @keyup.enter="submitLookup"
       />
-      <Button variant="outline" @click="submitLookup">{{ t('admin.products.scanBarcode') }}</Button>
+      <Button variant="outline" class="shrink-0 px-2 sm:px-4" @click="submitLookup">{{ t('admin.products.scanBarcode') }}</Button>
     </div>
 
     <Card>

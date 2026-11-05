@@ -97,7 +97,7 @@ export function can(user: User | null, permission: Permission): boolean {
 
   // 2. Fallback to hardcoded defaults ONLY when permissions haven't been
   //    fetched from the backend yet (undefined = not loaded).
-  const roleName = (user as any).role_name || '';
+  const roleName = user?.role_name || '';
   const rolePerms = ROLE_PERMISSIONS[roleName] || [];
   return rolePerms.includes(permission);
 }
@@ -128,7 +128,7 @@ export function getRolePermissions(roleName: string): Permission[] {
  */
 export function isAdmin(user: User | null): boolean {
   if (!user) return false;
-  const role = (user as any).role_name;
+  const role = user?.role_name;
   return role === 'admin' || role === 'superadmin';
 }
 
@@ -137,6 +137,6 @@ export function isAdmin(user: User | null): boolean {
  */
 export function isManagerOrAbove(user: User | null): boolean {
   if (!user) return false;
-  const role = (user as any).role_name;
+  const role = user?.role_name;
   return role === 'superadmin' || role === 'admin' || role === 'manager';
 }

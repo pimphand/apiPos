@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useLocaleStore } from '@/stores/locale';
 import { navigateTo } from '@/lib/navigation';
+import { LockKeyhole } from '@lucide/vue';
 
 const authStore = useAuthStore();
 const t = useLocaleStore().t;
@@ -41,7 +42,7 @@ onMounted(async () => {
   <div class="min-h-screen flex items-center justify-center bg-muted/50 p-4">
     <div v-if="isReady" class="w-full max-w-md bg-card rounded-xl border shadow-sm p-8 text-center">
       <div class="mx-auto flex size-16 items-center justify-center rounded-full bg-destructive/10 mb-4">
-        <span class="text-3xl">🔒</span>
+        <LockKeyhole class="h-8 w-8 text-destructive" aria-hidden="true" />
       </div>
       <h1 class="text-2xl font-bold">{{ t('permissionDenied.title') }}</h1>
       <p class="text-muted-foreground mt-2">{{ t('permissionDenied.description') }}</p>

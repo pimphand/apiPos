@@ -33,6 +33,7 @@ import type {
   OrderChannel,
 } from '@/types';
 import { ORDER_CHANNEL_LABELS } from '@/types';
+import { Bell, BellOff } from '@lucide/vue';
 import type { ReceiptData } from '@/components/pos/PosReceiptPaper.vue';
 import DashboardShell from '@/components/layout/DashboardShell.vue';
 import PosCartCard from '@/components/pos/PosCartCard.vue';
@@ -563,12 +564,12 @@ async function submitSale(payload: {
     const taxN = detail.sale.tax !== undefined && Number(detail.sale.tax) ? Number(detail.sale.tax) : taxAmount.value;
     const totalN = Number(detail.sale.grand_total) || grandTotal.value;
     const methodLabelKey = PAY_METHOD_KEYS[payload.payment_method] ?? 'other';
-    const storeAny = authStore.currentUser as any;
+    const currentUser = authStore.currentUser as any;
 
     lastReceipt.value = {
-      store_name: storeInfo.value.name || storeAny?.store_name || storeAny?.store?.name || '',
-      store_address: storeInfo.value.address || storeAny?.store?.address || '',
-      store_phone: storeInfo.value.phone || storeAny?.store?.phone || '',
+      store_name: storeInfo.value.name || currentUser?.store_name || currentUser?.store?.name || '',
+      store_address: storeInfo.value.address || currentUser?.store?.address || '',
+      store_phone: storeInfo.value.phone || currentUser?.store?.phone || '',
       invoice_number: detail.sale.invoice_number || '',
       created_at: detail.sale.created_at || new Date().toISOString(),
       cashier_name: authStore.userName,
@@ -724,11 +725,7 @@ onUnmounted(() => {
 
 <template>
   <DashboardShell>
-    <div v-if="!isReady" class="flex items-center justify-center h-[60vh]">
-      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-    </div>
-
-    <div v-else-if="!allowed" class="flex flex-col items-center justify-center py-24 text-center bg-card rounded-xl border">
+    <div v-if="!allowed" class="flex flex-col items-center justify-center py-24 text-center bg-card rounded-xl border">
       <h3 class="text-xl font-semibold">{{ t('admin.shared.accessRestricted') }}</h3>
       <p class="text-muted-foreground mt-2 max-w-sm">{{ t('admin.shared.noPermission', { action: 'access POS' }) }}</p>
     </div>
@@ -768,7 +765,8 @@ onUnmounted(() => {
           :title="t('selfOrder.soundNotification')"
           @click="toggleSound"
         >
-          {{ soundEnabled ? '🔔' : '🔕' }}
+          <Bell v-if="soundEnabled" class="h-4 w-4" aria-hidden="true" />
+          <BellOff v-else class="h-4 w-4" aria-hidden="true" />
         </Button>
       </div>
 

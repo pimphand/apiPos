@@ -313,7 +313,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function setUser(userData: User) {
-    user.value = normalizeUser(userData as any);
+    user.value = normalizeUser(userData);
     await authStorage.setUser(user.value);
   }
 

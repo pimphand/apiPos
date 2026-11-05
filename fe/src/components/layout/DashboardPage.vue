@@ -5,6 +5,7 @@ import { useUiStore } from '@/stores/ui';
 import { useLocaleStore } from '@/stores/locale';
 import { navigateTo } from '@/lib/navigation';
 import { can } from '@/lib/rbac';
+import { BarChart3, DollarSign, Hand, Package, ShoppingCart, TriangleAlert, Users } from '@lucide/vue';
 import AppSidebar from './AppSidebar.vue';
 import AppTopbar from './AppTopbar.vue';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
@@ -18,10 +19,10 @@ const isReady = ref(false);
 const userName = ref('User');
 
 const stats = computed(() => [
-  { label: t('dashboard.totalSales'), value: 'Rp 0', icon: '💰', href: '/admin/sales', permission: 'sales.read' as const },
-  { label: t('dashboard.products'), value: '0', icon: '📦', href: '/admin/products', permission: 'products.read' as const },
-  { label: t('dashboard.customers'), value: '0', icon: '👥', href: '/admin/customers', permission: 'customers.read' as const },
-  { label: t('dashboard.lowStock'), value: '0', icon: '⚠️', href: '/admin/inventory', permission: 'inventory.read' as const },
+  { label: t('dashboard.totalSales'), value: 'Rp 0', icon: DollarSign, href: '/admin/sales', permission: 'sales.read' as const },
+  { label: t('dashboard.products'), value: '0', icon: Package, href: '/admin/products', permission: 'products.read' as const },
+  { label: t('dashboard.customers'), value: '0', icon: Users, href: '/admin/customers', permission: 'customers.read' as const },
+  { label: t('dashboard.lowStock'), value: '0', icon: TriangleAlert, href: '/admin/inventory', permission: 'inventory.read' as const },
 ].filter(s => can(authStore.currentUser, s.permission)));
 
 onMounted(async () => {
@@ -44,14 +45,14 @@ onMounted(async () => {
 </script>
 
 <template>
-  <SidebarProvider v-if="isReady">
+  <SidebarProvider>
     <AppSidebar />
     <SidebarInset>
       <AppTopbar />
-      <main class="flex-1 overflow-y-auto p-6">
+      <main class="min-w-0 flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6">
         <!-- Welcome Header -->
         <div class="mb-8">
-          <h2 class="text-2xl font-bold">{{ t('dashboard.welcome', { name: userName }) }}</h2>
+          <h2 class="flex items-center gap-2 text-2xl font-bold">{{ t('dashboard.welcome', { name: userName }) }} <Hand class="h-6 w-6 text-primary" aria-hidden="true" /></h2>
           <p class="text-muted-foreground mt-1">{{ t('dashboard.subtitle') }}</p>
         </div>
 
@@ -68,7 +69,7 @@ onMounted(async () => {
                 <p class="text-sm text-muted-foreground">{{ stat.label }}</p>
                 <p class="text-2xl font-bold mt-1">{{ stat.value }}</p>
               </div>
-              <span class="text-3xl">{{ stat.icon }}</span>
+              <component :is="stat.icon" class="h-8 w-8 text-muted-foreground" aria-hidden="true" />
             </div>
           </a>
         </div>
@@ -82,7 +83,7 @@ onMounted(async () => {
               href="/pos"
               class="p-6 bg-card rounded-xl border shadow-sm hover:shadow-md transition-shadow flex items-center gap-4"
             >
-              <span class="text-3xl">🛒</span>
+              <ShoppingCart class="h-8 w-8 text-muted-foreground" aria-hidden="true" />
               <div>
                 <h4 class="font-semibold">{{ t('dashboard.posCheckout') }}</h4>
                 <p class="text-sm text-muted-foreground">{{ t('dashboard.posCheckoutDesc') }}</p>
@@ -94,7 +95,7 @@ onMounted(async () => {
               href="/reports"
               class="p-6 bg-card rounded-xl border shadow-sm hover:shadow-md transition-shadow flex items-center gap-4"
             >
-              <span class="text-3xl">📊</span>
+              <BarChart3 class="h-8 w-8 text-muted-foreground" aria-hidden="true" />
               <div>
                 <h4 class="font-semibold">{{ t('dashboard.reports') }}</h4>
                 <p class="text-sm text-muted-foreground">{{ t('dashboard.reportsDesc') }}</p>
@@ -106,7 +107,7 @@ onMounted(async () => {
               href="/admin/products"
               class="p-6 bg-card rounded-xl border shadow-sm hover:shadow-md transition-shadow flex items-center gap-4"
             >
-              <span class="text-3xl">📦</span>
+              <Package class="h-8 w-8 text-muted-foreground" aria-hidden="true" />
               <div>
                 <h4 class="font-semibold">{{ t('dashboard.productsShort') }}</h4>
                 <p class="text-sm text-muted-foreground">{{ t('dashboard.productsDesc') }}</p>
@@ -127,10 +128,4 @@ onMounted(async () => {
     </SidebarInset>
   </SidebarProvider>
 
-  <div v-else class="flex items-center justify-center h-screen">
-    <div class="text-center">
-      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-      <p class="mt-4 text-muted-foreground">{{ t('common.loading') }}</p>
-    </div>
-  </div>
 </template>

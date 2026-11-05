@@ -361,17 +361,13 @@ onUnmounted(() => {
 
 <template>
   <DashboardShell>
-  <div v-if="!isReady" class="flex items-center justify-center h-[60vh]">
-    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-  </div>
-
-  <div v-else-if="!allowed" class="flex flex-col items-center justify-center py-24 text-center bg-card rounded-xl border">
+  <div v-if="!allowed" class="flex flex-col items-center justify-center py-24 text-center bg-card rounded-xl border">
     <h3 class="text-xl font-semibold">{{ t('admin.shared.accessRestricted') }}</h3>
     <p class="text-muted-foreground mt-2 max-w-sm">{{ t('admin.shared.noPermission', { action: t('admin.products.noPermissionAction') }) }}</p>
   </div>
 
   <div v-else class="flex flex-col gap-4">
-    <div class="flex items-start justify-between gap-4">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
       <div>
         <h2 class="text-2xl font-bold">{{ t('admin.products.title') }}</h2>
       </div>
@@ -383,7 +379,7 @@ onUnmounted(() => {
 
     <Card>
       <CardContent class="flex flex-wrap items-end gap-3 pt-4">
-        <div class="space-y-1 min-w-56 flex-1">
+        <div class="min-w-0 flex-1 space-y-1 sm:min-w-56">
           <Label>{{ t('admin.products.searchByName') }}</Label>
           <Input v-model="search" :placeholder="t('admin.products.searchPlaceholder')" @keyup.enter="searchSubmit" autocomplete="off" />
         </div>

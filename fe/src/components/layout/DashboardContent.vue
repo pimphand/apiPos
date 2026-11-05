@@ -2,16 +2,17 @@
 import { ref, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { formatCurrency } from '@/lib/utils';
+import { BarChart3, DollarSign, Hand, Package, ShoppingCart, TriangleAlert, Users } from '@lucide/vue';
 
 const authStore = useAuthStore();
 
 const userName = ref('User');
 
 const stats = ref([
-  { label: 'Total Sales', value: 'Rp 0', icon: '💰', href: '/admin/sales' },
-  { label: 'Products', value: '0', icon: '📦', href: '/admin/products' },
-  { label: 'Customers', value: '0', icon: '👥', href: '/admin/customers' },
-  { label: 'Low Stock', value: '0', icon: '⚠️', href: '/admin/inventory' },
+  { label: 'Total Sales', value: 'Rp 0', icon: DollarSign, href: '/admin/sales' },
+  { label: 'Products', value: '0', icon: Package, href: '/admin/products' },
+  { label: 'Customers', value: '0', icon: Users, href: '/admin/customers' },
+  { label: 'Low Stock', value: '0', icon: TriangleAlert, href: '/admin/inventory' },
 ]);
 
 onMounted(() => {
@@ -25,7 +26,7 @@ onMounted(() => {
   <div>
     <!-- Welcome Header -->
     <div class="mb-8">
-      <h2 class="text-2xl font-bold">Welcome back, {{ userName }}! 👋</h2>
+      <h2 class="flex items-center gap-2 text-2xl font-bold">Welcome back, {{ userName }} <Hand class="h-6 w-6 text-primary" aria-hidden="true" /></h2>
       <p class="text-muted-foreground mt-1">Here's what's happening with your store today.</p>
     </div>
 
@@ -42,7 +43,7 @@ onMounted(() => {
             <p class="text-sm text-muted-foreground">{{ stat.label }}</p>
             <p class="text-2xl font-bold mt-1">{{ stat.value }}</p>
           </div>
-          <span class="text-3xl">{{ stat.icon }}</span>
+          <component :is="stat.icon" class="h-8 w-8 text-muted-foreground" aria-hidden="true" />
         </div>
       </a>
     </div>
@@ -55,7 +56,7 @@ onMounted(() => {
           href="/pos"
           class="p-6 bg-card rounded-xl border shadow-sm hover:shadow-md transition-shadow flex items-center gap-4"
         >
-          <span class="text-3xl">🛒</span>
+          <ShoppingCart class="h-8 w-8 text-muted-foreground" aria-hidden="true" />
           <div>
             <h4 class="font-semibold">POS Checkout</h4>
             <p class="text-sm text-muted-foreground">Start a new sale transaction</p>
@@ -66,7 +67,7 @@ onMounted(() => {
           href="/reports"
           class="p-6 bg-card rounded-xl border shadow-sm hover:shadow-md transition-shadow flex items-center gap-4"
         >
-          <span class="text-3xl">📊</span>
+          <BarChart3 class="h-8 w-8 text-muted-foreground" aria-hidden="true" />
           <div>
             <h4 class="font-semibold">Reports</h4>
             <p class="text-sm text-muted-foreground">View sales and inventory reports</p>
@@ -77,7 +78,7 @@ onMounted(() => {
           href="/admin/products"
           class="p-6 bg-card rounded-xl border shadow-sm hover:shadow-md transition-shadow flex items-center gap-4"
         >
-          <span class="text-3xl">📦</span>
+          <Package class="h-8 w-8 text-muted-foreground" aria-hidden="true" />
           <div>
             <h4 class="font-semibold">Products</h4>
             <p class="text-sm text-muted-foreground">Manage products and inventory</p>

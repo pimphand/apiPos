@@ -26,7 +26,6 @@ const processQueue = (error: Error | null, result: RefreshResult | null = null) 
   failedQueue = [];
 };
 
-// Create axios instance
 const http = axios.create({
   baseURL: import.meta.env.PUBLIC_API_BASE_URL || '/api',
   timeout: 30000,

@@ -159,17 +159,13 @@ watch(isReady, (r) => {
 
 <template>
   <DashboardShell>
-    <div v-if="!isReady" class="flex items-center justify-center h-[60vh]">
-      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-    </div>
-
-    <div v-else-if="!allowed" class="flex flex-col items-center justify-center py-24 text-center bg-card rounded-xl border">
+    <div v-if="!allowed" class="flex flex-col items-center justify-center py-24 text-center bg-card rounded-xl border">
       <h3 class="text-xl font-semibold">{{ t('admin.shared.accessRestricted') }}</h3>
       <p class="text-muted-foreground mt-2 max-w-sm">{{ t('admin.shared.noPermission', { action: t('admin.cashier.noPermissionAction') }) }}</p>
     </div>
 
     <div v-else class="flex flex-col gap-4">
-      <div class="flex items-start justify-between gap-4">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div>
           <h2 class="text-2xl font-bold">{{ t('admin.cashier.title') }}</h2>
           <p class="text-muted-foreground mt-1">{{ t('admin.cashier.description') }}</p>
@@ -182,8 +178,8 @@ watch(isReady, (r) => {
 
       <Card v-if="currentShift">
         <CardContent class="p-4">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div class="flex flex-wrap items-center gap-3">
               <Badge variant="default">{{ t('admin.cashier.statusOpen') }}</Badge>
               <span class="text-sm text-muted-foreground">{{ t('admin.cashier.openedAt') }}: {{ formatDateTime(currentShift.opened_at) }}</span>
             </div>
@@ -316,7 +312,7 @@ watch(isReady, (r) => {
           </DialogHeader>
           <div v-if="summaryLoading" class="text-center py-10 text-muted-foreground">{{ t('admin.shared.loading') }}</div>
           <template v-else-if="summary">
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+            <div class="grid grid-cols-1 gap-3 text-sm min-[420px]:grid-cols-2 sm:grid-cols-4">
               <div>
                 <div class="text-muted-foreground">{{ t('admin.cashier.openingCash') }}</div>
                 <div class="font-medium">{{ formatCurrency(summary.opening_cash) }}</div>

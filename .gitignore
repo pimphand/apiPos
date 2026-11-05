@@ -58,3 +58,4 @@ logs/
 # Swagger UI downloaded files
 cmd/swagger/swagger-ui/
 
+.commandcode

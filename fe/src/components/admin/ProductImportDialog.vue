@@ -116,7 +116,7 @@ function onDrop(e: DragEvent) {
 
         <!-- Results -->
         <div v-if="result" class="rounded-lg border bg-muted/30 p-4 space-y-3">
-          <div class="flex items-center gap-4 text-sm">
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
             <span>{{ t('admin.products.importTotal') }}: <strong>{{ result.total }}</strong></span>
             <span class="text-green-600">{{ t('admin.products.imported') }}: <strong>{{ result.imported }}</strong></span>
             <span v-if="result.failed > 0" class="text-destructive">{{ t('admin.products.importFailedCount') }}: <strong>{{ result.failed }}</strong></span>

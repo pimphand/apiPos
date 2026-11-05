@@ -147,11 +147,7 @@ watch(isReady, (r) => { if (r) loadTab(); }, { immediate: true });
 
 <template>
   <DashboardShell>
-    <div v-if="!isReady" class="flex items-center justify-center h-[60vh]">
-      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-    </div>
-
-    <div v-else-if="!allowed" class="flex flex-col items-center justify-center py-24 text-center bg-card rounded-xl border">
+    <div v-if="!allowed" class="flex flex-col items-center justify-center py-24 text-center bg-card rounded-xl border">
       <h3 class="text-xl font-semibold">{{ t('admin.shared.accessRestricted') }}</h3>
       <p class="text-muted-foreground mt-2 max-w-sm">{{ t('admin.shared.noPermission', { action: t('admin.reports.noPermissionAction') }) }}</p>
     </div>
@@ -218,7 +214,7 @@ watch(isReady, (r) => { if (r) loadTab(); }, { immediate: true });
               </template>
             </TableBody>
           </Table>
-          <div v-if="dailySales.length > 0" class="flex justify-end gap-6 p-4 border-t text-sm font-semibold">
+          <div v-if="dailySales.length > 0" class="flex flex-wrap justify-end gap-x-6 gap-y-2 p-4 border-t text-sm font-semibold">
             <span>{{ t('admin.reports.totalSales') }}: {{ summaryTotals.total_sales }}</span>
             <span>{{ t('admin.reports.totalAmount') }}: {{ formatCurrency(summaryTotals.total_amount) }}</span>
           </div>
@@ -395,7 +391,7 @@ watch(isReady, (r) => { if (r) loadTab(); }, { immediate: true });
                 </template>
               </TableBody>
             </Table>
-            <div v-if="inventoryReports.length > 0" class="flex justify-end gap-6 p-4 border-t text-sm font-semibold">
+            <div v-if="inventoryReports.length > 0" class="flex flex-wrap justify-end gap-x-6 gap-y-2 p-4 border-t text-sm font-semibold">
               <span>{{ t('admin.reports.products') }}: {{ summaryTotals.total_products }}</span>
               <span>{{ t('admin.reports.totalStock') }}: {{ summaryTotals.total_stock }}</span>
               <span>{{ t('admin.reports.totalValue') }}: {{ formatCurrency(summaryTotals.total_value) }}</span>

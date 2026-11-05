@@ -31,7 +31,6 @@ const perPage = 20;
 const loading = ref(false);
 const saving = ref(false);
 
-// Create/edit dialog
 const dialogOpen = ref(false);
 const editing = ref<Table | null>(null);
 const form = ref({ code: '', name: '' });
@@ -152,12 +151,8 @@ onMounted(() => { void load(); });
 
 <template>
   <DashboardShell>
-    <div v-if="!isReady" class="flex items-center justify-center h-[60vh]">
-      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-    </div>
-
-    <div v-else class="flex flex-col gap-4">
-      <div class="flex items-center justify-between">
+    <div class="flex flex-col gap-4">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 class="text-2xl font-bold">{{ t('admin.tables.title') }}</h2>
           <p class="text-muted-foreground mt-1">{{ t('admin.tables.description') }}</p>

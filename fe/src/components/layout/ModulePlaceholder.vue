@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, type Component } from 'vue';
+import { Construction, LockKeyhole } from '@lucide/vue';
 import { useAuthStore } from '@/stores/auth';
 import { useUiStore } from '@/stores/ui';
 import { useLocaleStore } from '@/stores/locale';
@@ -9,7 +10,7 @@ import { can, type Permission } from '@/lib/rbac';
 interface Props {
   title: string;
   description?: string;
-  icon?: string;
+  icon?: Component;
   permission?: Permission;
   comingFrom?: string;
   hint?: string;
@@ -18,7 +19,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   description: '',
-  icon: '🚧',
+  icon: Construction,
   i18nKey: '',
 });
 
@@ -75,7 +76,7 @@ onMounted(() => {
       class="flex flex-col items-center justify-center py-24 text-center bg-card rounded-xl border"
     >
       <div class="flex items-center justify-center size-16 rounded-full bg-muted mb-4">
-        <span class="text-3xl">🔒</span>
+        <LockKeyhole class="h-8 w-8 text-muted-foreground" aria-hidden="true" />
       </div>
       <h3 class="text-xl font-semibold">{{ t('placeholder.accessRestricted') }}</h3>
       <p class="text-muted-foreground mt-2 max-w-sm">
@@ -89,7 +90,7 @@ onMounted(() => {
       class="flex flex-col items-center justify-center py-24 text-center bg-card rounded-xl border"
     >
       <div class="flex items-center justify-center size-16 rounded-full bg-muted mb-4">
-        <span class="text-3xl">{{ icon }}</span>
+        <component :is="icon" class="h-8 w-8 text-muted-foreground" aria-hidden="true" />
       </div>
       <h3 class="text-xl font-semibold">{{ t('placeholder.comingSoon', { title }) }}</h3>
       <p class="text-muted-foreground mt-2 max-w-md">{{ hint }}</p>

@@ -130,17 +130,13 @@ watch(isReady, (r) => {
 
 <template>
   <DashboardShell>
-  <div v-if="!isReady" class="flex items-center justify-center h-[60vh]">
-    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-  </div>
-
-  <div v-else-if="!allowed" class="flex flex-col items-center justify-center py-24 text-center bg-card rounded-xl border">
+  <div v-if="!allowed" class="flex flex-col items-center justify-center py-24 text-center bg-card rounded-xl border">
     <h3 class="text-xl font-semibold">{{ t('admin.shared.accessRestricted') }}</h3>
     <p class="text-muted-foreground mt-2 max-w-sm">{{ t('admin.shared.noPermission', { action: t('admin.sales.noPermissionAction') }) }}</p>
   </div>
 
   <div v-else class="flex flex-col gap-4">
-    <div class="flex items-start justify-between gap-4">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
       <div>
         <h2 class="text-2xl font-bold">{{ t('admin.sales.title') }}</h2>
         <p class="text-muted-foreground mt-1">{{ t('admin.sales.description') }}</p>
@@ -233,7 +229,7 @@ watch(isReady, (r) => {
         <div v-if="detailLoading" class="text-center py-10 text-muted-foreground">{{ t('admin.shared.loading') }}</div>
 
         <template v-else-if="detail">
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+          <div class="grid grid-cols-1 gap-3 text-sm min-[420px]:grid-cols-2 sm:grid-cols-4">
             <div>
               <div class="text-muted-foreground">{{ t('admin.sales.customer') }}</div>
               <div class="font-medium">{{ detail.sale.customer_name || '—' }}</div>

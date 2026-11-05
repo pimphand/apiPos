@@ -6,6 +6,7 @@ import { useLocaleStore } from '@/stores/locale';
 import { navigateTo } from '@/lib/navigation';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
+import { LogOut, Moon, Sun, UserRound } from '@lucide/vue';
 
 const authStore = useAuthStore();
 const uiStore = useUiStore();
@@ -25,18 +26,18 @@ function toggleDarkMode() {
 </script>
 
 <template>
-  <header class="h-16 border-b bg-card flex items-center gap-2 px-4">
+  <header class="flex min-h-16 items-center gap-1 border-b bg-card px-2 sm:gap-2 sm:px-4">
     <SidebarTrigger class="-ml-1" />
-    <Separator orientation="vertical" class="mr-2 h-4" />
+    <Separator orientation="vertical" class="mr-1 h-4 sm:mr-2" />
 
-    <div class="flex-1 flex items-center justify-between">
-      <h1 class="text-lg font-semibold">{{ t('topbar.appTitle') }}</h1>
+    <div class="flex min-w-0 flex-1 items-center justify-between gap-2">
+      <h1 class="min-w-0 truncate text-base font-semibold sm:text-lg">{{ t('topbar.appTitle') }}</h1>
 
-      <div class="flex items-center gap-2">
+      <div class="flex shrink-0 items-center gap-1 sm:gap-2">
         <!-- Language Toggle -->
         <button
           @click="localeStore.toggleLocale"
-          class="px-3 h-9 rounded-lg border text-sm font-medium hover:bg-muted transition-colors"
+          class="h-9 rounded-lg border px-2 text-xs font-medium hover:bg-muted transition-colors sm:px-3 sm:text-sm"
           :title="localeStore.locale === 'en' ? 'Bahasa Indonesia' : 'English'"
         >
           {{ localeStore.locale === 'en' ? 'ID' : 'EN' }}
@@ -45,11 +46,12 @@ function toggleDarkMode() {
         <!-- Dark Mode Toggle -->
         <button
           @click="toggleDarkMode"
-          class="p-2 rounded-lg hover:bg-muted transition-colors"
+          class="grid h-10 w-10 place-items-center rounded-lg hover:bg-muted transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           :title="t('topbar.toggleDark')"
+          :aria-label="t('topbar.toggleDark')"
         >
-          <span v-if="uiStore.isDarkMode">☀️</span>
-          <span v-else>🌙</span>
+          <Sun v-if="uiStore.isDarkMode" class="h-5 w-5" aria-hidden="true" />
+          <Moon v-else class="h-5 w-5" aria-hidden="true" />
         </button>
 
         <!-- User Menu -->
@@ -61,7 +63,7 @@ function toggleDarkMode() {
             <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium">
               {{ authStore.userName.charAt(0).toUpperCase() }}
             </div>
-            <span class="text-sm font-medium hidden sm:inline">{{ authStore.userName }}</span>
+            <span class="hidden max-w-36 truncate text-sm font-medium md:inline">{{ authStore.userName }}</span>
           </button>
 
           <div
@@ -78,14 +80,14 @@ function toggleDarkMode() {
                 href="/admin/profile"
                 class="flex items-center gap-2 px-2 py-1.5 text-sm rounded-lg hover:bg-muted transition-colors"
               >
-                <span>👤</span>
+                <UserRound class="h-4 w-4" aria-hidden="true" />
                 <span>{{ t('topbar.profile') }}</span>
               </a>
               <button
                 @click="handleLogout"
                 class="w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-lg hover:bg-muted transition-colors text-destructive"
               >
-                <span>🚪</span>
+                <LogOut class="h-4 w-4" aria-hidden="true" />
                 <span>{{ t('topbar.logout') }}</span>
               </button>
             </div>

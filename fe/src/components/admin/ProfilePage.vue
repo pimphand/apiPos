@@ -16,11 +16,7 @@ const t = useLocaleStore().t;
 
 <template>
   <DashboardShell>
-    <div v-if="!isReady" class="flex items-center justify-center h-[60vh]">
-      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-    </div>
-
-    <div v-else class="flex flex-col gap-6 max-w-2xl">
+    <div class="flex flex-col gap-6 max-w-2xl">
       <div>
         <h2 class="text-2xl font-bold">{{ t('admin.profile.title') }}</h2>
         <p class="text-muted-foreground mt-1">{{ t('admin.profile.description') }}</p>

@@ -137,10 +137,10 @@ export const inventoryService = {
     type?: string;
     page?: number;
     per_page?: number;
-  }): Promise<ListTransactionsResponse> {
+  }, signal?: AbortSignal): Promise<ListTransactionsResponse> {
     const response = await http.get<Record<string, unknown>>(
       '/v1/inventory/transactions',
-      { params }
+      { params, signal }
     );
     return normalizeTransactionList(response.data);
   },
@@ -187,10 +187,10 @@ export const inventoryService = {
     store_id?: string;
     page?: number;
     per_page?: number;
-  }): Promise<LowStockResponse> {
+  }, signal?: AbortSignal): Promise<LowStockResponse> {
     const response = await http.get<Record<string, unknown>>(
       '/v1/inventory/low-stock',
-      { params }
+      { params, signal }
     );
     return normalizeLowStock(response.data);
   },

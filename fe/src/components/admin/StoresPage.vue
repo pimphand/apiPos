@@ -35,7 +35,7 @@ const detailOpen = ref(false);
 const selected = ref<Store | null>(null);
 const actionBusy = ref(false);
 
-const isSuperadmin = computed(() => (authStore.currentUser as any)?.role_name === 'superadmin');
+const isSuperadmin = computed(() => authStore.currentUser?.role_name === 'superadmin');
 const allowed = computed(() => isSuperadmin.value);
 const canVerify = computed(() => isSuperadmin.value);
 
@@ -92,17 +92,13 @@ watch(isReady, (r) => { if (r) load(); }, { immediate: true });
 
 <template>
   <DashboardShell>
-  <div v-if="!isReady" class="flex items-center justify-center h-[60vh]">
-    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-  </div>
-
-  <div v-else-if="!allowed" class="flex flex-col items-center justify-center py-24 text-center bg-card rounded-xl border">
+  <div v-if="!allowed" class="flex flex-col items-center justify-center py-24 text-center bg-card rounded-xl border">
     <h3 class="text-xl font-semibold">{{ t('admin.shared.accessRestricted') }}</h3>
     <p class="text-muted-foreground mt-2 max-w-sm">{{ t('admin.shared.noPermission', { action: t('admin.stores.noPermissionAction') }) }}</p>
   </div>
 
   <div v-else class="flex flex-col gap-4">
-    <div class="flex items-start justify-between gap-4">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
       <div>
         <h2 class="text-2xl font-bold">{{ t('admin.stores.title') }}</h2>
         <p class="text-muted-foreground mt-1">{{ t('admin.stores.description') }}</p>
@@ -214,7 +210,7 @@ watch(isReady, (r) => { if (r) load(); }, { immediate: true });
           <DialogDescription v-if="selected">{{ selected.name }}</DialogDescription>
         </DialogHeader>
         <div v-if="selected" class="grid gap-3 text-sm">
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <div class="text-muted-foreground">{{ t('admin.stores.name') }}</div>
               <div class="font-medium">{{ selected.name }}</div>
@@ -228,7 +224,7 @@ watch(isReady, (r) => { if (r) load(); }, { immediate: true });
             <div class="text-muted-foreground">{{ t('admin.stores.address') }}</div>
             <div class="font-medium">{{ selected.address || '—' }}</div>
           </div>
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <div class="text-muted-foreground">{{ t('admin.stores.verified') }}</div>
               <Badge :variant="selected.is_verified === 'true' ? 'default' : 'secondary'">
@@ -242,7 +238,7 @@ watch(isReady, (r) => { if (r) load(); }, { immediate: true });
               </Badge>
             </div>
           </div>
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <div class="text-muted-foreground">{{ t('admin.stores.createdAt') }}</div>
               <div class="font-medium">{{ formatDateTime(selected.created_at) }}</div>

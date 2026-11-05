@@ -41,7 +41,6 @@ const summarySaleId = ref('');
 const summary = ref<PaymentSummary | null>(null);
 const summaryLoading = ref(false);
 
-// Delete state
 const deleteTarget = ref<Payment | null>(null);
 const deleting = ref(false);
 
@@ -120,11 +119,7 @@ watch(isReady, (r) => { if (r) load(); }, { immediate: true });
 
 <template>
   <DashboardShell>
-    <div v-if="!isReady" class="flex items-center justify-center h-[60vh]">
-      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-    </div>
-
-    <div v-else-if="!allowed" class="flex flex-col items-center justify-center py-24 text-center bg-card rounded-xl border">
+    <div v-if="!allowed" class="flex flex-col items-center justify-center py-24 text-center bg-card rounded-xl border">
       <h3 class="text-xl font-semibold">{{ t('admin.shared.accessRestricted') }}</h3>
       <p class="text-muted-foreground mt-2 max-w-sm">{{ t('admin.shared.noPermission', { action: t('admin.payments.noPermissionAction') }) }}</p>
     </div>
@@ -226,7 +221,7 @@ watch(isReady, (r) => { if (r) load(); }, { immediate: true });
           </DialogHeader>
           <div v-if="summaryLoading" class="text-center py-8 text-muted-foreground">{{ t('admin.shared.loading') }}</div>
           <template v-else-if="summary">
-            <div class="grid grid-cols-2 gap-4 text-sm">
+            <div class="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
               <div>
                 <div class="text-muted-foreground">{{ t('admin.payments.grandTotal') }}</div>
                 <div class="font-medium text-lg">{{ formatCurrency(summary.grand_total) }}</div>

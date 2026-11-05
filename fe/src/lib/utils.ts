@@ -92,7 +92,6 @@ export function truncate(text: string, length: number): string {
   return text.slice(0, length) + '...';
 }
 
-// Get initials from name
 export function getInitials(name: string): string {
   return name
     .split(' ')

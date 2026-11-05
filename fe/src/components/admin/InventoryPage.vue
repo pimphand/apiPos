@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { reactive, ref, watch, onMounted, onUnmounted } from 'vue';
+import axios from 'axios';
 import { inventoryService, type LowStockProduct } from '@/services/inventory';
 import { productService } from '@/services/product';
 import { useUiStore } from '@/stores/ui';
@@ -100,7 +101,13 @@ function signedQty(t: InventoryTransaction): string {
   return `${sign}${t.quantity}`;
 }
 
+let transactionsController: AbortController | null = null;
+let lowStockController: AbortController | null = null;
+
 async function load() {
+  transactionsController?.abort();
+  const controller = new AbortController();
+  transactionsController = controller;
   loading.value = true;
   try {
     const type = typeFilter.value !== 'all' && typeFilter.value ? typeFilter.value : undefined;
@@ -108,13 +115,20 @@ async function load() {
       type,
       page: page.value,
       per_page: perPage,
-    });
-    transactions.value = res.transactions ?? [];
-    total.value = res.total_count ?? 0;
+    }, controller.signal);
+    if (!controller.signal.aborted) {
+      transactions.value = res.transactions ?? [];
+      total.value = res.total_count ?? 0;
+    }
   } catch (err) {
-    ui.addToast('error', apiMessage(err));
+    if (!controller.signal.aborted && !axios.isCancel(err)) {
+      ui.addToast('error', apiMessage(err));
+    }
   } finally {
-    loading.value = false;
+    if (transactionsController === controller) {
+      transactionsController = null;
+      loading.value = false;
+    }
   }
 }
 
@@ -124,14 +138,27 @@ function applyFilter() {
 }
 
 async function loadLowStock() {
+  lowStockController?.abort();
+  const controller = new AbortController();
+  lowStockController = controller;
   lowStockLoading.value = true;
   try {
-    const res = await inventoryService.getLowStockAlert({ page: 1, per_page: 10 });
-    lowStock.value = res.products ?? [];
+    const res = await inventoryService.getLowStockAlert(
+      { page: 1, per_page: 10 },
+      controller.signal,
+    );
+    if (!controller.signal.aborted) {
+      lowStock.value = res.products ?? [];
+    }
   } catch {
-    lowStock.value = [];
+    if (!controller.signal.aborted) {
+      lowStock.value = [];
+    }
   } finally {
-    lowStockLoading.value = false;
+    if (lowStockController === controller) {
+      lowStockController = null;
+      lowStockLoading.value = false;
+    }
   }
 }
 
@@ -221,6 +248,8 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  transactionsController?.abort();
+  lowStockController?.abort();
   for (const unsub of realtimeUnsubs) unsub();
   realtimeUnsubs.length = 0;
 });
@@ -228,17 +257,13 @@ onUnmounted(() => {
 
 <template>
   <DashboardShell>
-  <div v-if="!isReady" class="flex items-center justify-center h-[60vh]">
-    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-  </div>
-
-  <div v-else-if="!allowed" class="flex flex-col items-center justify-center py-24 text-center bg-card rounded-xl border">
+  <div v-if="!allowed" class="flex flex-col items-center justify-center py-24 text-center bg-card rounded-xl border">
     <h3 class="text-xl font-semibold">{{ t('admin.shared.accessRestricted') }}</h3>
     <p class="text-muted-foreground mt-2 max-w-sm">{{ t('admin.shared.noPermission', { action: t('admin.inventory.noPermissionAction') }) }}</p>
   </div>
 
   <div v-else class="flex flex-col gap-4">
-    <div class="flex items-start justify-between gap-4">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
       <div>
         <h2 class="text-2xl font-bold">{{ t('admin.inventory.title') }}</h2>
         <p class="text-muted-foreground mt-1">{{ t('admin.inventory.description') }}</p>

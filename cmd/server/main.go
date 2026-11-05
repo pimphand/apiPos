@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -20,7 +21,7 @@ func main() {
 	// Initialize GORM database
 	db := gormdb.New(&gormdb.Config{
 		Host:     cfg.DB.Host,
-		Port:     os.Getenv("DATABASE_PORT"),
+		Port:     fmt.Sprintf("%d", cfg.DB.Port),
 		User:     cfg.DB.User,
 		Password: cfg.DB.Password,
 		DBName:   cfg.DB.Name,

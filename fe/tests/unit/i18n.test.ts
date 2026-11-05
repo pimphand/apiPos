@@ -26,8 +26,8 @@ describe('i18n messages', () => {
   });
 
   it('supports parameter interpolation', () => {
-    expect(translate('en', 'dashboard.welcome', { name: 'Budi' })).toBe('Welcome back, Budi! 👋');
-    expect(translate('id', 'dashboard.welcome', { name: 'Budi' })).toBe('Selamat Datang kembali, Budi! 👋');
+    expect(translate('en', 'dashboard.welcome', { name: 'Budi' })).toBe('Welcome back, Budi!');
+    expect(translate('id', 'dashboard.welcome', { name: 'Budi' })).toBe('Selamat Datang kembali, Budi!');
     expect(translate('en', 'placeholder.comingSoon', { title: 'Sales' })).toBe('Sales coming soon');
   });
 

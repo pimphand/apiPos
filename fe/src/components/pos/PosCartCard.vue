@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useLocaleStore } from '@/stores/locale';
 import { formatCurrency } from '@/lib/utils';
-import type { HeldOrder, HeldOrderItem } from '@/types';
+import type { HeldOrder, HeldOrderItem, Product, ProductSKU } from '@/types';
 
 interface CartItem {
   product_id: string;
@@ -33,7 +33,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  addToCart: [product: any, sku?: any];
+  addToCart: [product: Product, sku: ProductSKU];
   updateQty: [item: CartItem, delta: number];
   removeItem: [item: CartItem];
   clearCart: [];
@@ -49,20 +49,20 @@ const t = useLocaleStore().t;
 
 <template>
   <Card class="flex-1 flex flex-col">
-    <CardHeader class="flex flex-row items-center justify-between gap-2 pb-2">
+    <CardHeader class="flex flex-col items-start justify-between gap-2 pb-2 sm:flex-row sm:items-center">
       <CardTitle class="text-lg">{{ t('admin.pos.cart') }}</CardTitle>
-      <div class="flex gap-1.5">
+      <div class="flex w-full gap-1.5 sm:w-auto">
         <Button
           variant="outline"
           size="sm"
-          class="h-8 px-2.5"
+          class="h-9 flex-1 px-2.5 text-xs sm:h-8 sm:flex-none sm:text-sm"
           :disabled="cart.length === 0"
           @click="emit('holdCart')"
         >{{ t('admin.pos.holdCart') }}</Button>
         <Button
           variant="outline"
           size="sm"
-          class="h-8 px-2.5"
+          class="h-9 flex-1 px-2.5 text-xs sm:h-8 sm:flex-none sm:text-sm"
           :disabled="cart.length === 0"
           @click="emit('clearCart')"
         >{{ t('admin.pos.clearCart') }}</Button>

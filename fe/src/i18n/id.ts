@@ -214,6 +214,17 @@ export default {
   },
   // Auth
   auth: {
+    panel: {
+      eyebrow: 'KASIR DIGITAL',
+      headline: 'Kelola toko dari satu tempat.',
+      description: 'Penjualan, stok, dan operasional harian tersusun dalam satu ruang kerja.',
+      loginNote: 'Masuk untuk melanjutkan ke ruang kerja toko Anda.',
+      registerNote: 'Buat ruang kerja toko dan tambahkan tim saat bisnis berkembang.',
+      accessLabel: 'OPERASIONAL TOKO',
+      salesLabel: 'Penjualan',
+      inventoryLabel: 'Persediaan',
+      reportsLabel: 'Laporan',
+    },
     login: {
       welcome: 'Selamat Datang Kembali',
       subtitle: 'Masuk ke akun Anda',
@@ -256,7 +267,7 @@ export default {
   },
   // Dashboard
   dashboard: {
-    welcome: 'Selamat Datang kembali, {name}! 👋',
+    welcome: 'Selamat Datang kembali, {name}!',
     subtitle: 'Inilah yang terjadi di toko Anda hari ini.',
     totalSales: 'Total Penjualan',
     products: 'Produk',

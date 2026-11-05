@@ -26,7 +26,7 @@ const ui = useUiStore();
 const t = useLocaleStore().t;
 
 const allowed = computed(() => {
-  const role = (authStore.currentUser as any)?.role_name;
+  const role = authStore.currentUser?.role_name;
   return role === 'admin' || role === 'manager';
 });
 
@@ -150,13 +150,13 @@ const previewData = computed<ReceiptData>(() => {
   const subtotal = 65000;
   const tax = Math.round(subtotal * (taxPct.value / 100));
   const total = subtotal + tax;
-  const storeAny = authStore.currentUser as any;
+  const currentUser = authStore.currentUser as any;
   return {
     // Prefer the store info edited on this page so the preview shows exactly
     // what will print; fall back to the session user, then placeholders.
-    store_name: storeInfo.value.name || storeAny?.store_name || storeAny?.store?.name || t('sidebar.appName'),
-    store_address: storeInfo.value.address || storeAny?.store?.address || '',
-    store_phone: storeInfo.value.phone || storeAny?.store?.phone || '',
+    store_name: storeInfo.value.name || currentUser?.store_name || currentUser?.store?.name || t('sidebar.appName'),
+    store_address: storeInfo.value.address || currentUser?.store?.address || '',
+    store_phone: storeInfo.value.phone || currentUser?.store?.phone || '',
     invoice_number: 'INV-DEMO-0001',
     created_at: new Date().toISOString().slice(0, 16).replace('T', ' '),
     cashier_name: authStore.userName || 'Kasir',
@@ -181,11 +181,7 @@ watch(isReady, (r) => { if (r) void load(); }, { immediate: true });
 
 <template>
   <DashboardShell>
-    <div v-if="!isReady" class="flex items-center justify-center h-[60vh]">
-      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-    </div>
-
-    <div v-else-if="!allowed" class="flex flex-col items-center justify-center py-24 text-center bg-card rounded-xl border">
+    <div v-if="!allowed" class="flex flex-col items-center justify-center py-24 text-center bg-card rounded-xl border">
       <h3 class="text-xl font-semibold">{{ t('admin.shared.accessRestricted') }}</h3>
       <p class="text-muted-foreground mt-2 max-w-sm">{{ t('admin.shared.noPermission', { action: t('admin.settings.accessRestrictedAction') }) }}</p>
     </div>

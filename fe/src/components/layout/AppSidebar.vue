@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, type Component } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useLocaleStore } from '@/stores/locale';
 import { can, type Permission } from '@/lib/rbac';
@@ -52,12 +52,12 @@ const t = localeStore.t;
 interface SubMenuItem {
   label: string;
   href: string;
-  icon?: any;
+  icon?: Component;
 }
 
 interface MenuItem {
   label: string;
-  icon: any;
+  icon: Component;
   href?: string;
   permission?: Permission;
   /** Only visible to the system-wide superadmin role (e.g. Store management). */
@@ -117,10 +117,10 @@ const menuGroups = computed(() => {
     ...group,
     items: group.items.filter(item => {
       if (item.superadminOnly) {
-        return (authStore.currentUser as any)?.role_name === 'superadmin';
+        return authStore.currentUser?.role_name === 'superadmin';
       }
       if (item.adminOrManagerOnly) {
-        const role = (authStore.currentUser as any)?.role_name;
+        const role = authStore.currentUser?.role_name;
         return role === 'admin' || role === 'manager';
       }
       if (!item.permission) return true;
@@ -180,7 +180,7 @@ function isActive(href: string): boolean {
             </div>
             <div class="grid flex-1 text-left text-sm leading-tight">
               <span class="truncate font-semibold">{{ authStore.userName }}</span>
-              <span class="truncate text-xs">{{ (authStore.currentUser as any)?.role_name || 'User' }}</span>
+              <span class="truncate text-xs">{{ authStore.currentUser?.role_name || 'User' }}</span>
             </div>
           </SidebarMenuButton>
         </SidebarMenuItem>

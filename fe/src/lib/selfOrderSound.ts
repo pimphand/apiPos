@@ -67,7 +67,6 @@ export function playSelfOrderSound(): void {
   if (!isSelfOrderSoundEnabled() || !unlocked) return;
   const ctx = ensureCtx();
   if (!ctx || ctx.state !== 'running') return;
-  const t = ctx.currentTime;
   // Ascending triple beep: E5 → G5 → A5.
   beep(ctx, 659.25, 0, 0.18);
   beep(ctx, 783.99, 0.22, 0.18);

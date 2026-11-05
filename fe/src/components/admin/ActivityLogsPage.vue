@@ -21,7 +21,7 @@ import { Card, CardContent } from '@/components/ui/card';
 const { isReady, allowed, authStore } = usePageGuard('activity_logs.read');
 // The store column is only meaningful for system-wide (superadmin) views;
 // tenant users only ever see their own store's logs, so the column is hidden.
-const showStoreColumn = computed(() => (authStore.currentUser as any)?.role_name === 'superadmin');
+const showStoreColumn = computed(() => authStore.currentUser?.role_name === 'superadmin');
 const ui = useUiStore();
 const t = useLocaleStore().t;
 
@@ -103,11 +103,7 @@ watch(isReady, (r) => { if (r) load(); }, { immediate: true });
 
 <template>
   <DashboardShell>
-  <div v-if="!isReady" class="flex items-center justify-center h-[60vh]">
-    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-  </div>
-
-  <div v-else-if="!allowed" class="flex flex-col items-center justify-center py-24 text-center bg-card rounded-xl border">
+  <div v-if="!allowed" class="flex flex-col items-center justify-center py-24 text-center bg-card rounded-xl border">
     <h3 class="text-xl font-semibold">{{ t('admin.shared.accessRestricted') }}</h3>
     <p class="text-muted-foreground mt-2 max-w-sm">{{ t('admin.shared.noPermission', { action: t('admin.activityLogs.noPermissionAction') }) }}</p>
   </div>

@@ -211,6 +211,17 @@ export default {
   },
   // Auth
   auth: {
+    panel: {
+      eyebrow: 'POINT OF SALE',
+      headline: 'Run your store from one place.',
+      description: 'Sales, stock, and daily operations stay organized in one workspace.',
+      loginNote: 'Sign in to continue to your store workspace.',
+      registerNote: 'Create your store workspace and invite your team as you grow.',
+      accessLabel: 'STORE OPERATIONS',
+      salesLabel: 'Sales',
+      inventoryLabel: 'Inventory',
+      reportsLabel: 'Reports',
+    },
     login: {
       welcome: 'Welcome Back',
       subtitle: 'Sign in to your account',
@@ -253,7 +264,7 @@ export default {
   },
   // Dashboard
   dashboard: {
-    welcome: 'Welcome back, {name}! 👋',
+    welcome: 'Welcome back, {name}!',
     subtitle: "Here's what's happening with your store today.",
     totalSales: 'Total Sales',
     products: 'Products',
