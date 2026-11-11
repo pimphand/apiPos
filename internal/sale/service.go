@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
+	"apiPos/internal/accounting"
 	"apiPos/internal/apperror"
 	gormdb "apiPos/internal/database/gorm"
 	"apiPos/internal/realtime"
@@ -35,12 +36,13 @@ const (
 
 // Service handles sale business logic
 type Service struct {
-	repos *repository.Repositories
+	repos    *repository.Repositories
+	posting  *accounting.PostingService
 }
 
 // NewService creates a new sale Service
 func NewService(repos *repository.Repositories) *Service {
-	return &Service{repos: repos}
+	return &Service{repos: repos, posting: accounting.NewPostingService(repos.DB())}
 }
 
 // CreateSaleRequest represents the request to create a sale
@@ -349,6 +351,13 @@ func (s *Service) CreateSale(ctx context.Context, req CreateSaleRequest) (*SaleD
 			}
 		}
 
+		// Accounting: post journal for PAID sales (idempotent, passive).
+		if sale.Status == StatusPaid {
+			if _, err := s.posting.PostSale(ctx, tx, sale, saleItems, []gormdb.Payment{payment}); err != nil {
+				return err
+			}
+		}
+
 		// Calculate change
 		change := req.AmountPaid - grandTotal
 		if change < 0 {
@@ -509,6 +518,13 @@ func (s *Service) CancelSale(ctx context.Context, id, actorID string) error {
 			return err
 		}
 
+		// Accounting: reverse the SALE journal (idempotent).
+		if sale.Status == StatusPaid {
+			if err := s.reverseSaleJournal(ctx, tx, sale); err != nil {
+				return err
+			}
+		}
+
 		// Update sale status (column-only: Save() would re-write customer_id,
 		// which is the zero UUID for walk-in sales and would violate the FK).
 		sale.Status = StatusCancelled
@@ -578,6 +594,13 @@ func (s *Service) RefundSale(ctx context.Context, id, actorID string) error {
 				Where("id = ? AND status = ?", shift.ID, "OPEN").
 				Update("cash_refund", gorm.Expr("cash_refund + ?", sale.GrandTotal)).Error; err != nil {
 				return apperror.Wrap(apperror.ErrInternal, "Failed to record cash refund", err)
+			}
+		}
+
+		// Accounting: reverse the SALE journal (idempotent).
+		if sale.Status == StatusPaid {
+			if err := s.reverseSaleJournal(ctx, tx, sale); err != nil {
+				return err
 			}
 		}
 
@@ -728,6 +751,21 @@ func (s *Service) restoreSaleIntoShift(ctx context.Context, tx *gorm.DB, sale *g
 	}
 
 	return shift, nil
+}
+
+// reverseSaleJournal mirrors the PAID sale's journal (idempotent).
+// If the SALE journal does not exist (pre-accounting data or PENDING sale),
+// this is a no-op.
+func (s *Service) reverseSaleJournal(ctx context.Context, tx *gorm.DB, sale *gormdb.Sale) error {
+	var orig gormdb.JournalEntry
+	err := tx.WithContext(ctx).Where("store_id = ? AND source_type = ? AND source_id = ? AND status = ?",
+		sale.StoreID, accounting.SourceTypeSale, sale.ID, accounting.JournalStatusPosted).First(&orig).Error
+	if err != nil {
+		// No journal to reverse (e.g. PENDING sale or pre-accounting data) — skip.
+		return nil
+	}
+	_, err = s.posting.PostReversal(ctx, tx, &orig, "sale "+sale.InvoiceNumber+" cancelled/refunded", time.Now())
+	return err
 }
 
 // effectiveActor falls back to the sale's cashier when no actor is supplied.

@@ -44,9 +44,6 @@ function selectTakeAway() {
           v-if="dineInActive"
           class="absolute inset-y-0 right-0 flex items-center pr-1"
         >
-          <svg class="h-4 w-4 text-primary-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4">
-            <path d="M9 12l2 2 4-4" />
-          </svg>
         </span>
       </button>
       <button
@@ -64,9 +61,6 @@ function selectTakeAway() {
           v-if="takeAwayActive"
           class="absolute inset-y-0 right-0 flex items-center pr-1"
         >
-          <svg class="h-4 w-4 text-primary-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4">
-            <path d="M9 12l2 2 4-4" />
-          </svg>
         </span>
       </button>
     </div>

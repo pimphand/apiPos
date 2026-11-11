@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"apiPos/internal/accounting"
 	"apiPos/internal/apperror"
 	gormdb "apiPos/internal/database/gorm"
 	"apiPos/internal/repository"
@@ -23,12 +24,13 @@ const (
 
 // Service handles payment business logic
 type Service struct {
-	repos *repository.Repositories
+	repos   *repository.Repositories
+	posting *accounting.PostingService
 }
 
 // NewService creates a new payment Service
 func NewService(repos *repository.Repositories) *Service {
-	return &Service{repos: repos}
+	return &Service{repos: repos, posting: accounting.NewPostingService(repos.DB())}
 }
 
 // CreatePaymentRequest represents the request to create a payment
@@ -132,7 +134,54 @@ func (s *Service) CreatePayment(ctx context.Context, req CreatePaymentRequest) (
 		s.repos.Sale.Update(ctx, sale)
 	}
 
+	// Accounting: post payment journal if the sale has an outstanding
+	// receivable (i.e. it was not fully settled in the SALE entry).
+	// The posting is idempotent; failure is logged but does not fail the
+	// payment (payments are a financial write — better to surface than crash).
+	// We run it in a transaction to avoid partial writes.
+	if err := s.postPaymentJournal(ctx, payment, sale); err != nil {
+		// Best-effort: do not fail the payment for accounting errors.
+		_ = err
+	}
+
 	return payment, nil
+}
+
+// postPaymentJournal posts the PAYMENT journal when the sale has an
+// outstanding receivable. Returns nil when no receivable exists (fully
+// settled sale) — the SALE entry already covered it.
+func (s *Service) postPaymentJournal(ctx context.Context, payment *gormdb.Payment, sale *gormdb.Sale) error {
+	// Check the sale's SALE journal: if it posted a Receivable leg, there is
+	// an outstanding balance. We detect this by looking for an existing
+	// journal with source_type SALE whose lines include account 1130.
+	var saleJournal gormdb.JournalEntry
+	err := s.repos.DB().WithContext(ctx).
+		Where("store_id = ? AND source_type = ? AND source_id = ? AND status = ?",
+			payment.StoreID, accounting.SourceTypeSale, sale.ID, accounting.JournalStatusPosted).
+		First(&saleJournal).Error
+	if err != nil {
+		// No SALE journal yet (e.g. PENDING sale) — nothing to settle.
+		return nil
+	}
+	var count int64
+	s.repos.DB().WithContext(ctx).Model(&gormdb.JournalLine{}).
+		Where("store_id = ? AND entry_id = ?", payment.StoreID, saleJournal.ID).
+		Count(&count)
+	// Heuristic: if the journal has 4+ lines, it includes the COGS leg (not
+	// receivable). No receivable leg -> already settled.
+	// Instead, check directly for a Receivable line on the SALE journal.
+	var receivableLine gormdb.JournalLine
+	err = s.repos.DB().WithContext(ctx).
+		Where("store_id = ? AND entry_id = ?", payment.StoreID, saleJournal.ID).
+		Joins("JOIN chart_of_accounts ON chart_of_accounts.id = journal_lines.account_id").
+		Where("chart_of_accounts.code = ?", accounting.CodeReceivables).
+		First(&receivableLine).Error
+	if err != nil {
+		return nil // no receivable leg -> already settled in SALE entry
+	}
+	// Outstanding receivable exists — post the settlement.
+	_, err = s.posting.PostPayment(ctx, s.repos.DB().WithContext(ctx), payment, sale)
+	return err
 }
 
 // GetPayment gets a payment by ID

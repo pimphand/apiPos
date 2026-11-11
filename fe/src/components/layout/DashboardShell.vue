@@ -28,15 +28,21 @@ onMounted(async () => {
 </script>
 
 <template>
-  <SidebarProvider>
+  <!-- SidebarProvider OUTERMOST so AppTopbar's SidebarTrigger (useSidebar
+       injection) has a provider. -->
+  <SidebarProvider v-if="isReady" class="block lg:flex lg:flex-row">
     <AppSidebar />
-    <SidebarInset>
+    <SidebarInset class="min-w-0 min-h-0 min-h-svh lg:min-h-0">
       <AppTopbar />
-      <main class="min-w-0 flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6">
+      <main class="min-w-0 flex-1 p-3 pb-20 sm:p-4 md:pb-8 lg:p-6 lg:h-svh lg:overflow-y-auto lg:overscroll-contain">
         <slot />
       </main>
     </SidebarInset>
   </SidebarProvider>
+
+  <div v-else class="flex items-center justify-center min-h-dvh">
+    <div class="h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
+  </div>
 
 
   <!-- Toaster lives in the same Vue island as the page components that push

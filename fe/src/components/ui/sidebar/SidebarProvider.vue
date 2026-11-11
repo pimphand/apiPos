@@ -67,13 +67,20 @@ provideSidebarContext({
 
 <template>
   <TooltipProvider :delay-duration="0">
+    <!-- On mobile (≤1023px) the sidebar renders as a fixed Sheet, so the
+         wrapper must NOT be a fixed-height flex container — otherwise the
+         page is locked and cannot scroll. Desktop keeps the app-shell. -->
     <div
       data-slot="sidebar-wrapper"
       :style="{
         '--sidebar-width': SIDEBAR_WIDTH,
         '--sidebar-width-icon': SIDEBAR_WIDTH_ICON,
       }"
-      :class="cn('group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex min-h-svh w-full', props.class)"
+      :class="cn(
+        'group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex w-full min-h-0 flex-1',
+        'lg:min-h-svh lg:flex-none',
+        props.class,
+      )"
       v-bind="$attrs"
     >
       <slot />

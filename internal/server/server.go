@@ -19,6 +19,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 
 	activitylogv1 "apiPos/gen/activitylog/v1"
+	accountingv1 "apiPos/gen/accounting/v1"
 	authv1 "apiPos/gen/auth/v1"
 	cashierpb "apiPos/gen/cashier/v1"
 	categoryv1 "apiPos/gen/category/v1"
@@ -36,6 +37,9 @@ import (
 	storev1 "apiPos/gen/store/v1"
 	tablev1 "apiPos/gen/table/v1"
 	userv1 "apiPos/gen/user/v1"
+	"apiPos/internal/accounting"
+	accountexport "apiPos/internal/accounting/export"
+	accountringreport "apiPos/internal/accounting/report"
 	"apiPos/internal/activitylog"
 	"apiPos/internal/auth"
 	"apiPos/internal/cashier"
@@ -79,6 +83,10 @@ type Server struct {
 	paymentService     *payment.Service
 	cashierService     *cashier.Service
 	reportService      *report.Service
+	accountingReport   *accountringreport.Service
+	accountingAdmin    *accounting.AdminService
+	accountingExport   *accountexport.Service
+	accountingPosting  *accounting.PostingService
 	roleService        *role.Service
 	permissionService  *permission.Service
 	activityLogService *activitylog.Service
@@ -103,6 +111,10 @@ func New(cfg *config.Config, db *gormdb.DB) *Server {
 	paymentService := payment.NewService(repos)
 	cashierService := cashier.NewService(repos)
 	reportService := report.NewService(repos)
+	accountingReport := accountringreport.NewService(repos)
+	accountingAdmin := accounting.NewAdminService(repos)
+	accountingExport := accountexport.NewService(accountingReport)
+	accountingPosting := accounting.NewPostingService(repos.DB())
 	roleService := role.NewService(repos)
 	permissionService := permission.NewService(repos)
 	activityLogService := activitylog.NewService(repos)
@@ -126,6 +138,10 @@ func New(cfg *config.Config, db *gormdb.DB) *Server {
 		paymentService:     paymentService,
 		cashierService:     cashierService,
 		reportService:      reportService,
+		accountingReport:   accountingReport,
+		accountingAdmin:    accountingAdmin,
+		accountingExport:   accountingExport,
+		accountingPosting:  accountingPosting,
 		roleService:        roleService,
 		permissionService:  permissionService,
 		activityLogService: activityLogService,
@@ -320,6 +336,11 @@ func (s *Server) startHTTP() error {
 		return fmt.Errorf("failed to register table gateway: %w", err)
 	}
 
+	// Register AccountingService
+	if err := accountingv1.RegisterAccountingServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", s.config.GRPC.Port), opts); err != nil {
+		return fmt.Errorf("failed to register accounting gateway: %w", err)
+	}
+
 	importHandler := handler.NewProductImportHandler(s.productService, s.categoryService, s.repositories, s.authService, s.config)
 
 	httpMux := http.NewServeMux()
@@ -395,6 +416,7 @@ func (s *Server) registerServices() {
 	healthServer.SetServingStatus("payment.v1.PaymentService", healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus("cashier.v1.CashierService", healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus("report.v1.ReportService", healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus("accounting.v1.AccountingService", healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus("role.v1.RoleService", healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus("permission.v1.PermissionService", healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus("activitylog.v1.ActivityLogService", healthpb.HealthCheckResponse_SERVING)
@@ -458,6 +480,9 @@ func (s *Server) registerServices() {
 
 	tableHandler := handler.NewTableHandler(s.tableService, logs)
 	tablev1.RegisterTableServiceServer(s.grpcServer, tableHandler)
+
+	accountingHandler := handler.NewAccountingHandler(s.accountingReport, s.accountingAdmin, s.accountingExport, s.accountingPosting, s.repositories)
+	accountingv1.RegisterAccountingServiceServer(s.grpcServer, accountingHandler)
 
 	log.Println("All services registered")
 }
@@ -562,6 +587,29 @@ func endpointPermissions() map[string]string {
 		"/report.v1.ReportService/GetPaymentMethodSummary": "reports.read",
 		"/report.v1.ReportService/GetInventorySummary":     "reports.read",
 		"/report.v1.ReportService/GetLowStockProducts":     "reports.read",
+
+		// ── Accounting ────────────────────────────────────────────
+		"/accounting.v1.AccountingService/ListAccounts":         "accounting.read",
+		"/accounting.v1.AccountingService/GetAccount":           "accounting.read",
+		"/accounting.v1.AccountingService/CreateAccount":      "accounting.post",
+		"/accounting.v1.AccountingService/UpdateAccount":       "accounting.post",
+		"/accounting.v1.AccountingService/ListJournals":         "accounting.read",
+		"/accounting.v1.AccountingService/GetJournal":           "accounting.read",
+		"/accounting.v1.AccountingService/CreateManualJournal": "accounting.post",
+		"/accounting.v1.AccountingService/PostJournal":         "accounting.post",
+		"/accounting.v1.AccountingService/ReverseJournal":      "accounting.post",
+		"/accounting.v1.AccountingService/ListPeriods":         "accounting.read",
+		"/accounting.v1.AccountingService/CreatePeriod":       "accounting.close",
+		"/accounting.v1.AccountingService/ClosePeriod":         "accounting.close",
+		"/accounting.v1.AccountingService/GetTrialBalance":     "accounting.read",
+		"/accounting.v1.AccountingService/GetGeneralLedger":    "accounting.read",
+		"/accounting.v1.AccountingService/GetGeneralJournal":   "accounting.read",
+		"/accounting.v1.AccountingService/GetIncomeStatement":  "accounting.read",
+		"/accounting.v1.AccountingService/GetBalanceSheet":     "accounting.read",
+		"/accounting.v1.AccountingService/GetChangesInEquity":  "accounting.read",
+		"/accounting.v1.AccountingService/GetCashFlow":         "accounting.read",
+		"/accounting.v1.AccountingService/ValidateBooks":       "accounting.read",
+		"/accounting.v1.AccountingService/ExportStatement":     "accounting.read",
 
 		// ── Role management ──────────────────────────────────────
 		// NOTE: GetRole, ListRoles, GetRolePermissions are intentionally NOT

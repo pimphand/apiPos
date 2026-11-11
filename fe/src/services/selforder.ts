@@ -4,6 +4,7 @@
  * Uses a bare axios instance so the auth token interceptor is never involved.
  */
 import axios from 'axios';
+import { API_BASE_URL } from '@/lib/apiBase';
 import type {
   PublicTableInfo,
   PublicMenu,
@@ -26,7 +27,7 @@ function bool(v: unknown): boolean {
 }
 
 const http = axios.create({
-  baseURL: import.meta.env.PUBLIC_API_BASE_URL || '/api',
+  baseURL: API_BASE_URL,
   timeout: 30000,
   headers: { 'Content-Type': 'application/json' },
 });

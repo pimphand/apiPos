@@ -1,5 +1,6 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import type { ApiError } from '@/types';
+import { API_BASE_URL } from '@/lib/apiBase';
 import { navigateTo } from '@/lib/navigation';
 import { getDeviceId } from '@/lib/device';
 import { authStorage } from '@/lib/auth';
@@ -27,7 +28,7 @@ const processQueue = (error: Error | null, result: RefreshResult | null = null) 
 };
 
 const http = axios.create({
-  baseURL: import.meta.env.PUBLIC_API_BASE_URL || '/api',
+  baseURL: API_BASE_URL,
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
@@ -68,7 +69,7 @@ export interface RefreshResult {
 /** POST the refresh token and return the raw response data (throws on failure). */
 async function postRefresh(rt: string): Promise<Record<string, unknown>> {
   const response = await axios.post(
-    `${import.meta.env.PUBLIC_API_BASE_URL || '/api'}/v1/auth/refresh`,
+    `${API_BASE_URL}/v1/auth/refresh`,
     { refresh_token: rt, device_id: getDeviceId() }
   );
   return (response.data ?? {}) as Record<string, unknown>;
@@ -77,13 +78,17 @@ async function postRefresh(rt: string): Promise<Record<string, unknown>> {
 /**
  * Perform a token refresh and persist the rotated refresh token.
  *
- * The backend rotates (revokes) the presented refresh token on EVERY use, so a
- * stale in-memory copy fails with 401 once it has been consumed elsewhere
- * (another tab, or a short-lived context that booted the app and restored the
- * session). To stay correct we try the in-memory token first and, if it was
- * already rotated away, fall back to the persisted token — the latest rotation
- * is always persisted synchronously first (see authStorage), so the persisted
- * value is the most recent valid one across contexts.
+ * NOTE: the backend rotates (revokes) the presented refresh token on EVERY
+ * use. Two concurrent refreshes with the same token would race: the winner
+ * issues a new token, the loser gets 401 and must NOT trigger logout —
+ * otherwise a harmless double-refresh (e.g. AuthBootstrap + page guard firing
+ * RestoreSession at once on a full-page navigation away from another tab)
+ * logs the user out randomly.
+ *
+ * Strategy here: single in-flight refresh is shared via the queue, and
+ * candidates are retried in order. The in-memory token is tried first; the
+ * persisted token is tried next (the persisted value is always the most
+ * recent valid token, because setRefreshToken writes it synchronously).
  */
 export async function refreshTokens(): Promise<RefreshResult | null> {
   if (isRefreshing) {
@@ -97,14 +102,8 @@ export async function refreshTokens(): Promise<RefreshResult | null> {
 
   isRefreshing = true;
   try {
-    // Candidate tokens, most-recent first. The in-memory token is tried first;
-    // if it was already rotated away (revoked) by another context, the
-    // persisted one — always kept current by setRefreshToken — is tried next.
     const candidates: string[] = [];
     if (refreshToken) candidates.push(refreshToken);
-    // Read the persisted token ignoring the in-memory mirror: another JS
-    // context (e.g. the Astro transition iframe) may have rotated it and
-    // updated localStorage while this context's mirror stayed stale.
     const persisted = await authStorage.getRefreshToken({ ignoreCache: true });
     if (persisted && !candidates.includes(persisted)) candidates.push(persisted);
     if (candidates.length === 0) return null;
@@ -125,11 +124,10 @@ export async function refreshTokens(): Promise<RefreshResult | null> {
         accessToken = access_token;
         refreshToken = newRefreshToken;
 
-        // CRITICAL: persist the rotated refresh token. setRefreshToken writes
-        // the raw value synchronously BEFORE the async encryption, so the write
-        // survives even if this JS context is torn down mid-refresh (another
-        // tab closing, a page navigation) — otherwise the next page reload
-        // refreshes with the now-revoked previous token and logs the user out.
+        // CRITICAL: persist the rotated refresh token SYNCHRONOUSLY FIRST
+        // (before the async encryption finishes) so that a page navigation
+        // or tab close that tears down this JS context mid-refresh cannot
+        // lose the only valid token. See authStorage.setRefreshToken.
         await authStorage.setRefreshToken(newRefreshToken);
         authStorage.setAccessToken(access_token);
 
@@ -137,9 +135,6 @@ export async function refreshTokens(): Promise<RefreshResult | null> {
         processQueue(null, result);
         return result;
       } catch (err) {
-        // Token rejected (e.g. already rotated/revoked) → try the next
-        // candidate. Any other error (network, 5xx) also falls through — if no
-        // candidate succeeds the refresh is treated as failed below.
         lastErr = err;
       }
     }
@@ -193,11 +188,14 @@ http.interceptors.response.use(
       const refreshed = await refreshTokens();
 
       if (!refreshed) {
-        // Refresh failed - clear state and send to login
-        tokenManager.clearTokens();
-        if (typeof window !== 'undefined') {
-          navigateTo('/login');
-        }
+        // Refresh failed: the refresh token was already rotated away (common
+        // when a second tab or a navigation races the first refresh). Do NOT
+        // navigate to /login or clear tokens here — the auth store's
+        // restoreSession() will re-run once the rotation settles and will
+        // either restore the session or log out cleanly. Navigating here
+        // causes the random "clicked 5x -> logout" bug: the first failed
+        // refresh wipes state while a second, valid token is still in
+        // localStorage waiting to be picked up on the next navigation.
         return Promise.reject(error);
       }
 
@@ -223,6 +221,16 @@ http.interceptors.response.use(
       if (typeof data.code === 'string') {
         apiError.code = data.code;
       }
+    }
+
+    // No HTTP response at all: the gateway is unreachable (offline, DNS,
+    // timeout). Tagged separately so the POS can queue the sale locally
+    // instead of dropping it, while real 4xx/5xx errors keep their code.
+    if (!error.response) {
+      apiError.code = 'UNAVAILABLE';
+      apiError.message = 'Network unavailable';
+      apiError.status = undefined;
+      return Promise.reject(apiError);
     }
 
     // Map HTTP status to gRPC-style code

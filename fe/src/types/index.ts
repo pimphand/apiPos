@@ -333,6 +333,67 @@ export interface HeldOrderStore {
   holds: HeldOrder[];
 }
 
+// Offline sales + sync (docs/pos-offline-sync.md)
+/** One display line snapshotted when a sale was queued offline. */
+export interface OfflineSaleItem {
+  name: string;
+  sku_code: string;
+  quantity: number;
+  unit_price: number;
+}
+
+/** Locally computed totals of an offline sale (server recomputes on sync). */
+export interface OfflineSaleTotals {
+  subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
+  paid: number;
+}
+
+/** A checkout that could not reach the gateway and waits for sync. */
+export interface OfflineSaleRecord {
+  id: string;
+  store_id: string;
+  user_id: string;
+  username: string;
+  created_at: string;
+  /** Exact request body replayed against POST /v1/sales. */
+  payload: CreateSaleRequest;
+  /** Display-only snapshot for the sync page. */
+  items: OfflineSaleItem[];
+  totals: OfflineSaleTotals;
+  customer_name: string;
+  payment_method: string;
+  tax_rate: number;
+  status: 'pending' | 'syncing' | 'failed';
+  error?: string;
+  attempts: number;
+  last_attempt_at?: string;
+}
+
+/** Shape persisted in localStorage (pos.offline_queue.v1). */
+export interface OfflineQueueStore {
+  version: number;
+  entries: OfflineSaleRecord[];
+}
+
+/** Cached data so the POS stays usable without a connection. */
+export interface OfflineSnapshot {
+  products?: Product[];
+  customers?: Customer[];
+  settings?: StoreSettings | null;
+  storeInfo?: StoreInfo;
+  shift?: CashierShift | null;
+  updated_at: string;
+}
+
+/** Shape persisted in localStorage (pos.offline_cache.v1). */
+export interface OfflineCacheStore {
+  version: number;
+  stores: Record<string, OfflineSnapshot>;
+}
+
 // Payment types
 export interface Payment {
   id: string;
@@ -536,6 +597,126 @@ export interface LowStockReport {
   current_stock: number;
   minimum_stock: number;
   deficit: number;
+}
+
+// Accounting types (financial statements — merged into /reports)
+export interface AccountingStatementLine {
+  account_code: string;
+  account_name: string;
+  account_type: string;
+  debit: string;
+  credit: string;
+  balance: string;
+  prior_balance: string;
+  delta: string;
+  is_subtotal: boolean;
+  is_total: boolean;
+}
+
+export interface AccountingValidationWarning {
+  code: string;
+  severity: string;
+  message: string;
+  account_code: string;
+  expected: string;
+  actual: string;
+}
+
+export interface AccountingStatementResponse {
+  title: string;
+  start_date: string;
+  end_date: string;
+  lines: AccountingStatementLine[];
+  total_debit: string;
+  total_credit: string;
+  total_balance: string;
+  warnings: AccountingValidationWarning[];
+  generated_at: string;
+}
+
+export interface AccountingLedgerLine {
+  entry_date: string;
+  entry_number: string;
+  source_type: string;
+  source_id: string;
+  debit: string;
+  credit: string;
+  balance: string;
+  memo: string;
+  entry_id: string;
+}
+
+export interface AccountingLedgerResponse {
+  lines: AccountingLedgerLine[];
+  total_count: number;
+  page: number;
+  per_page: number;
+  running_balance: string;
+}
+
+export interface AccountingJournalLine {
+  id: string;
+  account_id: string;
+  account_code: string;
+  account_name: string;
+  debit: string;
+  credit: string;
+  memo: string;
+}
+
+export interface AccountingJournal {
+  id: string;
+  entry_number: string;
+  entry_date: string;
+  entry_type: string;
+  source_type: string;
+  source_id: string;
+  description: string;
+  status: string;
+  reversal_of_id: string;
+  reversed_by_id: string;
+  created_at: string;
+  lines: AccountingJournalLine[];
+}
+
+export interface AccountingJournalListResponse {
+  journals: AccountingJournal[];
+  total_count: number;
+  page: number;
+  per_page: number;
+}
+
+export interface AccountingAccount {
+  id: string;
+  code: string;
+  name: string;
+  account_type: string;
+  normal_balance: string;
+  parent_id: string;
+  is_cash_equiv: boolean;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface AccountingAccountListResponse {
+  accounts: AccountingAccount[];
+  total_count: number;
+  page: number;
+  per_page: number;
+}
+
+export interface AccountingPeriod {
+  id: string;
+  period_name: string;
+  start_date: string;
+  end_date: string;
+  status: string;
+  closed_at: string;
+}
+
+export interface AccountingValidateResponse {
+  warnings: AccountingValidationWarning[];
+  generated_at: string;
 }
 
 // Role types

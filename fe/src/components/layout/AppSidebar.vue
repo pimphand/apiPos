@@ -3,6 +3,8 @@ import { computed, type Component } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useLocaleStore } from '@/stores/locale';
 import { can, type Permission } from '@/lib/rbac';
+import { useOfflineQueueCount } from '@/composables/useOfflineQueueCount';
+import { useOfflineAutoSync } from '@/composables/useOfflineAutoSync';
 import {
   Sidebar,
   SidebarContent,
@@ -12,6 +14,7 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
@@ -37,17 +40,23 @@ import {
   CreditCard,
   Clock,
   BarChart3,
+  Calculator,
   UserCog,
   Shield,
   KeyRound,
   FileText,
   Store,
   Settings,
+  RefreshCw,
 } from '@lucide/vue';
 
 const authStore = useAuthStore();
 const localeStore = useLocaleStore();
 const t = localeStore.t;
+/** Unsynced offline sales → badge on the "Sinkron Data" item. */
+const { count: offlineCount } = useOfflineQueueCount();
+// Replays the queue when the connection returns (mounted on every page).
+useOfflineAutoSync();
 
 interface SubMenuItem {
   label: string;
@@ -97,7 +106,9 @@ const menuGroups = computed(() => {
       label: t('sidebar.groupOperations'),
       items: [
         { label: t('sidebar.cashier'), icon: Clock, href: '/admin/cashier', permission: 'cashier.view_shift' },
+        { label: t('sidebar.sync'), icon: RefreshCw, href: '/admin/offline-sync', permission: 'sales.create' },
         { label: t('sidebar.reports'), icon: BarChart3, href: '/reports', permission: 'reports.read' },
+        { label: t('sidebar.accounting'), icon: Calculator, href: '/reports/accounting', permission: 'accounting.read' },
       ],
     },
     {
@@ -131,7 +142,14 @@ const menuGroups = computed(() => {
 
 function isActive(href: string): boolean {
   if (typeof window === 'undefined') return false;
-  return window.location.pathname === href || window.location.pathname.startsWith(href + '/');
+  const pathname = window.location.pathname;
+  const normalized = (str: string) => str.replace(/\/+$/, '').replace(/^\/+/, '');
+  const p = normalized(pathname);
+  const h = normalized(href);
+  if (p === h || p.startsWith(h + '/')) return true;
+  // Accounting sits under /reports — highlight both items from /reports/accounting.
+  if (h === 'reports' && p === 'reports/accounting') return true;
+  return false;
 }
 </script>
 
@@ -165,6 +183,13 @@ function isActive(href: string): boolean {
                 <component :is="item.icon" />
                 <span>{{ item.label }}</span>
               </SidebarMenuButton>
+              <SidebarMenuBadge
+                v-if="item.href === '/admin/offline-sync' && offlineCount > 0"
+                class="bg-primary text-primary-foreground"
+                :title="t('offlineSync.pendingBadge', { count: offlineCount })"
+              >
+                {{ offlineCount > 99 ? '99+' : offlineCount }}
+              </SidebarMenuBadge>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroupContent>

@@ -14,6 +14,13 @@ export const useAuthStore = defineStore('auth', () => {
   const refreshToken = ref<string | null>(null);
   const isLoading = ref(false);
   const error = ref<string | null>(null);
+  /**
+   * True when the app booted without a connection and is running on the
+   * encrypted profile cached on this device. Cleared as soon as a real token
+   * refresh succeeds. Used to keep the POS usable offline (see
+   * docs/pos-offline-sync.md); sensitive actions still require the server.
+   */
+  const offlineSession = ref(false);
 
   // Getters
   const isAuthenticated = computed(() => {
@@ -88,6 +95,7 @@ export const useAuthStore = defineStore('auth', () => {
 
       // Permissions are embedded in the login payload (no separate request).
       attachPermissionsFromPayload((data.user ?? {})?.permissions);
+      offlineSession.value = false;
 
       // Open the realtime socket now that we hold a valid access token.
       realtime.connect();
@@ -129,6 +137,7 @@ export const useAuthStore = defineStore('auth', () => {
 
       // Permissions are embedded in the register payload (no separate request).
       attachPermissionsFromPayload((resData.user ?? {})?.permissions);
+      offlineSession.value = false;
 
       // Open the realtime socket now that we hold a valid access token.
       realtime.connect();
@@ -147,18 +156,6 @@ export const useAuthStore = defineStore('auth', () => {
   let restorePromise: Promise<User | null> | null = null;
 
   function refreshAccessToken() {
-    // Single-flight: if a refresh is already in progress, share it. The
-    // backend rotates (revokes) the refresh token on use, so concurrent
-    // refresh calls with the same token would race and the second one would
-    // fail with 401 -> logout. Multiple guarded components (DashboardShell +
-    // page guards) call restoreSession at once on reload, so this dedup is
-    // required to survive a page reload.
-    //
-    // NOTE: the actual network call is delegated to refreshTokens() in
-    // lib/http.ts, which is ALSO single-flight and shared with the axios 401
-    // interceptor. This keeps a single refresh path so an interceptor-driven
-    // rotation and a restore-driven rotation can never race, and the rotated
-    // refresh token is always persisted (surviving page reloads).
     if (refreshPromise) {
       return refreshPromise;
     }
@@ -167,9 +164,13 @@ export const useAuthStore = defineStore('auth', () => {
       try {
         const refreshed = await refreshTokens();
         if (!refreshed) {
+          // No refresh token available — this is a genuine session end, not a
+          // race. Clear state but do NOT attempt a server logout (nothing to
+          // revoke) and let the caller decide on navigation.
           throw new Error('No refresh token available');
         }
         const access_token = refreshed.accessToken;
+        offlineSession.value = false;
 
         // refreshTokens() already persisted the rotated pair and updated
         // tokenManager/authStorage; mirror them into the store's refs.
@@ -213,8 +214,15 @@ export const useAuthStore = defineStore('auth', () => {
 
         return access_token;
       } catch (err) {
-        // Refresh failed - logout
-        logout();
+        // Refresh failed due to a race (token rotated by another context and
+        // the fallback candidate also failed). Do NOT logout immediately —
+        // the persisted token may still be valid and restoreSession() on the
+        // next navigation will pick it up. Only logout on an explicit
+        // "no refresh token" (genuine session end).
+        const msg = err instanceof Error ? err.message : '';
+        if (msg.includes('No refresh token') || msg.includes('No refresh token available')) {
+          logout();
+        }
         throw err;
       }
     })();
@@ -275,6 +283,14 @@ export const useAuthStore = defineStore('auth', () => {
         realtime.connect();
         return user.value;
       } catch {
+        // No connection: a transport failure cannot prove the token is
+        // invalid, so keep the cached profile and let the POS run offline.
+        // When the browser is online and the refresh was rejected, the session
+        // is genuinely over and we fall through to the login redirect.
+        if (typeof navigator !== 'undefined' && navigator.onLine === false && cachedUser) {
+          offlineSession.value = true;
+          return user.value;
+        }
         // refreshAccessToken already clears local state on failure.
         return null;
       }
@@ -302,6 +318,7 @@ export const useAuthStore = defineStore('auth', () => {
     accessToken.value = null;
     refreshToken.value = null;
     error.value = null;
+    offlineSession.value = false;
     tokenManager.clearTokens();
 
     // Clear memory storage
@@ -336,6 +353,7 @@ export const useAuthStore = defineStore('auth', () => {
     refreshToken,
     isLoading,
     error,
+    offlineSession,
     // Getters
     isAuthenticated,
     currentUser,

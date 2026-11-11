@@ -10,4 +10,5 @@ export { paymentService } from './payment';
 export { cashierService } from './cashier';
 export { inventoryService } from './inventory';
 export { reportService } from './report';
+export { accountingService } from './accounting';
 export { activityLogService } from './activitylog';

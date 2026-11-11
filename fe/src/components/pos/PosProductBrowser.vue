@@ -79,7 +79,7 @@ defineExpose({
 </script>
 
 <template>
-  <div class="flex flex-col gap-4">
+  <div class="min-w-0 flex flex-col gap-3 sm:gap-4">
     <div class="flex min-w-0 gap-2">
       <div class="min-w-0 flex-1">
         <Input
@@ -97,22 +97,23 @@ defineExpose({
       <Input
         v-model="barcodeInput"
         placeholder="Barcode / SKU"
-        class="flex-1"
+        class="flex-1 min-w-0 h-11"
         @keyup.enter="submitLookup"
       />
-      <Button variant="outline" class="shrink-0 px-2 sm:px-4" @click="submitLookup">{{ t('admin.products.scanBarcode') }}</Button>
+      <Button variant="outline" class="shrink-0 px-2 sm:px-4 h-11" @click="submitLookup">{{ t('admin.products.scanBarcode') }}</Button>
     </div>
 
-    <Card>
+    <Card class="min-w-0">
       <CardContent class="p-0">
-        <Table>
+        <div class="overflow-x-auto">
+        <Table class="min-w-0 table-fixed">
           <TableHeader>
             <TableRow>
-              <TableHead>{{ t('admin.pos.productName') }}</TableHead>
-              <TableHead>SKU</TableHead>
-              <TableHead class="text-right">{{ t('admin.pos.price') }}</TableHead>
-              <TableHead class="text-right">{{ t('admin.pos.stock') }}</TableHead>
-              <TableHead class="text-right">{{ t('admin.shared.actions') }}</TableHead>
+              <TableHead class="w-[42%]">{{ t('admin.pos.productName') }}</TableHead>
+              <TableHead class="hidden sm:table-cell sm:w-[18%]">SKU</TableHead>
+              <TableHead class="w-[18%] text-right">{{ t('admin.pos.price') }}</TableHead>
+              <TableHead class="w-[10%] text-right">{{ t('admin.pos.stock') }}</TableHead>
+              <TableHead class="w-[20%] text-right">{{ t('admin.shared.actions') }}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -130,16 +131,16 @@ defineExpose({
               <template v-for="p in products.filter(p => p.skus && p.skus.length > 0)" :key="p.id">
                 <!-- Product header row -->
                 <TableRow class="bg-muted/30">
-                  <TableCell colspan="5" class="font-semibold">{{ p.name }}</TableCell>
+                  <TableCell colspan="5" class="max-w-0 truncate font-semibold">{{ p.name }}</TableCell>
                 </TableRow>
                 <!-- SKU rows -->
                 <TableRow v-for="sku in (p.skus ?? [])" :key="sku.id" class="hover:bg-muted/50">
-                  <TableCell class="pl-8">
+                  <TableCell class="max-w-0 truncate pl-2 sm:pl-8">
                     <span class="text-muted-foreground text-xs">{{ sku.sku }}</span>
                     <span v-if="sku.variant" class="text-xs text-muted-foreground ml-1">· {{ sku.variant }}</span>
                     <span v-if="sku.size" class="text-xs text-muted-foreground ml-1">· {{ sku.size }}</span>
                   </TableCell>
-                  <TableCell></TableCell>
+                  <TableCell class="hidden sm:table-cell"></TableCell>
                   <TableCell class="text-right tabular-nums text-sm">
                     {{ formatCurrency(sku.selling_price) }}
                   </TableCell>
@@ -166,6 +167,7 @@ defineExpose({
             </template>
           </TableBody>
         </Table>
+        </div>
       </CardContent>
     </Card>
   </div>

@@ -1,0 +1,8 @@
+---
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+import AccountingPage from '@/components/accounting/AccountingPage.vue';
+---
+
+<DashboardLayout title="Accounting - POS Application">
+  <AccountingPage client:only="vue" />
+</DashboardLayout>

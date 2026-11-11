@@ -4,6 +4,7 @@ import { productService } from '@/services/product';
 import { useUiStore } from '@/stores/ui';
 import { useLocaleStore } from '@/stores/locale';
 import { apiMessage } from '@/lib/apiError';
+import { isNativeFileDialogAvailable, pickImportFile } from '@/lib/platform';
 import type { ImportResult } from '@/types';
 import Button from '@/components/ui/button/Button.vue';
 import {
@@ -26,12 +27,24 @@ const file = ref<File | null>(null);
 const uploading = ref(false);
 const result = ref<ImportResult | null>(null);
 
+// Desktop builds use the OS file dialog; the browser keeps the file input.
+const nativeDialog = isNativeFileDialogAvailable();
+
 const isValid = computed(() => !!file.value);
 
 function onFileChange(e: Event) {
   const input = e.target as HTMLInputElement;
   file.value = input.files?.[0] ?? null;
   result.value = null;
+}
+
+async function pickWithDialog() {
+  if (!nativeDialog) return;
+  const picked = await pickImportFile();
+  if (picked) {
+    file.value = picked;
+    result.value = null;
+  }
 }
 
 function downloadSample() {
@@ -97,8 +110,10 @@ function onDrop(e: DragEvent) {
           :class="file ? 'border-primary/30 bg-primary/5' : 'border-muted-foreground/25'"
           @dragover.prevent
           @drop.prevent="onDrop"
+          @click="pickWithDialog"
         >
           <input
+            v-if="!nativeDialog"
             type="file"
             accept=".csv,.xlsx,.xls"
             class="absolute inset-0 cursor-pointer opacity-0"

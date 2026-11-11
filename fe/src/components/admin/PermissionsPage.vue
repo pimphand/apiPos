@@ -26,9 +26,9 @@ const t = useLocaleStore().t;
 
 const RESOURCES = [
   'users', 'roles', 'permissions', 'categories', 'products', 'inventory',
-  'customers', 'sales', 'payments', 'cashier', 'reports', 'activity_logs',
+  'customers', 'sales', 'payments', 'cashier', 'reports', 'activity_logs', 'accounting',
 ];
-const ACTIONS = ['create', 'read', 'update', 'delete', 'assign', 'adjust', 'cancel', 'refund', 'open_shift', 'close_shift', 'view_shift'];
+const ACTIONS = ['create', 'read', 'update', 'delete', 'assign', 'adjust', 'cancel', 'refund', 'open_shift', 'close_shift', 'view_shift', 'post', 'close'];
 
 const permissions = ref<Permission[]>([]);
 const loading = ref(false);

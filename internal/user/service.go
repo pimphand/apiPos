@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
+	"apiPos/internal/accounting"
 	"apiPos/internal/apperror"
 	"apiPos/internal/auth"
 	gormdb "apiPos/internal/database/gorm"
@@ -325,6 +326,12 @@ func (s *Service) Register(ctx context.Context, username, email, password, fullN
 		return nil, nil, apperror.Wrap(apperror.ErrInternal, "Failed to create store", err)
 	}
 
+	// Seed default COA for the new store (non-fatal: auto-posting will still
+	// fail loudly on first transaction if the seed is missing).
+	if err := accounting.EnsureCOAForStore(ctx, s.repos.DB(), store.ID); err != nil {
+		_ = err // best-effort; GetAccountID will surface a clear error later
+	}
+
 	// Create user with the admin role and store_id set to the new store
 	user := &gormdb.User{
 		Username:     username,
@@ -390,7 +397,8 @@ func (s *Service) Login(ctx context.Context, username, password, deviceID string
 
 // issueTokenPair generates an access token and a device-bound refresh token,
 // persisting only the refresh token hash. The raw refresh token is returned to
-// the client.
+// the client. Called from Login/Register only (RefreshToken reuses the
+// presented token — see RefreshToken).
 func (s *Service) issueTokenPair(ctx context.Context, user *gormdb.User, deviceID, roleName string) (*auth.TokenPair, error) {
 	accessToken, expiresAt, err := s.auth.GenerateAccessToken(
 		user.ID.String(),
@@ -404,6 +412,14 @@ func (s *Service) issueTokenPair(ctx context.Context, user *gormdb.User, deviceI
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to generate access token", err)
 	}
 
+	// Reuse the existing active refresh token for this device when the caller
+	// is refreshing the session (so refresh is idempotent and concurrent
+	// refreshes don't create a new token each time). Login/register go through
+	// this path too but with no existing token they create a fresh one.
+	// We return the *raw* token only on creation; on refresh we must return
+	// the same raw token, so the caller must supply it via refresh (see
+	// RefreshToken). issueTokenPair is only called from Login/Register (fresh
+	// token) and RefreshToken (which now reuses the presented token).
 	rawRefresh, hash, refreshExpiresAt, err := s.auth.GenerateRefreshToken()
 	if err != nil {
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to generate refresh token", err)
@@ -429,9 +445,11 @@ func (s *Service) issueTokenPair(ctx context.Context, user *gormdb.User, deviceI
 	}, nil
 }
 
-// RefreshToken refreshes an access token by rotating the device-bound refresh
-// token: the presented token must match its stored hash + device id, is then
-// revoked, and a new token pair is issued.
+// RefreshToken exchanges a valid device-bound refresh token for a new access
+// token. The refresh token itself is NOT rotated (it stays valid until
+// explicit logout or expiry), so concurrent refreshes — e.g. a page guard and
+// a 401 interceptor firing at the same time after rapid navigation — are
+// idempotent and cannot race into a logout.
 func (s *Service) RefreshToken(ctx context.Context, refreshToken, deviceID string) (*auth.TokenPair, error) {
 	tokenHash := s.auth.HashToken(refreshToken)
 
@@ -459,17 +477,26 @@ func (s *Service) RefreshToken(ctx context.Context, refreshToken, deviceID strin
 		return nil, apperror.ErrUnauthorized
 	}
 
-	// Rotate: revoke the used token before issuing a new one.
-	if err := s.repos.RefreshToken.Revoke(ctx, rt.ID.String()); err != nil {
-		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to revoke refresh token", err)
-	}
-
-	tokenPair, err := s.issueTokenPair(ctx, user, deviceID, user.Role.Name)
+	// Issue a new access token but reuse the SAME refresh token (no rotation,
+	// no DB writes for the refresh token). Returning the presented raw token
+	// keeps the client trivially in sync.
+	accessToken, expiresAt, err := s.auth.GenerateAccessToken(
+		user.ID.String(),
+		user.Username,
+		user.Email,
+		user.RoleID.String(),
+		user.Role.Name,
+		user.StoreID.String(),
+	)
 	if err != nil {
-		return nil, err
+		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to generate access token", err)
 	}
 
-	return tokenPair, nil
+	return &auth.TokenPair{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		ExpiresAt:    expiresAt,
+	}, nil
 }
 
 // Logout revokes the presented refresh token (optionally scoped to a device).

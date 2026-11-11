@@ -12,13 +12,14 @@ export type Resource =
   | 'users' | 'roles' | 'permissions' 
   | 'categories' | 'products' | 'inventory'
   | 'customers' | 'sales' | 'payments' 
-  | 'cashier' | 'reports' | 'activity_logs' | 'tables';
+  | 'cashier' | 'reports' | 'activity_logs' | 'tables' | 'accounting';
 
 // Permission actions
 export type Action = 
   | 'create' | 'read' | 'update' | 'delete' 
   | 'assign' | 'adjust' | 'cancel' | 'refund'
-  | 'open_shift' | 'close_shift' | 'view_shift';
+  | 'open_shift' | 'close_shift' | 'view_shift'
+  | 'post' | 'close';
 
 // Full permission string
 export type Permission = `${Resource}.${Action}`;
@@ -38,6 +39,7 @@ const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'payments.create', 'payments.read',
     'cashier.open_shift', 'cashier.close_shift', 'cashier.view_shift',
     'reports.read', 'activity_logs.read',
+    'accounting.read', 'accounting.post', 'accounting.close',
   ],
   admin: [
     // Full access to everything
@@ -53,6 +55,7 @@ const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'cashier.open_shift', 'cashier.close_shift', 'cashier.view_shift',
     'reports.read',
     'activity_logs.read',
+    'accounting.read', 'accounting.post', 'accounting.close',
   ],
   manager: [
     // Products, inventory, sales, reports
@@ -64,6 +67,7 @@ const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'payments.create', 'payments.read',
     'cashier.open_shift', 'cashier.close_shift', 'cashier.view_shift',
     'reports.read',
+    'accounting.read',
   ],
   cashier: [
     // Sales, customers, current shift only

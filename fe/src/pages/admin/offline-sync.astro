@@ -1,0 +1,8 @@
+---
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+import OfflineSyncPage from '@/components/admin/OfflineSyncPage.vue';
+---
+
+<DashboardLayout title="Sinkronisasi - POS Application">
+  <OfflineSyncPage client:only="vue" />
+</DashboardLayout>

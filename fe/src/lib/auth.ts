@@ -12,9 +12,35 @@
 
 import type { User } from '@/types';
 import { encryptValue, decryptValue } from '@/lib/device';
+import { isTauriRuntime } from '@/lib/apiBase';
 
 const REFRESH_KEY = 'pos_refresh_token';
 const USER_KEY = 'pos_user';
+
+/**
+ * OS-native storage for the refresh token (desktop builds only).
+ *
+ * Inside the Tauri webview the token is written to the platform keystore
+ * (macOS Keychain, Windows Credential Manager, Linux Secret Service) through
+ * Rust commands, so it never touches localStorage. The browser build keeps the
+ * existing device-encrypted localStorage strategy. A token persisted by an
+ * older desktop build is migrated into the keystore on the first read and then
+ * removed from localStorage. If the native store is unavailable, the hardened
+ * browser path is used as a fallback. See docs/TAURI_DESKTOP.md §6.
+ */
+type TauriInvoke = (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
+
+const NATIVE_GET = 'auth_refresh_get';
+const NATIVE_SET = 'auth_refresh_set';
+const NATIVE_DELETE = 'auth_refresh_delete';
+
+function nativeInvoke(): TauriInvoke | null {
+  if (!isTauriRuntime) return null;
+  const internals = (window as unknown as {
+    __TAURI_INTERNALS__?: { invoke?: TauriInvoke };
+  }).__TAURI_INTERNALS__;
+  return internals?.invoke ?? null;
+}
 
 /**
  * Auth state. Access token is memory-only; the refresh token and a
@@ -27,6 +53,8 @@ export const authStorage = {
   _refreshToken: null as string | null,
   /** Decrypted user mirror (not itself persisted raw). */
   _user: null as User | null,
+  /** Whether the OS keystore holds a refresh token (desktop). */
+  _nativeTokenPresent: false,
 
   getAccessToken(): string | null {
     return authStorage._accessToken;
@@ -39,6 +67,36 @@ export const authStorage = {
   async getRefreshToken(opts?: { ignoreCache?: boolean }): Promise<string | null> {
     if (!opts?.ignoreCache && authStorage._refreshToken) return authStorage._refreshToken;
     if (typeof window === 'undefined') return null;
+
+    const invoke = nativeInvoke();
+    if (invoke) {
+      try {
+        const native = (await invoke(NATIVE_GET)) as string | null;
+        if (native) {
+          authStorage._refreshToken = native;
+          authStorage._nativeTokenPresent = true;
+          window.localStorage.removeItem(REFRESH_KEY);
+          return native;
+        }
+        // One-time migration of a token written by an older desktop build.
+        const legacy = window.localStorage.getItem(REFRESH_KEY);
+        if (legacy) {
+          const raw = legacy.trimStart().startsWith('{') ? await decryptValue(legacy) : legacy;
+          if (raw) {
+            await invoke(NATIVE_SET, { token: raw });
+            authStorage._refreshToken = raw;
+            authStorage._nativeTokenPresent = true;
+            window.localStorage.removeItem(REFRESH_KEY);
+            return raw;
+          }
+        }
+        authStorage._nativeTokenPresent = false;
+        return null;
+      } catch {
+        // Keystore/IPC unavailable → fall back to the hardened local store.
+      }
+    }
+
     const stored = window.localStorage.getItem(REFRESH_KEY);
     if (!stored) return null;
     // setRefreshToken writes the raw token first (synchronously) and then
@@ -59,6 +117,25 @@ export const authStorage = {
   async setRefreshToken(token: string | null): Promise<void> {
     authStorage._refreshToken = token;
     if (typeof window === 'undefined') return;
+
+    const invoke = nativeInvoke();
+    if (invoke) {
+      try {
+        if (token) {
+          await invoke(NATIVE_SET, { token });
+          authStorage._nativeTokenPresent = true;
+        } else {
+          await invoke(NATIVE_DELETE);
+          authStorage._nativeTokenPresent = false;
+        }
+        // Desktop keeps the refresh token out of localStorage entirely.
+        window.localStorage.removeItem(REFRESH_KEY);
+        return;
+      } catch {
+        // Keychain write failed → keep the hardened browser fallback below.
+      }
+    }
+
     if (token) {
       // CRITICAL: persist the raw token SYNCHRONOUSLY first. Encryption is
       // async (~100ms of PBKDF2) and the current JS context can be discarded
@@ -110,15 +187,20 @@ export const authStorage = {
     authStorage._accessToken = null;
     authStorage._refreshToken = null;
     authStorage._user = null;
+    authStorage._nativeTokenPresent = false;
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem(REFRESH_KEY);
       window.localStorage.removeItem(USER_KEY);
     }
+    // Always ask the keystore to drop the token: a fresh JS context may not
+    // have read it yet, and deleting an absent item is a no-op in Rust.
+    const invoke = nativeInvoke();
+    if (invoke) void invoke(NATIVE_DELETE).catch(() => {});
   },
 
   /** Sync check for whether a refresh token is persisted (no decryption needed). */
   hasPersistedRefresh(): boolean {
-    if (authStorage._refreshToken) return true;
+    if (authStorage._refreshToken || authStorage._nativeTokenPresent) return true;
     if (typeof window === 'undefined') return false;
     return !!window.localStorage.getItem(REFRESH_KEY);
   },

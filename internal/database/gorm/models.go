@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 )
 
 // Role represents the roles table
@@ -484,4 +485,116 @@ type StoreSetting struct {
 // TableName returns the table name for StoreSetting
 func (StoreSetting) TableName() string {
 	return "store_settings"
+}
+
+// AccountingPeriod represents the accounting_periods table.
+// One row per fiscal month per store; status OPEN|CLOSED.
+type AccountingPeriod struct {
+	ID         uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	StoreID    uuid.UUID `gorm:"type:uuid;not null;index:idx_periods_store_dates;uniqueIndex:idx_periods_store_name,priority:1" json:"store_id"`
+	PeriodName string    `gorm:"type:varchar(20);not null;uniqueIndex:idx_periods_store_name,priority:2" json:"period_name"`
+	StartDate  time.Time `gorm:"type:date;not null" json:"start_date"`
+	EndDate    time.Time `gorm:"type:date;not null" json:"end_date"`
+	Status     string    `gorm:"type:varchar(10);default:'OPEN'" json:"status"`
+	ClosedAt   *time.Time `gorm:"type:timestamptz" json:"closed_at"`
+	ClosedBy   *uuid.UUID `gorm:"type:uuid" json:"closed_by"`
+	CreatedAt  time.Time `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt  time.Time `gorm:"autoUpdateTime" json:"updated_at"`
+
+	Store Store `gorm:"foreignKey:StoreID" json:"store,omitempty"`
+}
+
+// TableName returns the table name for AccountingPeriod
+func (AccountingPeriod) TableName() string {
+	return "accounting_periods"
+}
+
+// ChartOfAccount represents the chart_of_accounts table (per-store COA).
+type ChartOfAccount struct {
+	ID            uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	StoreID       uuid.UUID  `gorm:"type:uuid;not null;index:idx_coa_store_type;uniqueIndex:idx_coa_store_code,priority:1" json:"store_id"`
+	Code          string     `gorm:"type:varchar(20);not null;uniqueIndex:idx_coa_store_code,priority:2" json:"code"`
+	Name          string     `gorm:"type:varchar(150);not null" json:"name"`
+	AccountType   string     `gorm:"type:varchar(15);not null;index:idx_coa_store_type" json:"account_type"`
+	NormalBalance string     `gorm:"type:varchar(10);not null" json:"normal_balance"`
+	ParentID      *uuid.UUID `gorm:"type:uuid" json:"parent_id"`
+	IsCashEquiv   bool       `gorm:"default:false" json:"is_cash_equiv"`
+	IsActive      bool       `gorm:"default:true" json:"is_active"`
+	CreatedAt     time.Time  `gorm:"autoCreateTime" json:"created_at"`
+
+	Store Store `gorm:"foreignKey:StoreID" json:"store,omitempty"`
+}
+
+// TableName returns the table name for ChartOfAccount
+func (ChartOfAccount) TableName() string {
+	return "chart_of_accounts"
+}
+
+// JournalEntry represents the journal_entries table (double-entry header).
+// POSTED entries are the only ones included in official reports (via general_ledger view).
+type JournalEntry struct {
+	ID             uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	StoreID        uuid.UUID      `gorm:"type:uuid;not null;index:idx_je_store_date;uniqueIndex:idx_je_store_idempotency,priority:1" json:"store_id"`
+	PeriodID       uuid.UUID      `gorm:"type:uuid;not null;index:idx_je_period" json:"period_id"`
+	EntryNumber    string         `gorm:"type:varchar(30);not null" json:"entry_number"`
+	EntryDate      time.Time      `gorm:"type:date;not null;index:idx_je_store_date" json:"entry_date"`
+	EntryType      string         `gorm:"type:varchar(20);not null" json:"entry_type"`
+	SourceType     string         `gorm:"type:varchar(30);index:idx_je_source" json:"source_type"`
+	SourceID       *uuid.UUID     `gorm:"type:uuid;index:idx_je_source" json:"source_id"`
+	IdempotencyKey string         `gorm:"type:varchar(100);not null;uniqueIndex:idx_je_store_idempotency,priority:2" json:"idempotency_key"`
+	Description    string         `gorm:"type:text;not null;default:''" json:"description"`
+	Status         string         `gorm:"type:varchar(10);default:'DRAFT';index:idx_je_period" json:"status"`
+	ReversalOfID   *uuid.UUID     `gorm:"type:uuid" json:"reversal_of_id"`
+	ReversedByID   *uuid.UUID     `gorm:"type:uuid" json:"reversed_by_id"`
+	CreatedBy      *uuid.UUID     `gorm:"type:uuid" json:"created_by"`
+	PostedAt       *time.Time     `gorm:"type:timestamptz" json:"posted_at"`
+	CreatedAt      time.Time      `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt      time.Time      `gorm:"autoUpdateTime" json:"updated_at"`
+
+	Period AccountingPeriod `gorm:"foreignKey:PeriodID" json:"period,omitempty"`
+	Store  Store            `gorm:"foreignKey:StoreID" json:"store,omitempty"`
+	Lines  []JournalLine    `gorm:"foreignKey:EntryID" json:"lines,omitempty"`
+}
+
+// TableName returns the table name for JournalEntry
+func (JournalEntry) TableName() string {
+	return "journal_entries"
+}
+
+// JournalLine represents the journal_lines table (double-entry line).
+type JournalLine struct {
+	ID        uuid.UUID         `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	StoreID   uuid.UUID         `gorm:"type:uuid;not null;index:idx_jl_account_date" json:"store_id"`
+	EntryID   uuid.UUID         `gorm:"type:uuid;not null;index:idx_jl_entry" json:"entry_id"`
+	AccountID uuid.UUID         `gorm:"type:uuid;not null;index:idx_jl_account_date" json:"account_id"`
+	Debit     decimal.Decimal   `gorm:"type:numeric(15,2);not null;default:0" json:"debit"`
+	Credit    decimal.Decimal   `gorm:"type:numeric(15,2);not null;default:0" json:"credit"`
+	Memo      string            `gorm:"type:varchar(255)" json:"memo"`
+	CreatedAt time.Time         `gorm:"autoCreateTime" json:"created_at"`
+
+	Account ChartOfAccount `gorm:"foreignKey:AccountID" json:"account,omitempty"`
+}
+
+// TableName returns the table name for JournalLine
+func (JournalLine) TableName() string {
+	return "journal_lines"
+}
+
+// GeneralLedgerEntry is a read-only projection of the general_ledger view.
+type GeneralLedgerEntry struct {
+	StoreID    uuid.UUID       `gorm:"column:store_id;type:uuid" json:"store_id"`
+	AccountID  uuid.UUID       `gorm:"column:account_id;type:uuid" json:"account_id"`
+	EntryDate  time.Time       `gorm:"column:entry_date;type:date" json:"entry_date"`
+	EntryNumber string          `gorm:"column:entry_number;type:varchar(30)" json:"entry_number"`
+	SourceType string          `gorm:"column:source_type;type:varchar(30)" json:"source_type"`
+	SourceID   *uuid.UUID      `gorm:"column:source_id;type:uuid" json:"source_id"`
+	Debit      decimal.Decimal `gorm:"column:debit;type:numeric(15,2)" json:"debit"`
+	Credit     decimal.Decimal `gorm:"column:credit;type:numeric(15,2)" json:"credit"`
+	Memo       string          `gorm:"column:memo;type:varchar(255)" json:"memo"`
+	EntryID    uuid.UUID       `gorm:"column:entry_id;type:uuid" json:"entry_id"`
+}
+
+// TableName returns the table name for GeneralLedgerEntry
+func (GeneralLedgerEntry) TableName() string {
+	return "general_ledger"
 }

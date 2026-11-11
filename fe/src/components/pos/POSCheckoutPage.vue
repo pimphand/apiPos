@@ -13,7 +13,11 @@ import { usePageGuard } from '@/composables/usePageGuard';
 import { apiMessage } from '@/lib/apiError';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
 import { HOLD_LIMIT } from '@/lib/posHold';
+import { enqueueOfflineSale, isOfflineError, isOnline as hasNetwork } from '@/lib/offlineQueue';
+import { loadOfflineSnapshot, saveOfflineSnapshot } from '@/lib/offlineCache';
+import { useOfflineQueueCount } from '@/composables/useOfflineQueueCount';
 import { realtime, RealtimeEventType, type RealtimeEvent } from '@/lib/realtime';
+import { notifyNative } from '@/lib/platform';
 import {
   playSelfOrderSound,
   unlockSelfOrderAudio,
@@ -24,6 +28,7 @@ import type {
   Product,
   ProductSKU,
   Customer,
+  CreateSaleRequest,
   ShiftItem,
   ShiftSummary,
   HeldOrder,
@@ -33,7 +38,7 @@ import type {
   OrderChannel,
 } from '@/types';
 import { ORDER_CHANNEL_LABELS } from '@/types';
-import { Bell, BellOff } from '@lucide/vue';
+import { Bell, BellOff, RefreshCw, WifiOff } from '@lucide/vue';
 import type { ReceiptData } from '@/components/pos/PosReceiptPaper.vue';
 import DashboardShell from '@/components/layout/DashboardShell.vue';
 import PosCartCard from '@/components/pos/PosCartCard.vue';
@@ -71,15 +76,56 @@ const {
 /** Gates the very first paint until the shift state is resolved. */
 const checkingShift = ref(true);
 
+// ---- Offline mode (docs/pos-offline-sync.md) -----------------------------
+/** Network hint; the reliable signal is still an UNAVAILABLE API error. */
+const isOnline = ref(hasNetwork());
+const currentStoreId = computed(() => authStore.currentUser?.store_id ?? '');
+/** Unsynced offline sales → badge chip next to the shift status bar. */
+const { count: offlineCount } = useOfflineQueueCount();
+let offlineNoticeShown = false;
+
+function notifyOfflineOnce() {
+  if (offlineNoticeShown) return;
+  offlineNoticeShown = true;
+  ui.addToast('warning', t('admin.pos.offlineModeActive'));
+}
+
+/** Persist what the POS just fetched so a later offline session still works. */
+function cacheSnapshot() {
+  if (!currentStoreId.value) return;
+  saveOfflineSnapshot(currentStoreId.value, {
+    products: searchResults.value,
+    customers: customers.value,
+    settings: settings.value,
+    storeInfo: storeInfo.value,
+    shift: currentShift.value,
+  });
+}
+
+/** Restore the last data this device received. Returns false when empty. */
+function applyCachedSnapshot(): boolean {
+  const snapshot = loadOfflineSnapshot(currentStoreId.value);
+  if (!snapshot) return false;
+  if (snapshot.products?.length) searchResults.value = snapshot.products;
+  if (snapshot.customers?.length) customers.value = snapshot.customers;
+  if (snapshot.settings) settings.value = snapshot.settings;
+  if (snapshot.storeInfo) storeInfo.value = snapshot.storeInfo;
+  currentShift.value = snapshot.shift ?? null;
+  return true;
+}
+
 /** Template refs to the child views that own the shift-dialog / product UI. */
 const shiftDialogsRef = ref<InstanceType<typeof PosShiftDialogs> | null>(null);
 const productBrowserRef = ref<InstanceType<typeof PosProductBrowser> | null>(null);
 
 async function refreshLive() {
+  // Offline refresh would wipe the cached OPEN shift; keep the last state.
+  if (!isOnline.value) return;
   await refreshShift();
   if (currentShift.value) {
     await loadSummary();
   }
+  cacheSnapshot();
 }
 
 /** PosShiftDialogs → open the shift; refreshes POS state on success. */
@@ -180,9 +226,13 @@ async function loadStoreSettings() {
     const res = await settingsService.get();
     settings.value = res.settings;
     storeInfo.value = res.store_info || { name: '', address: '', phone: '' };
+    cacheSnapshot();
   } catch {
-    // Best-effort only — POS keeps working with the built-in 11% default.
-    settings.value = null;
+    // Best-effort only — fall back to the last snapshot, then to the built-in
+    // 11% default so checkout never depends on this call succeeding.
+    const snapshot = loadOfflineSnapshot(currentStoreId.value);
+    settings.value = snapshot?.settings ?? null;
+    if (snapshot?.storeInfo) storeInfo.value = snapshot.storeInfo;
   }
 }
 
@@ -207,16 +257,46 @@ async function searchProducts() {
       get_sku: true,
     });
     searchResults.value = res.products ?? [];
+    cacheSnapshot();
   } catch (err) {
-    ui.addToast('error', apiMessage(err));
-    searchResults.value = [];
+    if (isOfflineError(err) || !isOnline.value) {
+      // Keep selling from the last catalogue this device received.
+      const snapshot = loadOfflineSnapshot(currentStoreId.value);
+      searchResults.value = snapshot?.products ?? [];
+      notifyOfflineOnce();
+    } else {
+      ui.addToast('error', apiMessage(err));
+      searchResults.value = [];
+    }
   } finally {
     searching.value = false;
   }
 }
 
+/** Find a product/SKU in the cached catalogue (offline barcode/scan path). */
+function findCachedSku(code: string): { product: Product; sku: ProductSKU } | null {
+  const snapshot = loadOfflineSnapshot(currentStoreId.value);
+  const products = searchResults.value.length > 0 ? searchResults.value : snapshot?.products ?? [];
+  for (const product of products) {
+    for (const sku of product.skus ?? []) {
+      if (sku.barcode === code || sku.sku === code) return { product, sku };
+    }
+  }
+  return null;
+}
+
 async function lookupBarcode(code: string) {
   if (!code) return;
+  if (!isOnline.value) {
+    const found = findCachedSku(code);
+    if (found) {
+      addToCart(found.product, found.sku);
+      barcodeInput.value = '';
+    } else {
+      ui.addToast('error', `Product not found for: ${code}`);
+    }
+    return;
+  }
   try {
     const sku = await productService.getSKUByBarcode(code);
     const product = await productService.get(sku.product_id, true);
@@ -229,6 +309,12 @@ async function lookupBarcode(code: string) {
       addToCart(product, sku);
       barcodeInput.value = '';
     } catch {
+      const cached = findCachedSku(code);
+      if (cached) {
+        addToCart(cached.product, cached.sku);
+        barcodeInput.value = '';
+        return;
+      }
       ui.addToast('error', `Product not found for: ${code}`);
     }
   }
@@ -504,16 +590,177 @@ async function loadCustomers() {
   }
 }
 
+function buildSalePayload(
+  storeId: string,
+  typedName: string,
+  paymentMethod: string,
+  paidAmount: number,
+  notes: string
+): CreateSaleRequest {
+  return {
+    store_id: storeId,
+    // Name only: the backend reuses an existing customer with the same
+    // name in this store, or creates a new one. No duplicate records.
+    customer_name: typedName || undefined,
+    items: cart.value.map((i) => ({
+      product_id: i.product_id,
+      sku_id: i.sku_id,
+      quantity: i.quantity,
+      unit_price: i.unit_price,
+    })),
+    discount: discount.value,
+    tax_rate: taxRate.value,
+    payment_method: paymentMethod,
+    amount_paid: paidAmount,
+    notes: notes || undefined,
+  };
+}
+
+/** Build the receipt/struk payload for a server-synced or offline sale. */
+function showReceipt(opts: {
+  invoice: string;
+  createdAt: string;
+  lines: { name: string; sku_code: string; quantity: number; unit_price: number }[];
+  subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
+  paid: number;
+  method: string;
+  customerName: string;
+  notes: string;
+}) {
+  const methodLabelKey = PAY_METHOD_KEYS[opts.method] ?? 'other';
+  const currentUser = authStore.currentUser as any;
+  lastReceipt.value = {
+    store_name: storeInfo.value.name || currentUser?.store_name || currentUser?.store?.name || '',
+    store_address: storeInfo.value.address || currentUser?.store?.address || '',
+    store_phone: storeInfo.value.phone || currentUser?.store?.phone || '',
+    invoice_number: opts.invoice,
+    created_at: opts.createdAt,
+    cashier_name: authStore.userName,
+    customer_name: opts.customerName,
+    tax_rate: taxRate.value,
+    payment_method_label: t(`admin.payments.${methodLabelKey}`),
+    items: opts.lines,
+    subtotal: opts.subtotal,
+    discount: opts.discount,
+    tax: opts.tax,
+    total: opts.total,
+    paid: opts.paid,
+    change: Math.max(0, opts.paid - opts.total),
+    orderChannel: orderChannel.value,
+    notes: opts.notes || undefined,
+  };
+}
+
+/**
+ * Keep the cached catalogue honest while offline: the stock shown in the
+ * product grid drops by the queued quantity. The server revalidates stock on
+ * sync, so a rejected sync is still possible and stays visible in the queue.
+ */
+function decrementCachedStock(lines: { sku_id?: string; quantity: number }[]) {
+  const byId = new Map<string, number>();
+  for (const line of lines) {
+    if (!line.sku_id) continue;
+    byId.set(line.sku_id, (byId.get(line.sku_id) ?? 0) + line.quantity);
+  }
+  if (byId.size === 0) return;
+  for (const product of searchResults.value) {
+    for (const sku of product.skus ?? []) {
+      const qty = byId.get(sku.id);
+      if (qty) sku.stock = Math.max(0, Number(sku.stock) - qty);
+    }
+  }
+  if (currentStoreId.value) {
+    saveOfflineSnapshot(currentStoreId.value, { products: searchResults.value });
+  }
+}
+
+/** Store the sale locally and show an OFFLINE- receipt. */
+function queueOfflineSale(opts: {
+  storeId: string;
+  body: CreateSaleRequest;
+  lines: { name: string; sku_code: string; quantity: number; unit_price: number }[];
+  typedName: string;
+  paidAmount: number;
+  method: string;
+  notes: string;
+}) {
+  let record;
+  try {
+    record = enqueueOfflineSale({
+      store_id: opts.storeId,
+      user_id: authStore.currentUser?.id ?? '',
+      username: authStore.userName,
+      payload: opts.body,
+      items: opts.lines.map((line) => ({ ...line })),
+      totals: {
+        subtotal: subtotal.value,
+        discount: discount.value,
+        tax: taxAmount.value,
+        total: grandTotal.value,
+        paid: opts.paidAmount,
+      },
+      customer_name: opts.typedName,
+      payment_method: opts.method,
+      tax_rate: taxRate.value,
+    });
+  } catch {
+    ui.addToast('error', t('admin.pos.toastOfflineQueueFull'));
+    return;
+  }
+
+  decrementCachedStock(
+    opts.body.items.map((item) => ({ sku_id: item.sku_id, quantity: item.quantity }))
+  );
+  const offlineRef = `OFFLINE-${record.id.slice(0, 8).toUpperCase()}`;
+  showReceipt({
+    invoice: offlineRef,
+    createdAt: record.created_at,
+    lines: opts.lines,
+    subtotal: subtotal.value,
+    discount: discount.value,
+    tax: taxAmount.value,
+    total: grandTotal.value,
+    paid: opts.paidAmount,
+    method: opts.method,
+    customerName: opts.typedName,
+    notes: opts.notes,
+  });
+  ui.addToast('warning', t('admin.pos.toastQueuedOffline'));
+  // Desktop builds: raise an OS notification as well, so a queued sale is not
+  // missed while the window is minimised. No-op in the browser.
+  void notifyNative(
+    t('admin.pos.notifyOfflineQueuedTitle'),
+    t('admin.pos.notifyOfflineQueuedBody', {
+      invoice: offlineRef,
+      total: formatCurrency(grandTotal.value),
+      count: offlineCount.value,
+    })
+  );
+  paymentOpen.value = false;
+  clearCart();
+  receiptOpen.value = true;
+}
+
 async function submitSale(payload: {
   customer_name: string;
   payment_method: string;
   amount_paid: number;
   notes: string;
 }) {
+  const offlineNow = !isOnline.value;
+
   // Gate: never send a sale while the shift is not OPEN (server enforces it
-  // too — this keeps the cart intact and lets the cashier re-try after
-  // opening/re-opening the shift).
-  if (!(await ensureShiftOpen())) {
+  // too). Offline we can only trust the last cached OPEN shift; without one
+  // the cashier must reconnect and open a shift first.
+  if (offlineNow) {
+    if (!currentShift.value) {
+      ui.addToast('error', t('offlineSync.noCachedShift'));
+      return;
+    }
+  } else if (!(await ensureShiftOpen())) {
     ui.addToast('error', t('posShift.notOpened'));
     return;
   }
@@ -538,66 +785,74 @@ async function submitSale(payload: {
 
   processing.value = true;
   try {
-    const detail = await saleService.create({
-      store_id: storeId,
-      // Name only: the backend reuses an existing customer with the same
-      // name in this store, or creates a new one. No duplicate records.
-      customer_name: typedName || undefined,
-      items: cart.value.map(i => ({
-        product_id: i.product_id,
-        sku_id: i.sku_id,
-        quantity: i.quantity,
-        unit_price: i.unit_price,
-      })),
-      discount: discount.value,
-      tax_rate: taxRate.value,
-      payment_method: payload.payment_method,
-      amount_paid: paidAmount,
-      notes: payload.notes || undefined,
-    });
-    ui.addToast('success', t('admin.pos.toastSaleCreated'));
-    paymentOpen.value = false;
+    const body = buildSalePayload(
+      storeId,
+      typedName,
+      payload.payment_method,
+      paidAmount,
+      payload.notes
+    );
 
-    // Server numbers are authoritative; fall back to local math when missing.
-    const subtotalN = Number(detail.sale.subtotal) || subtotal.value;
-    const discountN = detail.sale.discount !== undefined && Number(detail.sale.discount) ? Number(detail.sale.discount) : discount.value;
-    const taxN = detail.sale.tax !== undefined && Number(detail.sale.tax) ? Number(detail.sale.tax) : taxAmount.value;
-    const totalN = Number(detail.sale.grand_total) || grandTotal.value;
-    const methodLabelKey = PAY_METHOD_KEYS[payload.payment_method] ?? 'other';
-    const currentUser = authStore.currentUser as any;
+    if (offlineNow) {
+      queueOfflineSale({
+        storeId,
+        body,
+        lines: saleLines,
+        typedName,
+        paidAmount,
+        method: payload.payment_method,
+        notes: payload.notes,
+      });
+      return;
+    }
 
-    lastReceipt.value = {
-      store_name: storeInfo.value.name || currentUser?.store_name || currentUser?.store?.name || '',
-      store_address: storeInfo.value.address || currentUser?.store?.address || '',
-      store_phone: storeInfo.value.phone || currentUser?.store?.phone || '',
-      invoice_number: detail.sale.invoice_number || '',
-      created_at: detail.sale.created_at || new Date().toISOString(),
-      cashier_name: authStore.userName,
-      customer_name: typedName,
-      tax_rate: taxRate.value,
-      payment_method_label: t(`admin.payments.${methodLabelKey}`),
-      items: saleLines,
-      subtotal: subtotalN,
-      discount: discountN,
-      tax: taxN,
-      total: totalN,
-      paid: paidAmount,
-      change: Math.max(0, paidAmount - totalN),
-      orderChannel: orderChannel.value,
-      notes: payload.notes || undefined,
-    };
+    try {
+      const detail = await saleService.create(body);
+      ui.addToast('success', t('admin.pos.toastSaleCreated'));
+      paymentOpen.value = false;
 
-    clearCart();
-    searchProducts(); // Refresh stock levels shown in the product list
-    loadSummary(); // Live sync: totals in the shift status bar
-    receiptOpen.value = true;
-  } catch (err) {
-    ui.addToast('error', apiMessage(err));
-    // The shift may have been closed from another tab/device while the
-    // payment dialog was open — re-sync so the POS shows the lock screen
-    // (the cart is intentionally kept).
-    if (/open a shift|no open shift|shift is closed|already closed/i.test(apiMessage(err))) {
-      await refreshLive();
+      // Server numbers are authoritative; fall back to local math when missing.
+      showReceipt({
+        invoice: detail.sale.invoice_number || '',
+        createdAt: detail.sale.created_at || new Date().toISOString(),
+        lines: saleLines,
+        subtotal: Number(detail.sale.subtotal) || subtotal.value,
+        discount: detail.sale.discount !== undefined && Number(detail.sale.discount) ? Number(detail.sale.discount) : discount.value,
+        tax: detail.sale.tax !== undefined && Number(detail.sale.tax) ? Number(detail.sale.tax) : taxAmount.value,
+        total: Number(detail.sale.grand_total) || grandTotal.value,
+        paid: paidAmount,
+        method: payload.payment_method,
+        customerName: typedName,
+        notes: payload.notes,
+      });
+
+      clearCart();
+      searchProducts(); // Refresh stock levels shown in the product list
+      loadSummary(); // Live sync: totals in the shift status bar
+      receiptOpen.value = true;
+    } catch (err) {
+      // Connection dropped mid-checkout: keep the sale instead of losing it.
+      if (isOfflineError(err)) {
+        isOnline.value = false;
+        notifyOfflineOnce();
+        queueOfflineSale({
+          storeId,
+          body,
+          lines: saleLines,
+          typedName,
+          paidAmount,
+          method: payload.payment_method,
+          notes: payload.notes,
+        });
+        return;
+      }
+      ui.addToast('error', apiMessage(err));
+      // The shift may have been closed from another tab/device while the
+      // payment dialog was open — re-sync so the POS shows the lock screen
+      // (the cart is intentionally kept).
+      if (/open a shift|no open shift|shift is closed|already closed/i.test(apiMessage(err))) {
+        await refreshLive();
+      }
     }
   } finally {
     processing.value = false;
@@ -610,13 +865,25 @@ watch(isReady, async (r) => {
     // flash of "checkout allowed" while the shift is actually closed.
     checkingShift.value = true;
     try {
-      await loadStoreSettings();
-      // Fresh carts adopt the store's default tax rate (settings).
-      if (cart.value.length === 0) taxRate.value = defaultTaxRate.value;
-      await refreshLive();
-      heldOrdersApi.reload();
-      loadCustomers(); // datalist suggestions for the customer name input
-      if (currentShift.value) searchProducts();
+      if (isOnline.value) {
+        await loadStoreSettings();
+        // Fresh carts adopt the store's default tax rate (settings).
+        if (cart.value.length === 0) taxRate.value = defaultTaxRate.value;
+        await refreshLive();
+        heldOrdersApi.reload();
+        loadCustomers(); // datalist suggestions for the customer name input
+        if (currentShift.value) searchProducts();
+        cacheSnapshot();
+      } else {
+        // Offline boot: only the last data this device received is used. No
+        // invented catalogue or shift — without a cached OPEN shift the POS
+        // stays locked instead of accepting unsynchronisable sales.
+        const restored = applyCachedSnapshot();
+        heldOrdersApi.reload();
+        if (cart.value.length === 0) taxRate.value = defaultTaxRate.value;
+        if (!restored) ui.addToast('warning', t('offlineSync.cacheUnavailable'));
+        else if (currentShift.value) notifyOfflineOnce();
+      }
     } finally {
       checkingShift.value = false;
     }
@@ -685,10 +952,14 @@ function onSelfOrderEvent(ev: RealtimeEvent) {
   if (data?.order_source !== 'SELF_ORDER' || data?.status !== 'PAID') return;
   unlockSelfOrderAudio();
   playSelfOrderSound();
-  ui.addToast('success', t('selfOrder.newOrderToast', {
+  const message = t('selfOrder.newOrderToast', {
     table: String(data?.table_no ?? ''),
     invoice: String(data?.invoice_number ?? ''),
-  }));
+  });
+  ui.addToast('success', message);
+  // Desktop builds: also raise an OS notification so an order is not missed
+  // while the window is in the background. No-op in the browser.
+  void notifyNative(t('selfOrder.newSelfOrder'), message);
 }
 
 const realtimeUnsubs: Array<() => void> = [];
@@ -714,6 +985,24 @@ onMounted(() => {
   realtimeUnsubs.push(() => {
     window.removeEventListener('pointerdown', unlock);
     window.removeEventListener('keydown', unlock);
+  });
+
+  // Connectivity transitions: switch the POS between live and offline mode.
+  const handleOnline = () => {
+    isOnline.value = true;
+    offlineNoticeShown = false;
+    ui.addToast('success', t('offlineSync.toastBackOnline'));
+    if (currentShift.value) searchProducts();
+  };
+  const handleOffline = () => {
+    isOnline.value = false;
+    ui.addToast('warning', t('admin.pos.offlineModeActive'));
+  };
+  window.addEventListener('online', handleOnline);
+  window.addEventListener('offline', handleOffline);
+  realtimeUnsubs.push(() => {
+    window.removeEventListener('online', handleOnline);
+    window.removeEventListener('offline', handleOffline);
   });
 });
 
@@ -749,19 +1038,44 @@ onUnmounted(() => {
     </div>
 
     <!-- Open shift → POS usable -->
-    <div v-else class="flex flex-col gap-4 min-h-[calc(100vh-8rem)]">      <!-- Shift status bar (live numbers synced with transactions) -->
-      <div class="flex items-start gap-2">
+    <div v-else class="pos-checkout min-w-0 flex flex-col gap-3 sm:gap-4">
+      <!-- Offline banner: checkout keeps working, sales wait in the sync queue -->
+      <div
+        v-if="!isOnline"
+        class="flex flex-wrap items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm"
+      >
+        <WifiOff class="h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
+        <span class="min-w-0 flex-1">{{ t('admin.pos.offlineModeActive') }}</span>
+        <a href="/admin/offline-sync" class="shrink-0 font-medium underline underline-offset-2">
+          {{ t('sidebar.sync') }} ({{ offlineCount }})
+        </a>
+      </div>
+
+      <!-- Shift status bar (live numbers synced with transactions) -->
+      <div class="flex items-start gap-2 min-w-0">
         <PosShiftStatusBar
-          class="flex-1"
+          class="flex-1 min-w-0"
           :current-shift="currentShift"
           :summary="summary"
           :refresh="refreshLive"
           :open-close-dialog="shiftDialogsRef?.openCloseDialog"
         />
+        <a
+          v-if="offlineCount > 0"
+          href="/admin/offline-sync"
+          class="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border px-2.5 text-sm font-medium hover:bg-muted sm:px-3"
+          :title="t('offlineSync.pendingBadge', { count: offlineCount })"
+        >
+          <RefreshCw class="h-4 w-4" aria-hidden="true" />
+          <span class="hidden sm:inline">{{ t('sidebar.sync') }}</span>
+          <Badge variant="secondary" class="tabular-nums">
+            {{ offlineCount > 99 ? '99+' : offlineCount }}
+          </Badge>
+        </a>
         <Button
           variant="outline"
           size="icon"
-          class="shrink-0 h-9 w-9"
+          class="shrink-0 h-9 w-9 self-start"
           :title="t('selfOrder.soundNotification')"
           @click="toggleSound"
         >
@@ -770,9 +1084,9 @@ onUnmounted(() => {
         </Button>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1">
+      <div class="grid grid-cols-1 xl:grid-cols-3 gap-3 sm:gap-4 min-w-0">
         <!-- Left: Search & Product List (PosProductBrowser.vue) -->
-        <div class="lg:col-span-2 flex flex-col gap-4">
+        <div class="xl:col-span-2 min-w-0 flex flex-col gap-4">
           <PosProductBrowser
             ref="productBrowserRef"
             :products="searchResults"
@@ -786,8 +1100,8 @@ onUnmounted(() => {
           />
         </div>
 
-        <!-- Right: Cart -->
-        <div class="flex flex-col gap-4">
+        <!-- Cart stays in document flow until XL; short screens remain scrollable. -->
+        <div class="min-w-0 flex flex-col gap-3 sm:gap-4">
           <PosCartCard
             :cart="cart"
             :holds="holds"
@@ -805,7 +1119,7 @@ onUnmounted(() => {
           />
 
           <!-- Totals & Payment -->
-          <Card>
+          <Card class="shrink-0">
             <CardContent class="p-4 space-y-3">
 
               <div class="space-y-2">
@@ -825,11 +1139,11 @@ onUnmounted(() => {
               </div>
 
               <!-- Grand total bar: channel selector, total, dan action terpisah -->
-              <div class="flex flex-wrap items-center justify-between gap-3 rounded-md border-t pt-3">
+              <div class="flex flex-col gap-3 rounded-md border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
                 <PosOrderChannelSelector v-model:model-value="orderChannel" />
                 <div class="flex items-center gap-2">
                   <Button
-                    class="h-8 min-w-0 px-4 text-sm"
+                    class="h-10 min-w-0 flex-1 px-4 text-sm sm:h-8 sm:flex-none"
                     :disabled="cart.length === 0"
                     @click="openPayment"
                   >

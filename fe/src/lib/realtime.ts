@@ -14,6 +14,7 @@
  * - `on(event, handler)` subscribes and returns an unsubscribe function.
  */
 import { authStorage } from '@/lib/auth';
+import { WS_URL } from '@/lib/apiBase';
 
 export interface RealtimeEvent {
   event: string;
@@ -80,9 +81,9 @@ class RealtimeClient {
     this.shouldReconnect = true;
     this.manualClose = false;
 
-    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const url = `${proto}//${window.location.host}/ws?token=${encodeURIComponent(token)}`;
-    this.ws = new WebSocket(url);
+    // WS_URL is absolute under Tauri (no proxy) and derived from the current
+    // origin in the browser.
+    this.ws = new WebSocket(`${WS_URL}?token=${encodeURIComponent(token)}`);
 
     this.ws.onopen = () => {
       this.reconnectAttempts = 0;

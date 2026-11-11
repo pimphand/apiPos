@@ -1,10 +1,14 @@
 {
   "swagger": "2.0",
   "info": {
-    "title": "activitylog/v1/activity_log.proto",
+    "title": "accounting/v1/accounting.proto",
     "version": "version not set"
   },
   "tags": [
+    {
+      "name": "AccountingService",
+      "description": "AccountingService exposes the double-entry engine and the 7 financial\nstatements. All money is carried as decimal strings (never double)."
+    },
     {
       "name": "ActivityLogService"
     },
@@ -76,6 +80,854 @@
     "application/json"
   ],
   "paths": {
+    "/api/v1/accounting/accounts": {
+      "get": {
+        "operationId": "AccountingService_ListAccounts",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListAccountsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "accountType",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "isActive",
+            "description": "\"true\" | \"false\" | \"\" (proto3 bool ambiguity)",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "perPage",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "tags": [
+          "AccountingService"
+        ]
+      },
+      "post": {
+        "summary": "---- Chart of accounts ----",
+        "operationId": "AccountingService_CreateAccount",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1AccountResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreateAccountRequest"
+            }
+          }
+        ],
+        "tags": [
+          "AccountingService"
+        ]
+      }
+    },
+    "/api/v1/accounting/accounts/{id}": {
+      "get": {
+        "operationId": "AccountingService_GetAccount",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1AccountResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AccountingService"
+        ]
+      },
+      "put": {
+        "operationId": "AccountingService_UpdateAccount",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1AccountResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AccountingServiceUpdateAccountBody"
+            }
+          }
+        ],
+        "tags": [
+          "AccountingService"
+        ]
+      }
+    },
+    "/api/v1/accounting/export/{report}": {
+      "get": {
+        "summary": "---- Export ----",
+        "operationId": "AccountingService_ExportStatement",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ExportResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "report",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "storeId",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AccountingService"
+        ]
+      }
+    },
+    "/api/v1/accounting/journals": {
+      "get": {
+        "operationId": "AccountingService_ListJournals",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListJournalsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sourceType",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "perPage",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "tags": [
+          "AccountingService"
+        ]
+      },
+      "post": {
+        "summary": "---- Journals ----",
+        "operationId": "AccountingService_CreateManualJournal",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1JournalResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreateManualJournalRequest"
+            }
+          }
+        ],
+        "tags": [
+          "AccountingService"
+        ]
+      }
+    },
+    "/api/v1/accounting/journals/{id}": {
+      "get": {
+        "operationId": "AccountingService_GetJournal",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1JournalResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AccountingService"
+        ]
+      }
+    },
+    "/api/v1/accounting/journals/{id}/post": {
+      "post": {
+        "operationId": "AccountingService_PostJournal",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1JournalResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AccountingService"
+        ]
+      }
+    },
+    "/api/v1/accounting/journals/{id}/reverse": {
+      "post": {
+        "operationId": "AccountingService_ReverseJournal",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1JournalResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AccountingServiceReverseJournalBody"
+            }
+          }
+        ],
+        "tags": [
+          "AccountingService"
+        ]
+      }
+    },
+    "/api/v1/accounting/periods": {
+      "get": {
+        "operationId": "AccountingService_ListPeriods",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListPeriodsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "AccountingService"
+        ]
+      },
+      "post": {
+        "summary": "---- Periods ----",
+        "operationId": "AccountingService_CreatePeriod",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1PeriodResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreatePeriodRequest"
+            }
+          }
+        ],
+        "tags": [
+          "AccountingService"
+        ]
+      }
+    },
+    "/api/v1/accounting/periods/{id}/close": {
+      "post": {
+        "operationId": "AccountingService_ClosePeriod",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1PeriodResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AccountingService"
+        ]
+      }
+    },
+    "/api/v1/accounting/reports/balance-sheet": {
+      "get": {
+        "operationId": "AccountingService_GetBalanceSheet",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1StatementResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "storeId",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AccountingService"
+        ]
+      }
+    },
+    "/api/v1/accounting/reports/cash-flow": {
+      "get": {
+        "operationId": "AccountingService_GetCashFlow",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1StatementResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "storeId",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AccountingService"
+        ]
+      }
+    },
+    "/api/v1/accounting/reports/changes-in-equity": {
+      "get": {
+        "operationId": "AccountingService_GetChangesInEquity",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1StatementResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "storeId",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AccountingService"
+        ]
+      }
+    },
+    "/api/v1/accounting/reports/general-journal": {
+      "get": {
+        "operationId": "AccountingService_GetGeneralJournal",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListJournalsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sourceType",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "perPage",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "tags": [
+          "AccountingService"
+        ]
+      }
+    },
+    "/api/v1/accounting/reports/general-ledger": {
+      "get": {
+        "operationId": "AccountingService_GetGeneralLedger",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GeneralLedgerResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "perPage",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "tags": [
+          "AccountingService"
+        ]
+      }
+    },
+    "/api/v1/accounting/reports/income-statement": {
+      "get": {
+        "operationId": "AccountingService_GetIncomeStatement",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1StatementResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "storeId",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AccountingService"
+        ]
+      }
+    },
+    "/api/v1/accounting/reports/trial-balance": {
+      "get": {
+        "summary": "---- Financial statements ----",
+        "operationId": "AccountingService_GetTrialBalance",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1StatementResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "storeId",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AccountingService"
+        ]
+      }
+    },
+    "/api/v1/accounting/reports/validate": {
+      "get": {
+        "operationId": "AccountingService_ValidateBooks",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ValidateResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "storeId",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AccountingService"
+        ]
+      }
+    },
     "/api/v1/activity-logs": {
       "get": {
         "summary": "ListActivityLogs lists activity logs with filters",
@@ -4242,6 +5094,25 @@
     }
   },
   "definitions": {
+    "AccountingServiceReverseJournalBody": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string"
+        }
+      }
+    },
+    "AccountingServiceUpdateAccountBody": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "isActive": {
+          "type": "string"
+        }
+      }
+    },
     "CategoryServiceDeactivateCategoryBody": {
       "type": "object"
     },
@@ -4916,7 +5787,7 @@
           "type": "string"
         }
       },
-      "additionalProperties": {}
+      "additionalProperties": true
     },
     "roleV1Permission": {
       "type": "object",
@@ -5093,6 +5964,38 @@
           "type": "string"
         },
         "updatedAt": {
+          "type": "string"
+        }
+      }
+    },
+    "v1AccountResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "code": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "accountType": {
+          "type": "string"
+        },
+        "normalBalance": {
+          "type": "string"
+        },
+        "parentId": {
+          "type": "string"
+        },
+        "isCashEquiv": {
+          "type": "boolean"
+        },
+        "isActive": {
+          "type": "boolean"
+        },
+        "createdAt": {
           "type": "string"
         }
       }
@@ -5339,6 +6242,32 @@
         }
       }
     },
+    "v1CreateAccountRequest": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "accountType": {
+          "type": "string"
+        },
+        "normalBalance": {
+          "type": "string"
+        },
+        "parentId": {
+          "type": "string"
+        },
+        "isCashEquiv": {
+          "type": "boolean"
+        },
+        "isActive": {
+          "type": "boolean"
+        }
+      }
+    },
     "v1CreateCategoryRequest": {
       "type": "object",
       "properties": {
@@ -5370,6 +6299,24 @@
         }
       }
     },
+    "v1CreateManualJournalRequest": {
+      "type": "object",
+      "properties": {
+        "entryDate": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "lines": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1JournalLineRequest"
+          }
+        }
+      }
+    },
     "v1CreatePaymentRequest": {
       "type": "object",
       "properties": {
@@ -5385,6 +6332,20 @@
           "format": "double"
         },
         "reference": {
+          "type": "string"
+        }
+      }
+    },
+    "v1CreatePeriodRequest": {
+      "type": "object",
+      "properties": {
+        "periodName": {
+          "type": "string"
+        },
+        "startDate": {
+          "type": "string"
+        },
+        "endDate": {
           "type": "string"
         }
       }
@@ -5785,6 +6746,48 @@
         }
       }
     },
+    "v1ExportResponse": {
+      "type": "object",
+      "properties": {
+        "fileBytes": {
+          "type": "string",
+          "format": "byte"
+        },
+        "filename": {
+          "type": "string"
+        },
+        "contentType": {
+          "type": "string"
+        }
+      }
+    },
+    "v1GeneralLedgerResponse": {
+      "type": "object",
+      "properties": {
+        "lines": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1LedgerLine"
+          }
+        },
+        "totalCount": {
+          "type": "string",
+          "format": "int64"
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "perPage": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "runningBalance": {
+          "type": "string"
+        }
+      }
+    },
     "v1GetMyPermissionsResponse": {
       "type": "object",
       "properties": {
@@ -5938,6 +6941,150 @@
         }
       }
     },
+    "v1JournalLineRequest": {
+      "type": "object",
+      "properties": {
+        "accountCode": {
+          "type": "string"
+        },
+        "debit": {
+          "type": "string"
+        },
+        "credit": {
+          "type": "string"
+        },
+        "memo": {
+          "type": "string"
+        }
+      }
+    },
+    "v1JournalLineResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "accountId": {
+          "type": "string"
+        },
+        "accountCode": {
+          "type": "string"
+        },
+        "accountName": {
+          "type": "string"
+        },
+        "debit": {
+          "type": "string"
+        },
+        "credit": {
+          "type": "string"
+        },
+        "memo": {
+          "type": "string"
+        }
+      }
+    },
+    "v1JournalResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "entryNumber": {
+          "type": "string"
+        },
+        "entryDate": {
+          "type": "string"
+        },
+        "entryType": {
+          "type": "string"
+        },
+        "sourceType": {
+          "type": "string"
+        },
+        "sourceId": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "reversalOfId": {
+          "type": "string"
+        },
+        "reversedById": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "lines": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1JournalLineResponse"
+          }
+        }
+      }
+    },
+    "v1LedgerLine": {
+      "type": "object",
+      "properties": {
+        "entryDate": {
+          "type": "string"
+        },
+        "entryNumber": {
+          "type": "string"
+        },
+        "sourceType": {
+          "type": "string"
+        },
+        "sourceId": {
+          "type": "string"
+        },
+        "debit": {
+          "type": "string"
+        },
+        "credit": {
+          "type": "string"
+        },
+        "balance": {
+          "type": "string"
+        },
+        "memo": {
+          "type": "string"
+        },
+        "entryId": {
+          "type": "string"
+        }
+      }
+    },
+    "v1ListAccountsResponse": {
+      "type": "object",
+      "properties": {
+        "accounts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1AccountResponse"
+          }
+        },
+        "totalCount": {
+          "type": "string",
+          "format": "int64"
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "perPage": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
     "v1ListActivityLogsResponse": {
       "type": "object",
       "properties": {
@@ -6002,6 +7149,30 @@
         }
       }
     },
+    "v1ListJournalsResponse": {
+      "type": "object",
+      "properties": {
+        "journals": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1JournalResponse"
+          }
+        },
+        "totalCount": {
+          "type": "string",
+          "format": "int64"
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "perPage": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
     "v1ListPaymentsResponse": {
       "type": "object",
       "properties": {
@@ -6023,6 +7194,22 @@
         "perPage": {
           "type": "integer",
           "format": "int32"
+        }
+      }
+    },
+    "v1ListPeriodsResponse": {
+      "type": "object",
+      "properties": {
+        "periods": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1PeriodResponse"
+          }
+        },
+        "totalCount": {
+          "type": "string",
+          "format": "int64"
         }
       }
     },
@@ -6582,6 +7769,29 @@
             "type": "object",
             "$ref": "#/definitions/paymentV1Payment"
           }
+        }
+      }
+    },
+    "v1PeriodResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "periodName": {
+          "type": "string"
+        },
+        "startDate": {
+          "type": "string"
+        },
+        "endDate": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "closedAt": {
+          "type": "string"
         }
       }
     },
@@ -7354,6 +8564,81 @@
         }
       }
     },
+    "v1StatementLine": {
+      "type": "object",
+      "properties": {
+        "accountCode": {
+          "type": "string"
+        },
+        "accountName": {
+          "type": "string"
+        },
+        "accountType": {
+          "type": "string"
+        },
+        "debit": {
+          "type": "string"
+        },
+        "credit": {
+          "type": "string"
+        },
+        "balance": {
+          "type": "string"
+        },
+        "priorBalance": {
+          "type": "string"
+        },
+        "delta": {
+          "type": "string"
+        },
+        "isSubtotal": {
+          "type": "boolean"
+        },
+        "isTotal": {
+          "type": "boolean"
+        }
+      }
+    },
+    "v1StatementResponse": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "startDate": {
+          "type": "string"
+        },
+        "endDate": {
+          "type": "string"
+        },
+        "lines": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1StatementLine"
+          }
+        },
+        "totalDebit": {
+          "type": "string"
+        },
+        "totalCredit": {
+          "type": "string"
+        },
+        "totalBalance": {
+          "type": "string"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1ValidationWarning"
+          }
+        },
+        "generatedAt": {
+          "type": "string"
+        }
+      }
+    },
     "v1StockSummaryResponse": {
       "type": "object",
       "properties": {
@@ -7661,6 +8946,44 @@
       "properties": {
         "user": {
           "$ref": "#/definitions/userV1User"
+        }
+      }
+    },
+    "v1ValidateResponse": {
+      "type": "object",
+      "properties": {
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1ValidationWarning"
+          }
+        },
+        "generatedAt": {
+          "type": "string"
+        }
+      }
+    },
+    "v1ValidationWarning": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "severity": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "accountCode": {
+          "type": "string"
+        },
+        "expected": {
+          "type": "string"
+        },
+        "actual": {
+          "type": "string"
         }
       }
     }

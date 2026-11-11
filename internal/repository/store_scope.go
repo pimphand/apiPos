@@ -24,6 +24,10 @@ var tenantTables = map[string]bool{
 	"cashier_shifts":         true,
 	"activity_logs":          true,
 	"tables":                 true,
+	"accounting_periods":     true,
+	"chart_of_accounts":      true,
+	"journal_entries":        true,
+	"journal_lines":          true,
 }
 
 // defaultStoreID is used as a fallback tenant scope when a non-superadmin

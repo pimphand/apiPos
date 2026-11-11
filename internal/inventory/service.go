@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"apiPos/internal/accounting"
 	"apiPos/internal/apperror"
 	gormdb "apiPos/internal/database/gorm"
 	"apiPos/internal/realtime"
@@ -25,12 +26,13 @@ const (
 
 // Service handles inventory business logic
 type Service struct {
-	repos *repository.Repositories
+	repos   *repository.Repositories
+	posting *accounting.PostingService
 }
 
 // NewService creates a new inventory Service
 func NewService(repos *repository.Repositories) *Service {
-	return &Service{repos: repos}
+	return &Service{repos: repos, posting: accounting.NewPostingService(repos.DB())}
 }
 
 // CreateTransactionRequest represents the request to create an inventory transaction
@@ -179,6 +181,18 @@ func (s *Service) CreateTransaction(ctx context.Context, req CreateTransactionRe
 
 	if err := s.repos.Inventory.CreateTransaction(ctx, transaction); err != nil {
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to create inventory transaction", err)
+	}
+
+	// Accounting: post PURCHASE / ADJUSTMENT / DAMAGE journals.
+	// SALE and RETURN are already covered by the SALE/REVERSAL journals.
+	if req.Type == TypePurchase {
+		if _, err := s.posting.PostPurchase(ctx, s.repos.DB().WithContext(ctx), transaction); err != nil {
+			_ = err // best-effort: stock movement already succeeded
+		}
+	} else if req.Type == TypeAdjustment || req.Type == TypeDamage {
+		if _, err := s.posting.PostAdjustment(ctx, s.repos.DB().WithContext(ctx), transaction); err != nil {
+			_ = err
+		}
 	}
 
 	realtime.PublishFromContext(ctx, realtime.Event{

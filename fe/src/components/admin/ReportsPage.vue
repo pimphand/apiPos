@@ -153,31 +153,42 @@ watch(isReady, (r) => { if (r) loadTab(); }, { immediate: true });
     </div>
 
     <div v-else class="flex flex-col gap-4">
-      <div>
-        <h2 class="text-2xl font-bold">{{ t('admin.reports.title') }}</h2>
-        <p class="text-muted-foreground mt-1">{{ t('admin.reports.description') }}</p>
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div class="min-w-0">
+          <h2 class="text-xl font-bold sm:text-2xl">{{ t('admin.reports.title') }}</h2>
+          <p class="text-muted-foreground mt-1 text-sm sm:text-base">{{ t('admin.reports.description') }}</p>
+        </div>
+        <a
+          href="/reports/accounting"
+          class="inline-flex h-9 shrink-0 items-center rounded-md border bg-background px-4 text-sm font-medium hover:bg-muted transition-colors"
+        >
+          {{ t('admin.accounting.title') }} →
+        </a>
       </div>
 
       <Card>
-        <CardContent class="flex flex-wrap items-end gap-3 pt-4">
+        <CardContent class="grid grid-cols-1 gap-3 pt-4 sm:grid-cols-2 md:grid-cols-[auto_auto_1fr] md:items-end">
           <div class="space-y-1">
             <Label>{{ t('admin.reports.fromDate') }}</Label>
-            <Input v-model="fromDate" type="date" class="w-40" />
+            <Input v-model="fromDate" type="date" class="w-full sm:w-40" />
           </div>
           <div class="space-y-1">
             <Label>{{ t('admin.reports.toDate') }}</Label>
-            <Input v-model="toDate" type="date" class="w-40" />
+            <Input v-model="toDate" type="date" class="w-full sm:w-40" />
           </div>
-          <Button variant="outline" @click="applyFilter">{{ t('admin.reports.apply') }}</Button>
+          <div class="flex sm:justify-start md:justify-end">
+            <Button variant="outline" class="w-full sm:w-auto" @click="applyFilter">{{ t('admin.reports.apply') }}</Button>
+          </div>
         </CardContent>
       </Card>
 
-      <div class="flex flex-wrap gap-2">
+      <div class="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 snap-x snap-mandatory sm:flex-wrap sm:snap-none sm:pb-0">
         <Button
           v-for="tab in tabs"
           :key="tab.key"
           :variant="activeTab === tab.key ? 'default' : 'outline'"
           size="sm"
+          class="shrink-0 snap-start"
           @click="switchTab(tab.key)"
         >
           {{ t(tab.labelKey) }}
@@ -190,7 +201,8 @@ watch(isReady, (r) => { if (r) loadTab(); }, { immediate: true });
           <CardTitle class="text-base">{{ t('admin.reports.tabDailySales') }}</CardTitle>
         </CardHeader>
         <CardContent class="p-0">
-          <Table>
+          <div class="overflow-x-auto">
+          <Table class="min-w-[480px]">
             <TableHeader>
               <TableRow>
                 <TableHead>{{ t('admin.reports.date') }}</TableHead>
@@ -207,14 +219,15 @@ watch(isReady, (r) => { if (r) loadTab(); }, { immediate: true });
                   <TableCell :colspan="3" class="text-center py-8 text-muted-foreground">{{ t('admin.reports.noData') }}</TableCell>
                 </TableRow>
                 <TableRow v-for="r in dailySales" :key="r.date">
-                  <TableCell>{{ r.date }}</TableCell>
+                  <TableCell class="whitespace-nowrap">{{ r.date }}</TableCell>
                   <TableCell class="text-right">{{ r.total_sales }}</TableCell>
                   <TableCell class="text-right font-medium tabular-nums">{{ formatCurrency(r.total_amount) }}</TableCell>
                 </TableRow>
               </template>
             </TableBody>
           </Table>
-          <div v-if="dailySales.length > 0" class="flex flex-wrap justify-end gap-x-6 gap-y-2 p-4 border-t text-sm font-semibold">
+          </div>
+          <div v-if="dailySales.length > 0" class="flex flex-wrap justify-end gap-x-4 gap-y-2 p-4 border-t text-sm font-semibold">
             <span>{{ t('admin.reports.totalSales') }}: {{ summaryTotals.total_sales }}</span>
             <span>{{ t('admin.reports.totalAmount') }}: {{ formatCurrency(summaryTotals.total_amount) }}</span>
           </div>
@@ -227,11 +240,12 @@ watch(isReady, (r) => { if (r) loadTab(); }, { immediate: true });
           <CardTitle class="text-base">{{ t('admin.reports.tabByCashier') }}</CardTitle>
         </CardHeader>
         <CardContent class="p-0">
-          <Table>
+          <div class="overflow-x-auto">
+          <Table class="min-w-[480px]">
             <TableHeader>
               <TableRow>
                 <TableHead>{{ t('admin.reports.cashier') }}</TableHead>
-                <TableHead class="text-right">{{ t('admin.reports.transactions') }}</TableHead>
+                <TableHead class="hidden sm:table-cell text-right">{{ t('admin.reports.transactions') }}</TableHead>
                 <TableHead class="text-right">{{ t('admin.reports.totalAmount') }}</TableHead>
               </TableRow>
             </TableHeader>
@@ -245,12 +259,13 @@ watch(isReady, (r) => { if (r) loadTab(); }, { immediate: true });
                 </TableRow>
                 <TableRow v-for="r in cashierReports" :key="r.cashier_id">
                   <TableCell>{{ r.cashier_name }}</TableCell>
-                  <TableCell class="text-right">{{ r.total_transactions }}</TableCell>
+                  <TableCell class="hidden sm:table-cell text-right">{{ r.total_transactions }}</TableCell>
                   <TableCell class="text-right font-medium tabular-nums">{{ formatCurrency(r.total_amount) }}</TableCell>
                 </TableRow>
               </template>
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
 
@@ -260,7 +275,8 @@ watch(isReady, (r) => { if (r) loadTab(); }, { immediate: true });
           <CardTitle class="text-base">{{ t('admin.reports.tabByProduct') }}</CardTitle>
         </CardHeader>
         <CardContent class="p-0">
-          <Table>
+          <div class="overflow-x-auto">
+          <Table class="min-w-[480px]">
             <TableHeader>
               <TableRow>
                 <TableHead>{{ t('admin.reports.product') }}</TableHead>
@@ -284,6 +300,7 @@ watch(isReady, (r) => { if (r) loadTab(); }, { immediate: true });
               </template>
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
 
@@ -293,11 +310,12 @@ watch(isReady, (r) => { if (r) loadTab(); }, { immediate: true });
           <CardTitle class="text-base">{{ t('admin.reports.tabByCategory') }}</CardTitle>
         </CardHeader>
         <CardContent class="p-0">
-          <Table>
+          <div class="overflow-x-auto">
+          <Table class="min-w-[560px]">
             <TableHeader>
               <TableRow>
                 <TableHead>{{ t('admin.reports.category') }}</TableHead>
-                <TableHead class="text-right">{{ t('admin.reports.products') }}</TableHead>
+                <TableHead class="hidden sm:table-cell text-right">{{ t('admin.reports.products') }}</TableHead>
                 <TableHead class="text-right">{{ t('admin.reports.quantitySold') }}</TableHead>
                 <TableHead class="text-right">{{ t('admin.reports.totalAmount') }}</TableHead>
               </TableRow>
@@ -312,13 +330,14 @@ watch(isReady, (r) => { if (r) loadTab(); }, { immediate: true });
                 </TableRow>
                 <TableRow v-for="r in categoryReports" :key="r.category_id">
                   <TableCell>{{ r.category_name }}</TableCell>
-                  <TableCell class="text-right">{{ r.product_count }}</TableCell>
+                  <TableCell class="hidden sm:table-cell text-right">{{ r.product_count }}</TableCell>
                   <TableCell class="text-right">{{ r.quantity_sold }}</TableCell>
                   <TableCell class="text-right font-medium tabular-nums">{{ formatCurrency(r.total_amount) }}</TableCell>
                 </TableRow>
               </template>
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
 
@@ -328,7 +347,8 @@ watch(isReady, (r) => { if (r) loadTab(); }, { immediate: true });
           <CardTitle class="text-base">{{ t('admin.reports.tabPaymentSummary') }}</CardTitle>
         </CardHeader>
         <CardContent class="p-0">
-          <Table>
+          <div class="overflow-x-auto">
+          <Table class="min-w-[480px]">
             <TableHeader>
               <TableRow>
                 <TableHead>{{ t('admin.reports.paymentMethod') }}</TableHead>
@@ -352,7 +372,8 @@ watch(isReady, (r) => { if (r) loadTab(); }, { immediate: true });
               </template>
             </TableBody>
           </Table>
-          <div v-if="paymentReports.length > 0" class="flex justify-end p-4 border-t text-sm font-semibold">
+          </div>
+          <div v-if="paymentReports.length > 0" class="flex flex-wrap justify-end p-4 border-t text-sm font-semibold">
             <span>{{ t('admin.reports.totalAmount') }}: {{ formatCurrency(summaryTotals.total_amount) }}</span>
           </div>
         </CardContent>
@@ -365,11 +386,12 @@ watch(isReady, (r) => { if (r) loadTab(); }, { immediate: true });
             <CardTitle class="text-base">{{ t('admin.reports.tabInventory') }}</CardTitle>
           </CardHeader>
           <CardContent class="p-0">
-            <Table>
+            <div class="overflow-x-auto">
+            <Table class="min-w-[560px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>{{ t('admin.reports.category') }}</TableHead>
-                  <TableHead class="text-right">{{ t('admin.reports.products') }}</TableHead>
+                  <TableHead class="hidden sm:table-cell text-right">{{ t('admin.reports.products') }}</TableHead>
                   <TableHead class="text-right">{{ t('admin.reports.totalStock') }}</TableHead>
                   <TableHead class="text-right">{{ t('admin.reports.totalValue') }}</TableHead>
                 </TableRow>
@@ -384,14 +406,15 @@ watch(isReady, (r) => { if (r) loadTab(); }, { immediate: true });
                   </TableRow>
                   <TableRow v-for="r in inventoryReports" :key="r.category_name">
                     <TableCell>{{ r.category_name }}</TableCell>
-                    <TableCell class="text-right">{{ r.product_count }}</TableCell>
+                    <TableCell class="hidden sm:table-cell text-right">{{ r.product_count }}</TableCell>
                     <TableCell class="text-right">{{ r.total_stock }}</TableCell>
                     <TableCell class="text-right font-medium tabular-nums">{{ formatCurrency(r.total_value) }}</TableCell>
                   </TableRow>
                 </template>
               </TableBody>
             </Table>
-            <div v-if="inventoryReports.length > 0" class="flex flex-wrap justify-end gap-x-6 gap-y-2 p-4 border-t text-sm font-semibold">
+            </div>
+            <div v-if="inventoryReports.length > 0" class="flex flex-wrap justify-end gap-x-4 gap-y-2 p-4 border-t text-sm font-semibold">
               <span>{{ t('admin.reports.products') }}: {{ summaryTotals.total_products }}</span>
               <span>{{ t('admin.reports.totalStock') }}: {{ summaryTotals.total_stock }}</span>
               <span>{{ t('admin.reports.totalValue') }}: {{ formatCurrency(summaryTotals.total_value) }}</span>
@@ -404,26 +427,28 @@ watch(isReady, (r) => { if (r) loadTab(); }, { immediate: true });
             <CardTitle class="text-base">{{ t('admin.reports.lowStock') }}</CardTitle>
           </CardHeader>
           <CardContent class="p-0">
-            <Table>
+            <div class="overflow-x-auto">
+            <Table class="min-w-[640px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>{{ t('admin.reports.product') }}</TableHead>
-                  <TableHead>{{ t('admin.reports.category') }}</TableHead>
+                  <TableHead class="hidden sm:table-cell">{{ t('admin.reports.category') }}</TableHead>
                   <TableHead class="text-right">{{ t('admin.reports.totalStock') }}</TableHead>
-                  <TableHead class="text-right">{{ t('admin.reports.lowStock') }}</TableHead>
+                  <TableHead class="hidden md:table-cell text-right">{{ t('admin.reports.lowStock') }}</TableHead>
                   <TableHead class="text-right">{{ t('admin.reports.deficit') }}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 <TableRow v-for="r in lowStockReports" :key="r.product_id">
                   <TableCell>{{ r.product_name }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ r.category_name }}</TableCell>
+                  <TableCell class="hidden sm:table-cell text-muted-foreground">{{ r.category_name }}</TableCell>
                   <TableCell class="text-right">{{ r.current_stock }}</TableCell>
-                  <TableCell class="text-right">{{ r.minimum_stock }}</TableCell>
+                  <TableCell class="hidden md:table-cell text-right">{{ r.minimum_stock }}</TableCell>
                   <TableCell class="text-right font-medium text-destructive">{{ r.deficit }}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
       </div>

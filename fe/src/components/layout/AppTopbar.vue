@@ -26,18 +26,19 @@ function toggleDarkMode() {
 </script>
 
 <template>
-  <header class="flex min-h-16 items-center gap-1 border-b bg-card px-2 sm:gap-2 sm:px-4">
-    <SidebarTrigger class="-ml-1" />
+  <!-- Sticky topbar: mobile shows burger, tablet still fits, desktop keeps title -->
+  <header class="relative z-40 flex min-h-14 items-center gap-1 border-b bg-card px-2 sm:gap-2 sm:px-4 lg:sticky lg:top-0 lg:z-30 lg:bg-card/95 lg:backdrop-blur supports-[backdrop-filter]:lg:bg-card/80 lg:min-h-16">
+    <SidebarTrigger class="-ml-1 shrink-0" />
     <Separator orientation="vertical" class="mr-1 h-4 sm:mr-2" />
 
     <div class="flex min-w-0 flex-1 items-center justify-between gap-2">
-      <h1 class="min-w-0 truncate text-base font-semibold sm:text-lg">{{ t('topbar.appTitle') }}</h1>
+      <h1 class="min-w-0 truncate text-sm font-semibold sm:text-base md:text-lg">{{ t('topbar.appTitle') }}</h1>
 
       <div class="flex shrink-0 items-center gap-1 sm:gap-2">
         <!-- Language Toggle -->
         <button
           @click="localeStore.toggleLocale"
-          class="h-9 rounded-lg border px-2 text-xs font-medium hover:bg-muted transition-colors sm:px-3 sm:text-sm"
+          class="h-9 min-w-9 rounded-lg border px-2 text-xs font-medium hover:bg-muted transition-colors sm:px-3 sm:text-sm"
           :title="localeStore.locale === 'en' ? 'Bahasa Indonesia' : 'English'"
         >
           {{ localeStore.locale === 'en' ? 'ID' : 'EN' }}
@@ -46,7 +47,7 @@ function toggleDarkMode() {
         <!-- Dark Mode Toggle -->
         <button
           @click="toggleDarkMode"
-          class="grid h-10 w-10 place-items-center rounded-lg hover:bg-muted transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          class="grid h-9 w-9 place-items-center rounded-lg hover:bg-muted transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:h-10 sm:w-10"
           :title="t('topbar.toggleDark')"
           :aria-label="t('topbar.toggleDark')"
         >
@@ -58,34 +59,34 @@ function toggleDarkMode() {
         <div class="relative">
           <button
             @click="showUserMenu = !showUserMenu"
-            class="flex items-center gap-2 p-2 rounded-lg hover:bg-muted transition-colors"
+            class="flex items-center gap-2 p-1.5 rounded-lg hover:bg-muted transition-colors sm:p-2"
           >
-            <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium">
+            <div class="w-8 h-8 shrink-0 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium">
               {{ authStore.userName.charAt(0).toUpperCase() }}
             </div>
-            <span class="hidden max-w-36 truncate text-sm font-medium md:inline">{{ authStore.userName }}</span>
+            <span class="hidden max-w-36 truncate text-sm font-medium lg:inline">{{ authStore.userName }}</span>
           </button>
 
           <div
             v-if="showUserMenu"
-            class="absolute right-0 top-full mt-2 w-48 bg-card border rounded-lg shadow-lg z-50"
+            class="absolute right-0 top-full mt-2 w-52 max-w-[calc(100vw-2rem)] bg-card border rounded-lg shadow-lg z-50"
           >
             <div class="p-2">
-              <p class="px-2 py-1 text-sm font-medium">{{ authStore.userName }}</p>
-              <p class="px-2 py-1 text-xs text-muted-foreground">{{ authStore.currentUser?.email }}</p>
+              <p class="px-2 py-1 text-sm font-medium truncate">{{ authStore.userName }}</p>
+              <p class="px-2 py-1 text-xs text-muted-foreground truncate">{{ authStore.currentUser?.email }}</p>
             </div>
             <div class="border-t" />
             <div class="p-2">
               <a
                 href="/admin/profile"
-                class="flex items-center gap-2 px-2 py-1.5 text-sm rounded-lg hover:bg-muted transition-colors"
+                class="flex items-center gap-2 px-2 py-2 text-sm rounded-lg hover:bg-muted transition-colors"
               >
                 <UserRound class="h-4 w-4" aria-hidden="true" />
                 <span>{{ t('topbar.profile') }}</span>
               </a>
               <button
                 @click="handleLogout"
-                class="w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-lg hover:bg-muted transition-colors text-destructive"
+                class="w-full flex items-center gap-2 px-2 py-2 text-sm rounded-lg hover:bg-muted transition-colors text-destructive"
               >
                 <LogOut class="h-4 w-4" aria-hidden="true" />
                 <span>{{ t('topbar.logout') }}</span>

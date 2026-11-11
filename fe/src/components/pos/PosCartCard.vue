@@ -24,6 +24,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import PosHeldOrders from '@/components/pos/PosHeldOrders.vue';
+import { Trash } from '@lucide/vue';
 
 const props = defineProps<{
   cart: CartItem[];
@@ -48,9 +49,9 @@ const t = useLocaleStore().t;
 </script>
 
 <template>
-  <Card class="flex-1 flex flex-col">
+  <Card class="min-w-0 flex-1 flex flex-col">
     <CardHeader class="flex flex-col items-start justify-between gap-2 pb-2 sm:flex-row sm:items-center">
-      <CardTitle class="text-lg">{{ t('admin.pos.cart') }}</CardTitle>
+      <CardTitle class="text-base sm:text-lg">{{ t('admin.pos.cart') }}</CardTitle>
       <div class="flex w-full gap-1.5 sm:w-auto">
         <Button
           variant="outline"
@@ -79,12 +80,13 @@ const t = useLocaleStore().t;
       @delete="emit('deleteHold', $event)"
     />
 
-    <CardContent class="flex-1 flex flex-col p-0">
+    <CardContent class="flex-1 flex flex-col p-0 min-h-0">
       <div v-if="cart.length === 0" class="flex items-center justify-center flex-1 py-12 text-muted-foreground text-sm">
         {{ t('admin.pos.emptyCart') }}
       </div>
-      <div v-else class="flex-1 overflow-y-auto max-h-[40vh]">
-        <Table>
+      <div v-else class="flex-1 overflow-y-auto max-h-[50vh] lg:max-h-none min-h-0">
+        <div class="overflow-x-auto">
+        <Table class="min-w-[480px]">
           <TableHeader>
             <TableRow>
               <TableHead>{{ t('admin.pos.productName') }}</TableHead>
@@ -97,7 +99,7 @@ const t = useLocaleStore().t;
             <TableRow v-for="item in cart" :key="item.sku_id">
               <TableCell>
                 <div class="font-medium text-sm">{{ item.name }}</div>
-                <div class="text-xs text-muted-foreground">{{ item.sku_code }} · {{ formatCurrency(item.unit_price) }}</div>
+                <div class="text-xs text-muted-foreground">{{ item.sku_code }} <br> {{ formatCurrency(item.unit_price) }}</div>
               </TableCell>
               <TableCell>
                 <div class="flex items-center justify-center gap-1">
@@ -108,11 +110,14 @@ const t = useLocaleStore().t;
               </TableCell>
               <TableCell class="text-right text-sm tabular-nums">{{ formatCurrency(item.unit_price * item.quantity) }}</TableCell>
               <TableCell>
-                <Button variant="ghost" size="sm" class="h-7 w-7 p-0 text-destructive" @click="emit('removeItem', item)">×</Button>
+                <Button variant="ghost" size="sm" class="h-7 w-7 p-0 text-destructive" @click="emit('removeItem', item)">
+                  <Trash></Trash>
+                </Button>
               </TableCell>
             </TableRow>
           </TableBody>
         </Table>
+        </div>
       </div>
     </CardContent>
   </Card>
