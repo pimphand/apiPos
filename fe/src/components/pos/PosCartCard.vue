@@ -84,7 +84,7 @@ const t = useLocaleStore().t;
       <div v-if="cart.length === 0" class="flex items-center justify-center flex-1 py-12 text-muted-foreground text-sm">
         {{ t('admin.pos.emptyCart') }}
       </div>
-      <div v-else class="flex-1 overflow-y-auto max-h-[50vh] lg:max-h-none min-h-0">
+      <div v-else class="min-h-0 flex-1 overflow-y-auto max-h-[40vh] lg:max-h-[24rem]">
         <div class="overflow-x-auto">
         <Table class="min-w-[480px]">
           <TableHeader>

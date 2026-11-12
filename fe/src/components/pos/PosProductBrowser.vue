@@ -112,7 +112,7 @@ defineExpose({
           {{ t('admin.pos.noProducts') }}
         </div>
 
-        <div v-else class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div v-else class="grid max-h-[26rem] grid-cols-1 gap-3 overflow-y-auto pr-1 sm:max-h-[30rem] sm:grid-cols-2 xl:max-h-[34rem] xl:grid-cols-3">
           <template v-for="p in products.filter(p => p.skus && p.skus.length > 0)" :key="p.id">
             <div
               v-for="sku in (p.skus ?? [])"
