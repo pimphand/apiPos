@@ -11,7 +11,7 @@ import {
 import type { HeldOrder, HeldOrderItem } from '@/types';
 
 /**
- * Shared "held order" state for the POS checkout (docs/pos-hold-order.md).
+ * Shared "held order" state for the POS (docs/pos-hold-order.md).
  *
  * Scope (R11): holds are per `store_id` + `user_id` of the signed-in user and
  * live in `localStorage` (no backend). The list is kept reactive in memory and

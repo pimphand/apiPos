@@ -58,7 +58,7 @@ onMounted(() => {
         >
           <ShoppingCart class="h-8 w-8 text-muted-foreground" aria-hidden="true" />
           <div>
-            <h4 class="font-semibold">POS Checkout</h4>
+            <h4 class="font-semibold">POS</h4>
             <p class="text-sm text-muted-foreground">Start a new sale transaction</p>
           </div>
         </a>

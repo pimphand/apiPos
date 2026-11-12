@@ -24,7 +24,7 @@ import { Textarea } from '@/components/ui/textarea';
 import type { Customer } from '@/types';
 
 /**
- * Payment dialog for the POS checkout. Collects customer / payment method /
+ * Payment dialog for the POS. Collects customer / payment method /
  * amount paid and lets the parent handle the actual sale (the parent owns the
  * cart, shift state and services). Local input state resets each time the
  * dialog opens; `grandTotal` comes from the parent so the change/insufficient

@@ -14,7 +14,7 @@
 The frontend is a **Point of Sale (POS)** web application built with:
 
 - **Astro 5.x** — island architecture / shell / static rendering
-- **Vue.js 3.x** — interactive UI islands (POS checkout, dashboards, admin CRUD)
+- **Vue.js 3.x** — interactive UI islands (POS, dashboards, admin CRUD)
 - **shadcn/ui (Vue port)** — accessible, high-quality UI components
 - **Pinia** — Vue state management
 - **Vue Router** — client-side routing for interactive islands
@@ -162,7 +162,7 @@ approves pending tenants.
 
 ### 2.6 Core business rules the FE must respect
 
-- **POS checkout is atomic** server-side. The FE submits the whole sale in one request
+- **POS is atomic** server-side. The FE submits the whole sale in one request
   (`CreateSale`). Do **not** decrement stock client-side or partially save.
 - Payment must be sufficient: server rejects if `total paid < grand_total`; will not validate the
   `change` provided by FE — compute `change = amount_paid - grand_total` for display only.
@@ -409,7 +409,7 @@ The frontend must implement UI for **all 83 endpoints** across these functional 
 | Frontend Area | Backend Modules | Priority |
 |---------------|----------------|----------|
 | **Authentication** | Auth | P0 (must have) |
-| **POS Checkout** | Sales, Payments, Product SKUs, Cashier | P0 |
+| **POS** | Sales, Payments, Product SKUs, Cashier | P0 |
 | **Dashboard** | Reports | P1 |
 | **Product Management** | Products, Product SKUs, Categories | P1 |
 | **Inventory Management** | Inventory | P1 |
@@ -450,7 +450,7 @@ fe/
 │   │   ├── login.astro
 │   │   ├── register.astro
 │   │   ├── dashboard.astro
-│   │   ├── pos.astro              # POS checkout island (full-screen)
+│   │   ├── pos.astro              # POS island (full-screen)
 │   │   ├── reports.astro
 │   │   ├── [admin]/
 │   │   │   ├── [...path].astro   # dynamic admin prefix; resolves from PUBLIC_ADMIN_PATH_PREFIX
@@ -727,7 +727,7 @@ POST /api/v1/auth/register  {username,email,password,full_name,store_name,device
   `-- UX: tell the user their store is pending; it will work once superadmin verifies it
 ```
 
-### 8.2 POS Checkout (atomic)
+### 8.2 POS (atomic)
 
 ```
 1. Open shift (if not already) — cashier module
@@ -937,7 +937,7 @@ docker compose up -d --build   # FE + API + PostgreSQL + Adminer
 - Forms: validation states.
 
 ### E2E (Playwright)
-- Full login → POS checkout → payment → receipt flow.
+- Full login → POS → payment → receipt flow.
 - Logout & token expiry → redirect to login.
 - RBAC: cashier denied from admin pages (403), manager allowed sales/reports.
 - Refresh-token rotation (cookie) mid-session.
@@ -978,7 +978,7 @@ docker compose up -d --build   # FE + API + PostgreSQL + Adminer
 3. **Auth:** login/register/logout, Pinia `auth`, middleware auth + guards.
 4. **RBAC:** permissions from backend; guard + `can()`.
 5. **Layout & shell:** dashboard layout, sidebar, topbar, dark mode.
-6. **POS checkout:** cart, barcode, payment modal, sale submission.
+6. **POS:** cart, barcode, payment modal, sale submission.
 7. **Admin CRUD:** users, roles, permissions, categories, products, customers.
 8. **Inventory & cashier.**
 9. **Reports.**

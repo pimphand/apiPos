@@ -10,7 +10,7 @@ import { formatCurrency } from '@/lib/utils';
 import type { Product, ProductSKU } from '@/types';
 
 /**
- * Left column of the POS checkout: search box, barcode/SKU lookup and the
+ * Left column of the POS: search box, barcode/SKU lookup and the
  * product grid (product header rows + SKU rows with live stock badges).
  *
  * Pure view: typed text is two-way bound to the parent, the parent performs
