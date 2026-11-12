@@ -91,8 +91,7 @@ describe('authStorage on desktop (OS keystore)', () => {
     const { authStorage, store } = await loadAuth({ invoke });
 
     await authStorage.getRefreshToken();
-    authStorage.clear();
-    await Promise.resolve();
+    await authStorage.clear();
 
     expect(invoke).toHaveBeenCalledWith('auth_refresh_delete');
     expect(store.getItem(REFRESH_KEY)).toBeNull();

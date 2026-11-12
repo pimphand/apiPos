@@ -14,10 +14,20 @@ const localeStore = useLocaleStore();
 const t = localeStore.t;
 
 const showUserMenu = ref(false);
+const isLoggingOut = ref(false);
 
-function handleLogout() {
-  authStore.logout();
-  navigateTo('/login');
+async function handleLogout() {
+  // Wait for the local session (and the desktop keystore entry) to be deleted
+  // before navigating: a navigation that tears the page down mid-request left
+  // the refresh token behind and the login page restored the session.
+  if (isLoggingOut.value) return;
+  isLoggingOut.value = true;
+  showUserMenu.value = false;
+  try {
+    await authStore.logout();
+  } finally {
+    navigateTo('/login');
+  }
 }
 
 function toggleDarkMode() {
@@ -26,6 +36,15 @@ function toggleDarkMode() {
 </script>
 
 <template>
+  <!-- Click-away backdrop. Rendered BEFORE the header (z-30) so the header and
+       its z-50 dropdown stay above it: as a later sibling at z-40 it painted
+       over the menu, so clicking "Logout" only closed the menu. -->
+  <div
+    v-if="showUserMenu"
+    class="fixed inset-0 z-30"
+    @click="showUserMenu = false"
+  />
+
   <!-- Sticky topbar: mobile shows burger, tablet still fits, desktop keeps title -->
   <header class="relative z-40 flex min-h-14 items-center gap-1 border-b bg-card px-2 sm:gap-2 sm:px-4 lg:sticky lg:top-0 lg:z-30 lg:bg-card/95 lg:backdrop-blur supports-[backdrop-filter]:lg:bg-card/80 lg:min-h-16">
     <SidebarTrigger class="-ml-1 shrink-0" />
@@ -86,7 +105,8 @@ function toggleDarkMode() {
               </a>
               <button
                 @click="handleLogout"
-                class="w-full flex items-center gap-2 px-2 py-2 text-sm rounded-lg hover:bg-muted transition-colors text-destructive"
+                :disabled="isLoggingOut"
+                class="w-full flex items-center gap-2 px-2 py-2 text-sm rounded-lg hover:bg-muted transition-colors text-destructive disabled:opacity-60 disabled:pointer-events-none"
               >
                 <LogOut class="h-4 w-4" aria-hidden="true" />
                 <span>{{ t('topbar.logout') }}</span>
@@ -97,10 +117,4 @@ function toggleDarkMode() {
       </div>
     </div>
   </header>
-
-  <div
-    v-if="showUserMenu"
-    class="fixed inset-0 z-40"
-    @click="showUserMenu = false"
-  />
 </template>

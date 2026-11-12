@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import http, { tokenManager, refreshTokens } from '@/lib/http';
+import axios from 'axios';
+import http, { tokenManager, refreshTokens, cancelRefresh } from '@/lib/http';
+import { API_BASE_URL } from '@/lib/apiBase';
 import { authStorage } from '@/lib/auth';
 import { realtime } from '@/lib/realtime';
 import { getDeviceId } from '@/lib/device';
@@ -155,14 +157,25 @@ export const useAuthStore = defineStore('auth', () => {
   let refreshPromise: Promise<string | null> | null = null;
   let restorePromise: Promise<User | null> | null = null;
 
+  /**
+   * Bumped on every logout. A refresh/restore that was started before the
+   * user signed out compares this after its await and discards the result, so
+   * an in-flight rotation cannot write the session back.
+   */
+  let sessionEpoch = 0;
+
   function refreshAccessToken() {
     if (refreshPromise) {
       return refreshPromise;
     }
 
     const pending = (async () => {
+      const epoch = sessionEpoch;
       try {
         const refreshed = await refreshTokens();
+        if (epoch !== sessionEpoch) {
+          throw new Error('Session ended');
+        }
         if (!refreshed) {
           // No refresh token available — this is a genuine session end, not a
           // race. Clear state but do NOT attempt a server logout (nothing to
@@ -220,7 +233,10 @@ export const useAuthStore = defineStore('auth', () => {
         // next navigation will pick it up. Only logout on an explicit
         // "no refresh token" (genuine session end).
         const msg = err instanceof Error ? err.message : '';
-        if (msg.includes('No refresh token') || msg.includes('No refresh token available')) {
+        if (
+          epoch === sessionEpoch &&
+          (msg.includes('No refresh token') || msg.includes('No refresh token available'))
+        ) {
           logout();
         }
         throw err;
@@ -258,6 +274,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     restorePromise = (async () => {
+      const epoch = sessionEpoch;
       const persistedRefresh = await authStorage.getRefreshToken();
       const cachedUser = await authStorage.getUser();
 
@@ -276,6 +293,9 @@ export const useAuthStore = defineStore('auth', () => {
         user.value = cachedUser;
       }
 
+      // The user signed out while the persisted token was being read.
+      if (epoch !== sessionEpoch) return null;
+
       try {
         await refreshAccessToken();
         // Session restored: the socket may have been started before the token
@@ -283,6 +303,8 @@ export const useAuthStore = defineStore('auth', () => {
         realtime.connect();
         return user.value;
       } catch {
+        // Logout raced the restore — never bring the session back.
+        if (epoch !== sessionEpoch) return null;
         // No connection: a transport failure cannot prove the token is
         // invalid, so keep the cached profile and let the POS run offline.
         // When the browser is online and the refresh was rejected, the session
@@ -303,17 +325,16 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  function logout() {
-    // Revoke the refresh token server-side BEFORE clearing local state so the
-    // request still carries the Bearer access token (backend requires auth).
-    http
-      .post('/v1/auth/logout', {
-        refresh_token: refreshToken.value,
-        device_id: getDeviceId(),
-      })
-      .catch(() => {});
+  async function logout(): Promise<void> {
+    // 1. Invalidate anything in flight, then clear local state. Callers await
+    //    this before navigating, so the desktop keystore deletion completes
+    //    while the page is still alive.
+    sessionEpoch++;
+    cancelRefresh();
 
-    // Clear state
+    const access = accessToken.value ?? tokenManager.getAccessToken();
+    const rt = refreshToken.value;
+
     user.value = null;
     accessToken.value = null;
     refreshToken.value = null;
@@ -321,12 +342,30 @@ export const useAuthStore = defineStore('auth', () => {
     offlineSession.value = false;
     tokenManager.clearTokens();
 
-    // Clear memory storage
-    authStorage.clear();
+    await authStorage.clear();
 
     // Close the realtime socket: without an access token the server would
     // reject a reconnect, and the user should not keep receiving store events.
     realtime.disconnect();
+
+    // 2. Revoke the refresh token server-side. This runs after local cleanup
+    //    (so a failing/slow request can never leave the user half-logged-in)
+    //    with the captured Bearer token, and is bounded so logout stays snappy
+    //    when the gateway is unreachable.
+    if (rt && (typeof navigator === 'undefined' || navigator.onLine !== false)) {
+      try {
+        await axios.post(
+          `${API_BASE_URL}/v1/auth/logout`,
+          { refresh_token: rt, device_id: getDeviceId() },
+          {
+            headers: access ? { Authorization: `Bearer ${access}` } : undefined,
+            timeout: 3000,
+          },
+        );
+      } catch {
+        // Offline, timed out, or already revoked: the local session is gone.
+      }
+    }
   }
 
   async function setUser(userData: User) {

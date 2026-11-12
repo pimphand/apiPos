@@ -11,6 +11,21 @@ let refreshToken: string | null = null;
 
 // Queue for concurrent requests during token refresh
 let isRefreshing = false;
+
+/**
+ * Generation counter for refresh attempts.
+ *
+ * Logging out bumps it so a refresh that was already in flight cannot
+ * resurrect the session: without this, the response would write a fresh token
+ * pair (and the rotated refresh token back into the keystore) after the user
+ * signed out, and the next navigation restored the session.
+ */
+let refreshGeneration = 0;
+
+/** Invalidate in-flight token refreshes (called by the auth store on logout). */
+export function cancelRefresh(): void {
+  refreshGeneration++;
+}
 let failedQueue: Array<{
   resolve: (value: unknown) => void;
   reject: (reason?: unknown) => void;
@@ -101,6 +116,7 @@ export async function refreshTokens(): Promise<RefreshResult | null> {
   }
 
   isRefreshing = true;
+  const generation = refreshGeneration;
   try {
     const candidates: string[] = [];
     if (refreshToken) candidates.push(refreshToken);
@@ -112,6 +128,11 @@ export async function refreshTokens(): Promise<RefreshResult | null> {
     for (const rt of candidates) {
       try {
         const resData = await postRefresh(rt);
+        // Logged out while the request was in flight: discard the new pair
+        // instead of persisting it over the cleared storage.
+        if (generation !== refreshGeneration) {
+          return null;
+        }
         const access_token = (resData.access_token ?? resData.accessToken) as string | undefined;
         const newRefreshToken = (resData.refresh_token ?? resData.refreshToken) as string | undefined;
         const permissions = Array.isArray(resData.permissions)

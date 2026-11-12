@@ -182,8 +182,13 @@ export const authStorage = {
 
   /**
    * Clear all auth state (tokens and cached user).
+   *
+   * Async on purpose: the desktop keystore deletion must be awaited before the
+   * caller navigates away. A fire-and-forget `invoke` is aborted when the
+   * webview navigates to /login, which left the refresh token in the Keychain
+   * and let the login page restore the session the user had just ended.
    */
-  clear(): void {
+  async clear(): Promise<void> {
     authStorage._accessToken = null;
     authStorage._refreshToken = null;
     authStorage._user = null;
@@ -195,7 +200,13 @@ export const authStorage = {
     // Always ask the keystore to drop the token: a fresh JS context may not
     // have read it yet, and deleting an absent item is a no-op in Rust.
     const invoke = nativeInvoke();
-    if (invoke) void invoke(NATIVE_DELETE).catch(() => {});
+    if (invoke) {
+      try {
+        await invoke(NATIVE_DELETE);
+      } catch {
+        // Keystore unavailable — nothing else to delete.
+      }
+    }
   },
 
   /** Sync check for whether a refresh token is persisted (no decryption needed). */
