@@ -220,23 +220,45 @@ func (p *PostingService) PostSale(ctx context.Context, tx *gorm.DB, sale *gormdb
 	}
 	cogs = cogs.Round(2)
 
-	// Revenue = subtotal - discount (rounded at boundary).
+	// Revenue = subtotal - discount, tax, and cash are rounded at the 2dp
+	// boundary so debit/credit legs always balance even when float64 inputs
+	// (or split payments) have rounding artifacts.
 	rev := COGSMoney(sale.Subtotal - sale.Discount)
 	taxAmt := COGSMoney(sale.Tax)
+	cashTotal := rev.Add(taxAmt)
 
 	lines := []LineInput{}
 	cashOrBank := cashOrBankAccount(sale, payments)
 	// Cash/bank debits per payment method (split payments -> one line per method).
 	if len(payments) == 0 {
 		// No payment rows: derive from sale fields (checkout always creates one).
-		lines = append(lines, LineInput{AccountCode: cashOrBank, Debit: COGSMoney(sale.GrandTotal), Memo: "sale " + sale.InvoiceNumber})
+		lines = append(lines, LineInput{AccountCode: cashOrBank, Debit: cashTotal, Memo: "sale " + sale.InvoiceNumber})
 	} else {
-		for _, pay := range payments {
+		remaining := cashTotal
+		for i, pay := range payments {
 			acct := CodeCash
 			if pay.PaymentMethod != "CASH" {
 				acct = CodeBank
 			}
-			lines = append(lines, LineInput{AccountCode: acct, Debit: COGSMoney(pay.Amount), Memo: "payment " + pay.PaymentMethod})
+			amt := COGSMoney(pay.Amount)
+			// Put any rounding remainder on the last payment line so debits
+			// match the credited revenue/tax total exactly.
+			if i == len(payments)-1 {
+				amt = remaining
+			}
+			if amt.IsNegative() {
+				amt = decimal.Zero
+			}
+			remaining = remaining.Sub(amt)
+			if amt.IsZero() {
+				continue
+			}
+			lines = append(lines, LineInput{AccountCode: acct, Debit: amt, Memo: "payment " + pay.PaymentMethod})
+		}
+		// Safety: if payments summed to less than expected (after clamping),
+		// add the remainder to a cash/bank line so the journal stays balanced.
+		if remaining.IsPositive() {
+			lines = append(lines, LineInput{AccountCode: cashOrBank, Debit: remaining, Memo: "payment rounding"})
 		}
 	}
 	if !rev.IsZero() {

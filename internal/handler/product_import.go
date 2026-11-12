@@ -79,6 +79,10 @@ func (h *ProductImportHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	}
 	userID, _ := uuid.Parse(claims.UserID)
 
+	// Attach claims to context so store-scoped services/callbacks resolve the
+	// importing store (e.g. category auto-create during import).
+	r = r.WithContext(auth.ContextWithClaims(r.Context(), claims))
+
 	// Parse multipart form (max 10 MB).
 	if err := r.ParseMultipartForm(10 << 20); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid upload: " + err.Error()})

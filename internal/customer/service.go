@@ -2,6 +2,8 @@ package customer
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 
@@ -55,19 +57,21 @@ type ListResult struct {
 
 // CreateCustomer creates a new customer
 func (s *Service) CreateCustomer(ctx context.Context, req CreateCustomerRequest) (*gormdb.Customer, error) {
-	if req.Code == "" {
-		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Customer code is required", nil)
-	}
+	req.Code = strings.TrimSpace(req.Code)
+	req.Name = strings.TrimSpace(req.Name)
 	if req.Name == "" {
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Customer name is required", nil)
+	}
+	if req.Code == "" {
+		req.Code = generateCustomerCode()
 	}
 
 	customer := &gormdb.Customer{
 		Code:     req.Code,
 		Name:     req.Name,
-		Email:    req.Email,
-		Phone:    req.Phone,
-		Address:  req.Address,
+		Email:    strings.TrimSpace(req.Email),
+		Phone:    strings.TrimSpace(req.Phone),
+		Address:  strings.TrimSpace(req.Address),
 		IsActive: true,
 	}
 
@@ -246,6 +250,12 @@ func (s *Service) GetPurchaseHistory(ctx context.Context, customerID string, pag
 		Page:       page,
 		PerPage:    perPage,
 	}, nil
+}
+
+// generateCustomerCode generates a unique customer code for admin-created
+// customers when none is provided.
+func generateCustomerCode() string {
+	return fmt.Sprintf("CUS-%s", strings.ToUpper(uuid.New().String()[:8]))
 }
 
 // isValidUUID validates UUID format

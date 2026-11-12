@@ -2,6 +2,7 @@ package customer
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -43,16 +44,19 @@ func (m *mockCustomerRepo) GetPurchaseHistory(ctx context.Context, customerID st
 func TestCustomerService_CreateCustomer(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("empty code", func(t *testing.T) {
-		repos := &repository.Repositories{}
+	t.Run("empty code auto-generates", func(t *testing.T) {
+		repos := &repository.Repositories{
+			Customer: &mockCustomerRepo{},
+		}
 		svc := NewService(repos)
 
-		_, err := svc.CreateCustomer(ctx, CreateCustomerRequest{
+		customer, err := svc.CreateCustomer(ctx, CreateCustomerRequest{
 			Code: "",
 			Name: "Test Customer",
 		})
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "Customer code is required")
+		assert.NoError(t, err)
+		assert.NotEmpty(t, customer.Code)
+		assert.True(t, strings.HasPrefix(customer.Code, "CUS-"))
 	})
 
 	t.Run("empty name", func(t *testing.T) {
