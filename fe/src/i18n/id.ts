@@ -59,7 +59,9 @@ export default {
     opening: 'Membuka...',
     toastOpened: 'Shift dibuka — checkout kini aktif',
     shiftStatusOpen: 'Shift Terbuka',
+    shiftOpen: 'Shift Terbuka',
     openedSince: 'Dibuka {time}',
+    openedAt: 'Dibuka pada',
     closeShift: 'Tutup Shift',
     closeShiftTitle: 'Tutup Shift',
     closeShiftDesc:

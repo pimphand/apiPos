@@ -4,32 +4,33 @@ import Button from '@/components/ui/button/Button.vue';
 import Input from '@/components/ui/input/Input.vue';
 import Badge from '@/components/ui/badge/Badge.vue';
 import { Card, CardContent } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useLocaleStore } from '@/stores/locale';
 import { formatCurrency } from '@/lib/utils';
-import type { Product, ProductSKU } from '@/types';
+import type { Category, Product, ProductSKU } from '@/types';
 
 /**
- * Left column of the POS: search box, barcode/SKU lookup and the
- * product list rendered as cards (per-SKU cards with live stock badges).
+ * Left column of the POS: unified search (name / barcode / SKU), category
+ * filter, and the product list rendered as per-SKU cards with live stock badges.
  *
- * Pure view: typed text is two-way bound to the parent, the parent performs
- * search/lookup side effects, and every "Add" click is emitted upwards with
- * the product + SKU so the parent stays the single owner of the cart.
+ * Pure view: the parent owns search/filter state and side effects; "Add" clicks
+ * are emitted upwards with the product + SKU so the parent stays the single
+ * owner of the cart.
  */
 const props = defineProps<{
   products: Product[];
+  categories: Category[];
   searching: boolean;
   /** total quantity of each SKU already in the cart (for live badges) */
   cartQuantities: Record<string, number>;
   searchQuery: string;
-  barcodeInput: string;
+  categoryFilter: string;
 }>();
 
 const emit = defineEmits<{
   'update:searchQuery': [value: string];
-  'update:barcodeInput': [value: string];
+  'update:categoryFilter': [value: string];
   search: [];
-  lookup: [code: string];
   add: [product: Product, sku: ProductSKU];
 }>();
 
@@ -39,9 +40,9 @@ const searchQuery = computed({
   get: () => props.searchQuery,
   set: (v: string) => emit('update:searchQuery', v),
 });
-const barcodeInput = computed({
-  get: () => props.barcodeInput,
-  set: (v: string) => emit('update:barcodeInput', v),
+const categoryFilter = computed({
+  get: () => props.categoryFilter,
+  set: (v: string) => emit('update:categoryFilter', v),
 });
 
 const searchInputRef = ref<HTMLInputElement | null>(null);
@@ -60,12 +61,6 @@ function submitSearch() {
   emit('search');
 }
 
-function submitLookup() {
-  const code = barcodeInput.value.trim();
-  if (!code) return;
-  emit('lookup', code);
-}
-
 function addToCart(product: Product, sku: ProductSKU) {
   emit('add', product, sku);
 }
@@ -79,7 +74,7 @@ defineExpose({
 
 <template>
   <div class="min-w-0 flex flex-col gap-3 sm:gap-4">
-    <div class="flex min-w-0 gap-2">
+    <div class="flex min-w-0 flex-col gap-2 sm:flex-row">
       <div class="min-w-0 flex-1">
         <Input
           ref="searchInputRef"
@@ -89,17 +84,16 @@ defineExpose({
           class="text-base h-11"
         />
       </div>
+      <Select v-model="categoryFilter" @update:model-value="submitSearch">
+        <SelectTrigger class="h-11 w-full sm:w-48">
+          <SelectValue :placeholder="t('admin.shared.all')" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">{{ t('admin.shared.all') }}</SelectItem>
+          <SelectItem v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</SelectItem>
+        </SelectContent>
+      </Select>
       <Button @click="submitSearch" class="h-11 shrink-0 px-3 sm:px-6">{{ t('admin.shared.search') }}</Button>
-    </div>
-
-    <div class="flex min-w-0 gap-2">
-      <Input
-        v-model="barcodeInput"
-        placeholder="Barcode / SKU"
-        class="flex-1 min-w-0 h-11"
-        @keyup.enter="submitLookup"
-      />
-      <Button variant="outline" class="shrink-0 px-2 sm:px-4 h-11" @click="submitLookup">{{ t('admin.products.scanBarcode') }}</Button>
     </div>
 
     <Card class="min-w-0">

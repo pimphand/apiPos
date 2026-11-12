@@ -59,7 +59,9 @@ export default {
     opening: 'Opening...',
     toastOpened: 'Shift opened — checkout is now enabled',
     shiftStatusOpen: 'Shift Open',
+    shiftOpen: 'Shift Open',
     openedSince: 'Opened {time}',
+    openedAt: 'Opened at',
     closeShift: 'Close Shift',
     closeShiftTitle: 'Close Shift',
     closeShiftDesc:

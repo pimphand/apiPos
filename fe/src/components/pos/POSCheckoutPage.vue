@@ -5,6 +5,7 @@ import { customerService } from '@/services/customer';
 import { saleService } from '@/services/sale';
 import { cashierService } from '@/services/cashier';
 import { settingsService } from '@/services/settings';
+import { categoryService } from '@/services/category';
 import { useCashierShift } from '@/composables/useCashierShift';
 import { useHeldOrders } from '@/composables/useHeldOrders';
 import { useUiStore } from '@/stores/ui';
@@ -25,6 +26,7 @@ import {
   setSelfOrderSoundEnabled,
 } from '@/lib/selfOrderSound';
 import type {
+  Category,
   Product,
   ProductSKU,
   Customer,
@@ -94,7 +96,7 @@ function notifyOfflineOnce() {
 function cacheSnapshot() {
   if (!currentStoreId.value) return;
   saveOfflineSnapshot(currentStoreId.value, {
-    products: searchResults.value,
+    products: rawSearchResults.value,
     customers: customers.value,
     settings: settings.value,
     storeInfo: storeInfo.value,
@@ -106,7 +108,7 @@ function cacheSnapshot() {
 function applyCachedSnapshot(): boolean {
   const snapshot = loadOfflineSnapshot(currentStoreId.value);
   if (!snapshot) return false;
-  if (snapshot.products?.length) searchResults.value = snapshot.products;
+  if (snapshot.products?.length) rawSearchResults.value = snapshot.products;
   if (snapshot.customers?.length) customers.value = snapshot.customers;
   if (snapshot.settings) settings.value = snapshot.settings;
   if (snapshot.storeInfo) storeInfo.value = snapshot.storeInfo;
@@ -180,9 +182,26 @@ interface CartItem {
 }
 
 const searchQuery = ref('');
-const searchResults = ref<Product[]>([]);
+const categoryFilter = ref('all');
+const categories = ref<Category[]>([]);
+const rawSearchResults = ref<Product[]>([]);
 const searching = ref(false);
-const barcodeInput = ref('');
+
+/** Apply active category filter on top of the fetched product list. */
+const searchResults = computed(() => {
+  const list = rawSearchResults.value;
+  if (categoryFilter.value === 'all' || !categoryFilter.value) return list;
+  return list.filter((p) => p.category_id === categoryFilter.value);
+});
+
+async function loadCategories() {
+  try {
+    const res = await categoryService.list({ page: 1, per_page: 100, is_active: 'true' });
+    categories.value = res.categories ?? [];
+  } catch {
+    categories.value = [];
+  }
+}
 
 const cart = ref<CartItem[]>([]);
 const discount = ref(0);
@@ -250,10 +269,30 @@ async function searchProducts() {
   const q = searchQuery.value.trim();
   searching.value = true;
   try {
-    const res = q
-      ? await productService.search({ name: q, page: 1, per_page: 100, get_sku: true })
-      : await productService.list({ page: 1, per_page: 100, get_sku: true });
-    searchResults.value = res.products ?? [];
+    if (!q) {
+      const res = await productService.list({ page: 1, per_page: 100, get_sku: true });
+      rawSearchResults.value = res.products ?? [];
+    } else {
+      const res = await productService.search({ name: q, page: 1, per_page: 100, get_sku: true });
+      let list = res.products ?? [];
+      // Single search box: if name search finds nothing, try barcode/SKU code
+      // so scanning or typing a code in the same field still works.
+      if (list.length === 0) {
+        try {
+          let sku: ProductSKU;
+          try {
+            sku = await productService.getSKUByBarcode(q);
+          } catch {
+            sku = await productService.getSKUBySKU(q);
+          }
+          const product = await productService.get(sku.product_id, true);
+          list = [product];
+        } catch {
+          // no code match either — keep empty list
+        }
+      }
+      rawSearchResults.value = list;
+    }
     cacheSnapshot();
   } catch (err) {
     if (isOfflineError(err) || !isOnline.value) {
@@ -261,64 +300,37 @@ async function searchProducts() {
       const snapshot = loadOfflineSnapshot(currentStoreId.value);
       const cached = snapshot?.products ?? [];
       const qLower = q.toLowerCase();
-      searchResults.value = qLower
-        ? cached.filter((p) => p.name.toLowerCase().includes(qLower))
+      rawSearchResults.value = qLower
+        ? cached.filter(
+            (p) =>
+              p.name.toLowerCase().includes(qLower) ||
+              (p.skus ?? []).some(
+                (s) =>
+                  s.sku.toLowerCase().includes(qLower) ||
+                  (s.barcode || '').toLowerCase().includes(qLower)
+              )
+          )
         : cached;
       notifyOfflineOnce();
     } else {
       ui.addToast('error', apiMessage(err));
-      searchResults.value = [];
+      rawSearchResults.value = [];
     }
   } finally {
     searching.value = false;
   }
 }
 
-/** Find a product/SKU in the cached catalogue (offline barcode/scan path). */
+/** Find a product/SKU in the cached catalogue. */
 function findCachedSku(code: string): { product: Product; sku: ProductSKU } | null {
   const snapshot = loadOfflineSnapshot(currentStoreId.value);
-  const products = searchResults.value.length > 0 ? searchResults.value : snapshot?.products ?? [];
+  const products = rawSearchResults.value.length > 0 ? rawSearchResults.value : snapshot?.products ?? [];
   for (const product of products) {
     for (const sku of product.skus ?? []) {
       if (sku.barcode === code || sku.sku === code) return { product, sku };
     }
   }
   return null;
-}
-
-async function lookupBarcode(code: string) {
-  if (!code) return;
-  if (!isOnline.value) {
-    const found = findCachedSku(code);
-    if (found) {
-      addToCart(found.product, found.sku);
-      barcodeInput.value = '';
-    } else {
-      ui.addToast('error', `Product not found for: ${code}`);
-    }
-    return;
-  }
-  try {
-    const sku = await productService.getSKUByBarcode(code);
-    const product = await productService.get(sku.product_id, true);
-    addToCart(product, sku);
-    barcodeInput.value = '';
-  } catch {
-    try {
-      const sku = await productService.getSKUBySKU(code);
-      const product = await productService.get(sku.product_id, true);
-      addToCart(product, sku);
-      barcodeInput.value = '';
-    } catch {
-      const cached = findCachedSku(code);
-      if (cached) {
-        addToCart(cached.product, cached.sku);
-        barcodeInput.value = '';
-        return;
-      }
-      ui.addToast('error', `Product not found for: ${code}`);
-    }
-  }
 }
 
 function addToCart(product: Product, sku?: ProductSKU) {
@@ -667,14 +679,14 @@ function decrementCachedStock(lines: { sku_id?: string; quantity: number }[]) {
     byId.set(line.sku_id, (byId.get(line.sku_id) ?? 0) + line.quantity);
   }
   if (byId.size === 0) return;
-  for (const product of searchResults.value) {
+  for (const product of rawSearchResults.value) {
     for (const sku of product.skus ?? []) {
       const qty = byId.get(sku.id);
       if (qty) sku.stock = Math.max(0, Number(sku.stock) - qty);
     }
   }
   if (currentStoreId.value) {
-    saveOfflineSnapshot(currentStoreId.value, { products: searchResults.value });
+    saveOfflineSnapshot(currentStoreId.value, { products: rawSearchResults.value });
   }
 }
 
@@ -867,19 +879,20 @@ watch(isReady, async (r) => {
     checkingShift.value = true;
     try {
       if (isOnline.value) {
-        await loadStoreSettings();
+        await Promise.all([loadStoreSettings(), loadCategories()]);
         // Fresh carts adopt the store's default tax rate (settings).
         if (cart.value.length === 0) taxRate.value = defaultTaxRate.value;
         await refreshLive();
         heldOrdersApi.reload();
         loadCustomers(); // datalist suggestions for the customer name input
-        if (currentShift.value) searchProducts();
+        if (currentShift.value) await searchProducts();
         cacheSnapshot();
       } else {
         // Offline boot: only the last data this device received is used. No
         // invented catalogue or shift — without a cached OPEN shift the POS
         // stays locked instead of accepting unsynchronisable sales.
         const restored = applyCachedSnapshot();
+        await loadCategories();
         heldOrdersApi.reload();
         if (cart.value.length === 0) taxRate.value = defaultTaxRate.value;
         if (!restored) ui.addToast('warning', t('offlineSync.cacheUnavailable'));
@@ -1091,12 +1104,12 @@ onUnmounted(() => {
           <PosProductBrowser
             ref="productBrowserRef"
             :products="searchResults"
+            :categories="categories"
             :searching="searching"
             :cart-quantities="cartQuantities"
             v-model:search-query="searchQuery"
-            v-model:barcode-input="barcodeInput"
+            v-model:category-filter="categoryFilter"
             @search="searchProducts"
-            @lookup="lookupBarcode"
             @add="addToCart"
           />
         </div>

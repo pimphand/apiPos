@@ -31,11 +31,19 @@ export function formatNumber(num: number): string {
   return new Intl.NumberFormat('id-ID').format(num);
 }
 
+function activeLocale(): string {
+  try {
+    return localStorage.getItem('locale') === 'en' ? 'en-US' : 'id-ID';
+  } catch {
+    return 'id-ID';
+  }
+}
+
 // Format date
 export function formatDate(date: string | Date): string {
   const d = toValidDate(date);
   if (!d) return '—';
-  return new Intl.DateTimeFormat('id-ID', {
+  return new Intl.DateTimeFormat(activeLocale(), {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -46,7 +54,7 @@ export function formatDate(date: string | Date): string {
 export function formatDateTime(date: string | Date): string {
   const d = toValidDate(date);
   if (!d) return '—';
-  return new Intl.DateTimeFormat('id-ID', {
+  return new Intl.DateTimeFormat(activeLocale(), {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -59,7 +67,7 @@ export function formatDateTime(date: string | Date): string {
 export function formatTime(date: string | Date): string {
   const d = toValidDate(date);
   if (!d) return '—';
-  return new Intl.DateTimeFormat('id-ID', {
+  return new Intl.DateTimeFormat(activeLocale(), {
     hour: '2-digit',
     minute: '2-digit',
   }).format(d);
