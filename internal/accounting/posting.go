@@ -40,7 +40,11 @@ func (p *PostingService) ResolvePeriod(ctx context.Context, tx *gorm.DB, storeID
 		tx = p.db
 	}
 	// Normalize to date (midnight Asia/Jakarta -> store time).
-	tz, _ := time.LoadLocation("Asia/Jakarta")
+	tz, tzErr := time.LoadLocation("Asia/Jakarta")
+	if tzErr != nil {
+		// Fallback for minimal images without tzdata (e.g. distroless/alpine).
+		tz = time.FixedZone("Asia/Jakarta", 7*60*60)
+	}
 	day := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, tz)
 	periodName := day.Format("2006-01")
 
