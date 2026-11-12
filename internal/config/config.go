@@ -65,10 +65,10 @@ func Load() *Config {
 			Env: getEnv("APP_ENV", "development"),
 		},
 		GRPC: GRPCConfig{
-			Port: getEnvAsInt("GRPC_PORT", 50051),
+			Port: getEnvAsInt("GRPC_PORT", 18733),
 		},
 		HTTP: HTTPConfig{
-			Port: getEnvAsInt("HTTP_PORT", 8990),
+			Port: getEnvAsInt("HTTP_PORT", 18734),
 		},
 		DB: DatabaseConfig{
 			Host:     getEnv("DATABASE_HOST", "localhost"),

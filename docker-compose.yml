@@ -2,14 +2,21 @@
 #
 # The only public surface is ONE port: the `fe-app` nginx container, which routes
 #   /          -> static Astro build (served by nginx itself)
-#   /api/      -> pos-app Go grpc-gateway (:8990)
+#   /api/      -> pos-app Go grpc-gateway (:18734)
 #   /ws        -> pos-app realtime WebSocket
 #   /adminer/  -> adminer (:8080)
 #
-# TLS is terminated by the edge too (listen 443), so no separate host proxy is
-# required: point the domain at ${EDGE_TLS_BIND:-127.0.0.1}:${EDGE_TLS_PORT:-443}
-# and drop the certificates in ./certs. Plain HTTP stays on the loopback port
-# ${EDGE_PORT:-8990} for local tooling.
+# TLS is terminated by the edge too (listen 443 in-container), so no separate host
+# proxy is required: point the domain at
+# ${EDGE_TLS_BIND:-127.0.0.1}:${EDGE_TLS_PORT:-18731} and drop the certificates in
+# ./certs. Plain HTTP stays on the loopback port ${EDGE_PORT:-18730} for local
+# tooling.
+#
+# Host port scheme (deliberately uncommon so scanners do not fingerprint the
+# stack; all of them are loopback-only):
+#   18730  edge HTTP               18733  gRPC
+#   18731  edge HTTPS              18734  gateway HTTP (internal, not published)
+#   18732  PostgreSQL              18735  docs/swagger server (make docs)
 # EDGE_BIND/EDGE_TLS_BIND default to 127.0.0.1 so nothing is reachable from
 # outside the host; set them to 0.0.0.0 only if the domain is forwarded from
 # another machine (firewall it to that IP).
@@ -37,11 +44,11 @@ services:
       EDGE_SERVER_NAME: ${EDGE_SERVER_NAME:-localhost}
     ports:
       # HTTP (loopback, for local tooling / healthchecks)
-      - "${EDGE_BIND:-127.0.0.1}:${EDGE_PORT:-8990}:80"
+      - "${EDGE_BIND:-127.0.0.1}:${EDGE_PORT:-18730}:80"
       # HTTPS terminated right here — no separate host proxy needed. Point the
       # domain at this port (or forward 443 -> it) and put the certificates in
       # ./certs (see TLS_CERT_DIR). Without them a self-signed pair is generated.
-      - "${EDGE_TLS_BIND:-127.0.0.1}:${EDGE_TLS_PORT:-443}:443"
+      - "${EDGE_TLS_BIND:-127.0.0.1}:${EDGE_TLS_PORT:-18731}:443"
     volumes:
       # fullchain.pem + privkey.pem (read-only). Empty/absent -> self-signed.
       - ${TLS_CERT_DIR:-./certs}:/etc/nginx/certs:ro
@@ -69,8 +76,8 @@ services:
       - .env
     environment:
       APP_ENV: ${APP_ENV:-development}
-      GRPC_PORT: 50051
-      HTTP_PORT: 8990
+      GRPC_PORT: 18733
+      HTTP_PORT: 18734
       DATABASE_HOST: postgres
       DATABASE_PORT: 5432
       DATABASE_NAME: ${DATABASE_NAME:-pos}
@@ -81,11 +88,11 @@ services:
       JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-720h}
     ports:
       # Loopback only, for grpcurl on the host. The HTTP gateway is NOT published:
-      # the edge (fe-app) already listens on 8990 and proxies /api internally.
-      - "127.0.0.1:50051:50051"
+      # the edge (fe-app) proxies /api to it on the internal network.
+      - "127.0.0.1:${HOST_GRPC_PORT:-18733}:18733"
     healthcheck:
       # GET /health is served by the gateway (internal/server/server.go).
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8990/health || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:18734/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 6
@@ -104,10 +111,11 @@ services:
       POSTGRES_USER: ${DATABASE_USER:-postgres}
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-postgres}
     ports:
-      # Loopback only, for psql / golang-migrate on the host. Host port 5444
-      # avoids clashing with a local PostgreSQL on 5432; inside the network the
-      # database still listens on 5432, so DATABASE_PORT=5432 for containers.
-      - "127.0.0.1:5444:5432"
+      # Loopback only, for psql / golang-migrate on the host. Host port 18732
+      # avoids clashing with (and fingerprinting) a local PostgreSQL on 5432;
+      # inside the network the database still listens on 5432, so
+      # DATABASE_PORT=5432 for containers.
+      - "127.0.0.1:${DATABASE_PORT:-18732}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:

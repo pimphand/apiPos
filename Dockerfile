@@ -35,5 +35,5 @@ COPY Makefile /app/Makefile
 RUN apk add --no-cache make
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
-EXPOSE 50051 8990
+EXPOSE 18733 18734
 ENTRYPOINT ["/app/entrypoint.sh"]

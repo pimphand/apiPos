@@ -665,7 +665,7 @@ Example:
 
 ```env
 APP_ENV=development
-GRPC_PORT=50051
+GRPC_PORT=18733
 
 DATABASE_HOST=postgres
 DATABASE_PORT=5432
@@ -1087,7 +1087,7 @@ Example grpcurl command:
 grpcurl \
   -plaintext \
   -d '{"sku":"SKU001","name":"Coffee","selling_price":10000}' \
-  localhost:50051 \
+  localhost:18733 \
   product.ProductService/CreateProduct
 ```
 
@@ -1380,7 +1380,7 @@ docker compose up -d
 and the gRPC server should be available at:
 
 ```text
-localhost:50051
+localhost:18733
 ```
 
 Provide:

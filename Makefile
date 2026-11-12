@@ -65,8 +65,8 @@ test:
 	@echo "Running tests..."
 	@go test ./... -v
 
-# Serve API docs (Swagger UI + gRPC/REST examples) on :8990
-# Override with DOCS_PORT=... if the compose edge is already using 8990.
+# Serve API docs (Swagger UI + gRPC/REST examples) on :18735
+# Override with DOCS_PORT=... if 18735 is already taken.
 docs:
 	@go run ./cmd/docs
 

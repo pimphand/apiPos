@@ -98,16 +98,27 @@ sana juga:
 
 | URL | Tujuan |
 |---|---|
-| https://localhost/ | Semua path di bawah ini, via TLS (port 443) |
-| http://localhost:8990/ | Frontend (static Astro build) |
-| http://localhost:8990/api/ | Go grpc-gateway |
-| http://localhost:8990/adminer/ | Adminer (HTTP Basic Auth) |
+| https://localhost:18731/ | Semua path di bawah ini, via TLS edge (self-signed: pakai `curl -k`) |
+| http://localhost:18730/ | Frontend (static Astro build) |
+| http://localhost:18730/api/ | Go grpc-gateway |
+| http://localhost:18730/adminer/ | Adminer (HTTP Basic Auth) |
 
-HTTP `8990` dan HTTPS `443` default terikat ke `127.0.0.1`; ubah `EDGE_PORT` /
-`EDGE_TLS_PORT` / `EDGE_BIND` / `EDGE_TLS_BIND` di `.env` jika perlu. Gateway
-tidak dipublikasikan terpisah — edge mem-proxy `/api` secara internal. Postgres
-(`127.0.0.1:5444`) dan gRPC (`127.0.0.1:50051`) hanya di-bind ke loopback, untuk
-tooling di host.
+Semua port host sengaja dipilih tidak lazim (bukan 80/443/5432/8080/50051)
+supaya stack tidak mudah di-fingerprint scanner, dan semuanya terikat ke
+`127.0.0.1`:
+
+| Port host | Fungsi |
+|---|---|
+| `18730` | edge HTTP (satu-satunya pintu masuk) |
+| `18731` | edge HTTPS |
+| `18732` | PostgreSQL (di dalam container tetap 5432) |
+| `18733` | gRPC (grpcurl di host) |
+| `18734` | gateway HTTP internal (tidak dipublikasikan) |
+| `18735` | server docs/swagger (`make docs`, lokal saja) |
+
+Ubah lewat `EDGE_PORT` / `EDGE_TLS_PORT` / `EDGE_BIND` / `EDGE_TLS_BIND` /
+`DATABASE_PORT` / `HOST_GRPC_PORT` di `.env`. Gateway tidak dipublikasikan
+terpisah — edge mem-proxy `/api` secara internal.
 
 `/adminer/` memakai HTTP Basic Auth dan kredensialnya diambil dari
 `ADMINER_USER` / `ADMINER_PASSWORD` di `.env` (wajib diisi; container menolak
@@ -136,10 +147,11 @@ fe-app`.
 #### Domain / reverse proxy di host (opsional)
 
 Kalau domain tetap mau lewat proxy host (mis. Cloudflare Tunnel, atau proxy yang
-sudah memegang sertifikat), teruskan apa adanya ke `http://127.0.0.1:8990`
+sudah memegang sertifikat), teruskan apa adanya ke `http://127.0.0.1:18730`
 (jangan menambah prefix dan jangan pakai trailing slash di `proxy_pass`);
-jalur TLS edge di atas tidak dipakai. Saat host nginx memegang 443, set
-`EDGE_TLS_PORT` ke port loopback lain (mis. `9443`) agar tidak bentrok.
+jalur TLS edge di atas tidak dipakai. Default compose (`18730` HTTP, `18731`
+TLS) sudah tidak memakai 80/443, jadi nginx host yang memegang 443 tidak
+bentrok dan `EDGE_TLS_PORT` bisa dibiarkan apa adanya.
 
 Contoh siap pakai untuk `pos.dwiki.id`: `deploy/nginx/pos.dwiki.id.conf`.
 
@@ -162,7 +174,7 @@ server {
     client_max_body_size 64m;   # impor produk / upload bukti bayar
 
     location / {
-        proxy_pass http://127.0.0.1:8990;   # tanpa trailing slash: path apa adanya
+        proxy_pass http://127.0.0.1:18730;   # tanpa trailing slash: path apa adanya
         proxy_http_version 1.1;
         proxy_set_header Host              $host;
         proxy_set_header X-Real-IP         $remote_addr;
@@ -183,7 +195,7 @@ Caddy (TLS otomatis):
 
 ```
 pos.example.com {
-    reverse_proxy 127.0.0.1:8990
+    reverse_proxy 127.0.0.1:18730
 }
 ```
 
@@ -293,7 +305,7 @@ make watch
 ```bash
 grpcurl \
   -plaintext \
-  localhost:50051 \
+  localhost:18733 \
   health.v1.HealthService/Check
 ```
 
@@ -301,10 +313,10 @@ grpcurl \
 
 ```bash
 # List services
-grpcurl -plaintext localhost:50051 list
+grpcurl -plaintext localhost:18733 list
 
 # List methods for a service
-grpcurl -plaintext localhost:50051 list product.v1.ProductService
+grpcurl -plaintext localhost:18733 list product.v1.ProductService
 ```
 
 ### gRPC Examples
@@ -312,25 +324,25 @@ grpcurl -plaintext localhost:50051 list product.v1.ProductService
 ```bash
 # Login
 grpcurl -plaintext -d '{"username":"admin","password":"admin123"}' \
-  localhost:50051 auth.v1.AuthService/Login
+  localhost:18733 auth.v1.AuthService/Login
 
 # Create Product
 grpcurl -plaintext -H "Authorization: Bearer TOKEN" \
   -d '{"name":"Coffee","selling_price":25000,"sku":"COF001"}' \
-  localhost:50051 product.v1.ProductService/CreateProduct
+  localhost:18733 product.v1.ProductService/CreateProduct
 
 # List Products
 grpcurl -plaintext -H "Authorization: Bearer TOKEN" \
-  localhost:50051 product.v1.ProductService/ListProducts
+  localhost:18733 product.v1.ProductService/ListProducts
 
 # Create Sale (Checkout)
 grpcurl -plaintext -H "Authorization: Bearer TOKEN" \
   -d '{"store_id":"uuid","items":[{"product_id":"uuid","quantity":2,"unit_price":25000}],"payment_method":"CASH","amount_paid":60000}' \
-  localhost:50051 sale.v1.SaleService/CreateSale
+  localhost:18733 sale.v1.SaleService/CreateSale
 
 # Get Daily Sales Report
 grpcurl -plaintext -H "Authorization: Bearer TOKEN" \
-  'localhost:50051/report.v1.ReportService/GetDailySalesReport?start_date=2026-01-01&end_date=2026-12-31'
+  'localhost:18733/report.v1.ReportService/GetDailySalesReport?start_date=2026-01-01&end_date=2026-12-31'
 ```
 
 ## Make Commands
@@ -357,9 +369,9 @@ Environment variables:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | APP_ENV | development | Application environment |
-| GRPC_PORT | 50051 | gRPC server port |
+| GRPC_PORT | 18733 | gRPC server port |
 | DATABASE_HOST | localhost | PostgreSQL host |
-| DATABASE_PORT | 5444 | PostgreSQL host port (di dalam compose tetap 5432) |
+| DATABASE_PORT | 18732 | PostgreSQL host port (di dalam compose tetap 5432) |
 | DATABASE_NAME | pos | Database name |
 | DATABASE_USER | postgres | Database user |
 | DATABASE_PASSWORD | postgres | Database password |
@@ -377,13 +389,12 @@ Run the documentation server:
 make docs
 ```
 
-Then open http://localhost:8990 in your browser. Kalau stack docker sedang jalan, edge
-sudah memegang `8990`, jadi jalankan `DOCS_PORT=9000 make docs` (atau set
-`DOCS_PORT` di `.env`).
+Then open http://localhost:18735 in your browser (port docs sengaja terpisah
+dari edge `18730`; ubah dengan `DOCS_PORT=...`).
 
 ### gRPC Examples
 
-Visit http://localhost:8990/examples for grpcurl examples.
+Visit http://localhost:18735/examples for grpcurl examples.
 
 ### REST API (via gRPC-Gateway)
 
@@ -391,12 +402,12 @@ REST endpoints are available through gRPC-Gateway:
 
 ```bash
 # Login
-curl -X POST http://localhost:8990/api/v1/auth/login \
+curl -X POST http://localhost:18730/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username": "admin", "password": "admin123"}'
 
 # List users
-curl http://localhost:8990/api/v1/users \
+curl http://localhost:18730/api/v1/users \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
 

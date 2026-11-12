@@ -12,7 +12,7 @@ import (
 func main() {
 	port := os.Getenv("DOCS_PORT")
 	if port == "" {
-		port = "8990"
+		port = "18735"
 	}
 
 	// Get the swagger file path (try enhanced version first, fallback to generated)
@@ -169,9 +169,9 @@ func getExamplesHTML() string {
       <h2>Health Check</h2>
       <div class="endpoint">
         <p><strong>List all services:</strong></p>
-        <pre><code>grpcurl -plaintext localhost:50051 list</code></pre>
+        <pre><code>grpcurl -plaintext localhost:18733 list</code></pre>
         <p><strong>Check health:</strong></p>
-        <pre><code>grpcurl -plaintext localhost:50051 grpc.health.v1.Health/Check</code></pre>
+        <pre><code>grpcurl -plaintext localhost:18733 grpc.health.v1.Health/Check</code></pre>
       </div>
     </div>
 
@@ -184,7 +184,7 @@ func getExamplesHTML() string {
     "username": "admin",
     "password": "admin123"
   }' \
-  localhost:50051 \
+  localhost:18733 \
   auth.v1.AuthService/Login</code></pre>
       </div>
 
@@ -194,7 +194,7 @@ func getExamplesHTML() string {
   -d '{
     "refresh_token": "YOUR_REFRESH_TOKEN"
   }' \
-  localhost:50051 \
+  localhost:18733 \
   auth.v1.AuthService/RefreshToken</code></pre>
       </div>
 
@@ -204,7 +204,7 @@ func getExamplesHTML() string {
   -d '{
     "refresh_token": "YOUR_REFRESH_TOKEN"
   }' \
-  localhost:50051 \
+  localhost:18733 \
   auth.v1.AuthService/Logout</code></pre>
       </div>
     </div>
@@ -219,7 +219,7 @@ func getExamplesHTML() string {
     "page": 1,
     "per_page": 10
   }' \
-  localhost:50051 \
+  localhost:18733 \
   user.v1.UserService/ListUsers</code></pre>
       </div>
 
@@ -230,7 +230,7 @@ func getExamplesHTML() string {
   -d '{
     "id": 1
   }' \
-  localhost:50051 \
+  localhost:18733 \
   user.v1.UserService/GetUser</code></pre>
       </div>
 
@@ -246,7 +246,7 @@ func getExamplesHTML() string {
     "role_id": 3,
     "store_id": 1
   }' \
-  localhost:50051 \
+  localhost:18733 \
   user.v1.UserService/CreateUser</code></pre>
       </div>
 
@@ -260,7 +260,7 @@ func getExamplesHTML() string {
     "full_name": "Updated Name",
     "role_id": 2
   }' \
-  localhost:50051 \
+  localhost:18733 \
   user.v1.UserService/UpdateUser</code></pre>
       </div>
 
@@ -271,7 +271,7 @@ func getExamplesHTML() string {
   -d '{
     "id": 1
   }' \
-  localhost:50051 \
+  localhost:18733 \
   user.v1.UserService/DeleteUser</code></pre>
       </div>
     </div>
@@ -280,21 +280,21 @@ func getExamplesHTML() string {
       <h2>Server Reflection</h2>
       <div class="endpoint">
         <p><strong>List all services:</strong></p>
-        <pre><code>grpcurl -plaintext localhost:50051 list</code></pre>
+        <pre><code>grpcurl -plaintext localhost:18733 list</code></pre>
         <p><strong>List methods for a service:</strong></p>
-        <pre><code>grpcurl -plaintext localhost:50051 list auth.v1.AuthService</code></pre>
+        <pre><code>grpcurl -plaintext localhost:18733 list auth.v1.AuthService</code></pre>
         <p><strong>Describe a method:</strong></p>
-        <pre><code>grpcurl -plaintext localhost:50051 describe auth.v1.AuthService.Login</code></pre>
+        <pre><code>grpcurl -plaintext localhost:18733 describe auth.v1.AuthService.Login</code></pre>
       </div>
     </div>
 
     <div class="section">
       <h2>REST API (via gRPC-Gateway)</h2>
-      <p>REST endpoints are available through gRPC-Gateway on port <code>8990</code>:</p>
+      <p>REST endpoints are available through the edge on port <code>18730</code> (gateway langsung: <code>18734</code>):</p>
       
       <div class="endpoint">
         <p><span class="method method-post">POST</span> <strong>/api/v1/auth/login</strong></p>
-        <pre><code>curl -X POST http://localhost:8990/api/v1/auth/login \
+        <pre><code>curl -X POST http://localhost:18730/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "username": "admin",
@@ -304,7 +304,7 @@ func getExamplesHTML() string {
 
       <div class="endpoint">
         <p><span class="method method-get">GET</span> <strong>/api/v1/users</strong></p>
-        <pre><code>curl http://localhost:8990/api/v1/users \
+        <pre><code>curl http://localhost:18730/api/v1/users \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"</code></pre>
       </div>
     </div>

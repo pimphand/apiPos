@@ -35,8 +35,8 @@ The frontend consumes the following Go backend. All details are authoritative fr
 
 | Protocol | Port | Client |
 |----------|------|--------|
-| gRPC | `50051` | server-to-server only (**not** used by browser) |
-| HTTP/REST (grpc-gateway) | `8990` | **Frontend uses this** |
+| gRPC | `18733` | server-to-server only (**not** used by browser) |
+| HTTP/REST (grpc-gateway) | `18734` | **Frontend uses this** (browser lewat edge `18730`) |
 
 The Browser ↔ Backend boundary is **strictly HTTP** (REST/JSON via grpc-gateway). A small
 frontend proxy/`vite` dev-server proxy forwards `/api/v1/*` to the gateway to avoid CORS during
@@ -44,8 +44,8 @@ development.
 
 **Environment Variables:**
 ```bash
-GRPC_PORT=50051      # gRPC server port
-HTTP_PORT=8990       # REST API port (grpc-gateway)
+GRPC_PORT=18733      # gRPC server port
+HTTP_PORT=18734      # REST API port (grpc-gateway)
 ```
 
 ### 2.2 Auth endpoints
@@ -204,8 +204,8 @@ The backend has been fully implemented across 9 phases. The frontend must cover 
 |-----------|--------|---------|
 | Go project | ✅ | `cmd/server/main.go` entry point |
 | Docker Compose | ✅ | PostgreSQL + pos-app containers |
-| gRPC server | ✅ | Port `50051` (internal) |
-| HTTP gateway | ✅ | Port `8990` (frontend uses this) |
+| gRPC server | ✅ | Port `18733` (internal) |
+| HTTP gateway | ✅ | Port `18730` (frontend uses this) |
 | Configuration | ✅ | Environment variables, typed config package |
 | Health check | ✅ | `/api/v1/health` endpoint |
 
@@ -883,7 +883,7 @@ PUBLIC_ADMIN_PATH_PREFIX=           # random admin prefix, set at deploy (never 
 
 ```bash
 pnpm install
-pnpm dev        # astro dev (proxy /api -> http://localhost:8990)
+pnpm dev        # astro dev (proxy /api -> http://localhost:18734)
 pnpm build      # astro build
 pnpm preview
 pnpm test       # vitest + @vue/test-utils
@@ -897,7 +897,7 @@ pnpm typecheck
 ```ts
 server: {
   proxy: {
-    '/api': { target: 'http://localhost:8990', changeOrigin: true },
+    '/api': { target: 'http://localhost:18734', changeOrigin: true },
   },
 }
 ```
@@ -909,11 +909,11 @@ Satu stack, satu pintu masuk: container `fe-app` (nginx) melayani seluruh domain
 | Path | Tujuan |
 |---|---|
 | `/` | static Astro build |
-| `/api/` | Go grpc-gateway (`pos-app:8990`) |
+| `/api/` | Go grpc-gateway (`pos-app:18734`) |
 | `/ws` | realtime WebSocket ke grpc-gateway |
 | `/adminer/` | Adminer (internal, tanpa port publik, HTTP Basic Auth via `ADMINER_USER`/`ADMINER_PASSWORD`) |
 
-Hanya port edge (`EDGE_PORT`, default `8990`) yang dipublikasikan, dan default-nya
+Hanya port edge (`EDGE_PORT`, default `18730`) yang dipublikasikan, dan default-nya
 terikat ke `127.0.0.1`. Di server cukup arahkan domain ke port tersebut.
 
 ```bash
