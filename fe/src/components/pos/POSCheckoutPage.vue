@@ -250,19 +250,20 @@ async function searchProducts() {
   const q = searchQuery.value.trim();
   searching.value = true;
   try {
-    const res = await productService.list({
-      search: q || undefined,
-      page: 1,
-      per_page: 100,
-      get_sku: true,
-    });
+    const res = q
+      ? await productService.search({ name: q, page: 1, per_page: 100, get_sku: true })
+      : await productService.list({ page: 1, per_page: 100, get_sku: true });
     searchResults.value = res.products ?? [];
     cacheSnapshot();
   } catch (err) {
     if (isOfflineError(err) || !isOnline.value) {
       // Keep selling from the last catalogue this device received.
       const snapshot = loadOfflineSnapshot(currentStoreId.value);
-      searchResults.value = snapshot?.products ?? [];
+      const cached = snapshot?.products ?? [];
+      const qLower = q.toLowerCase();
+      searchResults.value = qLower
+        ? cached.filter((p) => p.name.toLowerCase().includes(qLower))
+        : cached;
       notifyOfflineOnce();
     } else {
       ui.addToast('error', apiMessage(err));

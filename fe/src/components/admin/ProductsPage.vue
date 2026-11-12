@@ -72,8 +72,14 @@ async function load() {
     const res = search.value
       ? await productService.search({ name: search.value, is_active: active, get_sku: true, page: page.value, per_page: perPage })
       : await productService.list({ is_active: active, category_id: category, get_sku: true, page: page.value, per_page: perPage });
-    products.value = res.products ?? [];
-    total.value = res.total_count ?? 0;
+    let list = res.products ?? [];
+    // Search endpoint doesn't accept category_id; apply it client-side so the
+    // category filter still works when a name search is active.
+    if (search.value && category) {
+      list = list.filter((p) => p.category_id === category);
+    }
+    products.value = list;
+    total.value = search.value && category ? list.length : (res.total_count ?? 0);
   } catch (err) {
     ui.addToast('error', apiMessage(err));
   } finally {

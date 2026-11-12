@@ -61,16 +61,25 @@ const saleStatusVariant = (s: string) =>
 async function load() {
   loading.value = true;
   try {
+    const active = ['true', 'false'].includes(activeFilter.value) ? activeFilter.value : undefined;
     const params: Record<string, unknown> = {
-      is_active: ['true', 'false'].includes(activeFilter.value) ? activeFilter.value : undefined,
+      is_active: active,
       page: page.value,
       per_page: perPage,
     };
-    const res = search.value.trim()
-      ? await customerService.search({ query: search.value.trim(), page: page.value, per_page: perPage })
+    const q = search.value.trim();
+    const res = q
+      ? await customerService.search({ query: q, page: page.value, per_page: perPage })
       : await customerService.list(params);
-    customers.value = res.customers ?? [];
-    total.value = res.total_count ?? 0;
+    let list = res.customers ?? [];
+    // Search endpoint doesn't accept is_active; apply it client-side so the
+    // status filter still works when a search query is active.
+    if (q && active) {
+      const wantActive = active === 'true';
+      list = list.filter((c) => c.is_active === wantActive);
+    }
+    customers.value = list;
+    total.value = q && active ? list.length : (res.total_count ?? 0);
   } catch (err) {
     ui.addToast('error', apiMessage(err));
   } finally {

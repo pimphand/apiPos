@@ -68,14 +68,23 @@ async function loadRoles() {
 async function load() {
   loading.value = true;
   try {
+    const q = search.value.trim().toLowerCase();
     const res = await userService.list({
       page: page.value,
       per_page: perPage,
       role_id: roleFilter.value !== 'all' ? roleFilter.value || undefined : undefined,
       is_active: undefined,
     });
-    users.value = res.users;
-    total.value = res.total_count;
+    let list = res.users ?? [];
+    // List endpoint has no text search; apply it client-side so the search box
+    // filters by username, name, or email.
+    if (q) {
+      list = list.filter((u) =>
+        [u.username, u.full_name, u.email].some((v) => (v || '').toLowerCase().includes(q))
+      );
+    }
+    users.value = list;
+    total.value = q ? list.length : (res.total_count ?? 0);
   } finally {
     loading.value = false;
   }

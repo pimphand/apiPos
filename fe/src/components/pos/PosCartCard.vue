@@ -86,30 +86,30 @@ const t = useLocaleStore().t;
       </div>
       <div v-else class="min-h-0 flex-1 overflow-y-auto max-h-[40vh] lg:max-h-[24rem]">
         <div class="overflow-x-auto">
-        <Table class="min-w-[480px]">
+        <Table class="w-full min-w-[340px]">
           <TableHeader>
             <TableRow>
-              <TableHead>{{ t('admin.pos.productName') }}</TableHead>
-              <TableHead class="text-center">{{ t('admin.pos.qty') }}</TableHead>
-              <TableHead class="text-right">{{ t('admin.pos.subtotal') }}</TableHead>
-              <TableHead class="w-10"></TableHead>
+              <TableHead class="px-2 sm:px-3">{{ t('admin.pos.productName') }}</TableHead>
+              <TableHead class="w-[96px] px-2 text-center sm:px-3">{{ t('admin.pos.qty') }}</TableHead>
+              <TableHead class="w-[96px] px-2 text-right sm:px-3">{{ t('admin.pos.subtotal') }}</TableHead>
+              <TableHead class="w-9 px-1"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             <TableRow v-for="item in cart" :key="item.sku_id">
-              <TableCell>
-                <div class="font-medium text-sm">{{ item.name }}</div>
-                <div class="text-xs text-muted-foreground">{{ item.sku_code }} <br> {{ formatCurrency(item.unit_price) }}</div>
+              <TableCell class="px-2 py-2 sm:px-3">
+                <div class="font-medium text-sm leading-snug">{{ item.name }}</div>
+                <div class="text-xs text-muted-foreground leading-snug">{{ item.sku_code }} <br> {{ formatCurrency(item.unit_price) }}</div>
               </TableCell>
-              <TableCell>
-                <div class="flex items-center justify-center gap-1">
+              <TableCell class="px-1 py-2 sm:px-2">
+                <div class="flex items-center justify-center gap-0.5">
                   <Button variant="outline" size="sm" class="h-7 w-7 p-0" @click="emit('updateQty', item, -1)">−</Button>
-                  <span class="w-8 text-center text-sm tabular-nums">{{ item.quantity }}</span>
+                  <span class="w-7 text-center text-sm tabular-nums">{{ item.quantity }}</span>
                   <Button variant="outline" size="sm" class="h-7 w-7 p-0" @click="emit('updateQty', item, 1)" :disabled="item.quantity >= item.stock">+</Button>
                 </div>
               </TableCell>
-              <TableCell class="text-right text-sm tabular-nums">{{ formatCurrency(item.unit_price * item.quantity) }}</TableCell>
-              <TableCell>
+              <TableCell class="px-2 py-2 text-right text-sm tabular-nums sm:px-3">{{ formatCurrency(item.unit_price * item.quantity) }}</TableCell>
+              <TableCell class="px-1 py-2">
                 <Button variant="ghost" size="sm" class="h-7 w-7 p-0 text-destructive" @click="emit('removeItem', item)">
                   <Trash></Trash>
                 </Button>
