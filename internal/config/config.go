@@ -68,7 +68,7 @@ func Load() *Config {
 			Port: getEnvAsInt("GRPC_PORT", 50051),
 		},
 		HTTP: HTTPConfig{
-			Port: getEnvAsInt("HTTP_PORT", 8080),
+			Port: getEnvAsInt("HTTP_PORT", 8990),
 		},
 		DB: DatabaseConfig{
 			Host:     getEnv("DATABASE_HOST", "localhost"),

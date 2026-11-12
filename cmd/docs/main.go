@@ -12,7 +12,7 @@ import (
 func main() {
 	port := os.Getenv("DOCS_PORT")
 	if port == "" {
-		port = "8080"
+		port = "8990"
 	}
 
 	// Get the swagger file path (try enhanced version first, fallback to generated)
@@ -290,11 +290,11 @@ func getExamplesHTML() string {
 
     <div class="section">
       <h2>REST API (via gRPC-Gateway)</h2>
-      <p>REST endpoints are available through gRPC-Gateway on port <code>8080</code>:</p>
+      <p>REST endpoints are available through gRPC-Gateway on port <code>8990</code>:</p>
       
       <div class="endpoint">
         <p><span class="method method-post">POST</span> <strong>/api/v1/auth/login</strong></p>
-        <pre><code>curl -X POST http://localhost:8080/api/v1/auth/login \
+        <pre><code>curl -X POST http://localhost:8990/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "username": "admin",
@@ -304,7 +304,7 @@ func getExamplesHTML() string {
 
       <div class="endpoint">
         <p><span class="method method-get">GET</span> <strong>/api/v1/users</strong></p>
-        <pre><code>curl http://localhost:8080/api/v1/users \
+        <pre><code>curl http://localhost:8990/api/v1/users \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"</code></pre>
       </div>
     </div>

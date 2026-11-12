@@ -81,7 +81,7 @@ cp .env.example .env
 
 ### Running with Docker
 
-Start all services:
+Start all services (FE + API + PostgreSQL + Adminer):
 
 ```bash
 make docker-up
@@ -92,6 +92,110 @@ Stop all services:
 ```bash
 make docker-down
 ```
+
+Container `fe-app` (nginx) adalah satu-satunya pintu masuk, dan TLS berhenti di
+sana juga:
+
+| URL | Tujuan |
+|---|---|
+| https://localhost/ | Semua path di bawah ini, via TLS (port 443) |
+| http://localhost:8990/ | Frontend (static Astro build) |
+| http://localhost:8990/api/ | Go grpc-gateway |
+| http://localhost:8990/adminer/ | Adminer (HTTP Basic Auth) |
+
+HTTP `8990` dan HTTPS `443` default terikat ke `127.0.0.1`; ubah `EDGE_PORT` /
+`EDGE_TLS_PORT` / `EDGE_BIND` / `EDGE_TLS_BIND` di `.env` jika perlu. Gateway
+tidak dipublikasikan terpisah — edge mem-proxy `/api` secara internal. Postgres
+(`127.0.0.1:5444`) dan gRPC (`127.0.0.1:50051`) hanya di-bind ke loopback, untuk
+tooling di host.
+
+`/adminer/` memakai HTTP Basic Auth dan kredensialnya diambil dari
+`ADMINER_USER` / `ADMINER_PASSWORD` di `.env` (wajib diisi; container menolak
+start kalau kosong).
+
+#### TLS di edge
+
+Edge sudah menangani HTTPS sendiri, jadi tidak perlu proxy host terpisah untuk
+sertifikat:
+
+1. Salin `fullchain.pem` dan `privkey.pem` (mis. hasil Certbot) ke folder
+   `certs/` di root repo. Folder ini di-ignore git dan di-mount read-only ke
+   `/etc/nginx/certs`.
+2. Set `EDGE_SERVER_NAME=pos.example.com` supaya CN/SAN sertifikat self-signed
+   fallback masuk akal (sertifikat asli tetap yang dipakai kalau ada).
+3. Arahkan domain ke `127.0.0.1:443` (default `EDGE_TLS_PORT`). Kalau sertifikat
+   belum ada, container membuat pasangan self-signed agar stack tetap jalan —
+   browser akan memperingatkan, jadi jangan dipakai untuk produksi.
+
+`curl` lokal ke sertifikat self-signed: `curl -k https://localhost/`.
+
+Let's Encrypt tidak dijalankan di dalam container ini; perbarui sertifikat di
+host (cron Certbot) lalu salin ulang ke `certs/` dan `docker compose restart
+fe-app`.
+
+#### Domain / reverse proxy di host (opsional)
+
+Kalau domain tetap mau lewat proxy host (mis. Cloudflare Tunnel, atau proxy yang
+sudah memegang sertifikat), teruskan apa adanya ke `http://127.0.0.1:8990`
+(jangan menambah prefix dan jangan pakai trailing slash di `proxy_pass`);
+jalur TLS edge di atas tidak dipakai. Saat host nginx memegang 443, set
+`EDGE_TLS_PORT` ke port loopback lain (mis. `9443`) agar tidak bentrok.
+
+Contoh siap pakai untuk `pos.dwiki.id`: `deploy/nginx/pos.dwiki.id.conf`.
+
+nginx:
+
+```nginx
+# di blok http
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name pos.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/pos.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/pos.example.com/privkey.pem;
+
+    client_max_body_size 64m;   # impor produk / upload bukti bayar
+
+    location / {
+        proxy_pass http://127.0.0.1:8990;   # tanpa trailing slash: path apa adanya
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # WebSocket (/ws)
+        proxy_set_header Upgrade    $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+    }
+}
+```
+
+Caddy (TLS otomatis):
+
+```
+pos.example.com {
+    reverse_proxy 127.0.0.1:8990
+}
+```
+
+Catatan:
+
+- `/`, `/api`, `/ws`, dan `/adminer` diteruskan tanpa diubah; semua routing ada di
+  edge. Jangan set `X-Forwarded-Prefix` sendiri — edge selalu menimpanya dengan
+  `/adminer` untuk permintaan Adminer.
+- TLS berhenti di proxy host. Redirect `/adminer` di edge bersifat relatif, jadi
+  skema/domain tetap benar di belakang HTTPS.
+- `client_max_body_size` di proxy host harus >= 64m agar impor data tidak gagal
+  sebelum sampai ke edge.
 
 ### Running Locally
 
@@ -255,7 +359,7 @@ Environment variables:
 | APP_ENV | development | Application environment |
 | GRPC_PORT | 50051 | gRPC server port |
 | DATABASE_HOST | localhost | PostgreSQL host |
-| DATABASE_PORT | 5432 | PostgreSQL port |
+| DATABASE_PORT | 5444 | PostgreSQL host port (di dalam compose tetap 5432) |
 | DATABASE_NAME | pos | Database name |
 | DATABASE_USER | postgres | Database user |
 | DATABASE_PASSWORD | postgres | Database password |
@@ -273,11 +377,13 @@ Run the documentation server:
 make docs
 ```
 
-Then open http://localhost:8080 in your browser.
+Then open http://localhost:8990 in your browser. Kalau stack docker sedang jalan, edge
+sudah memegang `8990`, jadi jalankan `DOCS_PORT=9000 make docs` (atau set
+`DOCS_PORT` di `.env`).
 
 ### gRPC Examples
 
-Visit http://localhost:8080/examples for grpcurl examples.
+Visit http://localhost:8990/examples for grpcurl examples.
 
 ### REST API (via gRPC-Gateway)
 
@@ -285,12 +391,12 @@ REST endpoints are available through gRPC-Gateway:
 
 ```bash
 # Login
-curl -X POST http://localhost:8080/api/v1/auth/login \
+curl -X POST http://localhost:8990/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username": "admin", "password": "admin123"}'
 
 # List users
-curl http://localhost:8080/api/v1/users \
+curl http://localhost:8990/api/v1/users \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
 

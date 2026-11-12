@@ -2,45 +2,49 @@
 
 # ---------------------------------------------------------------
 # Stage 1: Build the Astro + Vue application
-# Frontend source lives in ./fe (see Frontend.md)
+# Frontend source lives in ./fe (see Frontend.md).
+# The project uses npm — fe/package-lock.json is the lockfile of record.
 # ---------------------------------------------------------------
 FROM node:22-alpine AS build
 
 WORKDIR /app
 
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
-
 # Cache dependencies
-COPY fe/package.json fe/pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+COPY fe/package.json fe/package-lock.json ./
+RUN npm ci --no-audit --no-fund
 
 # Copy source
 COPY fe/ ./
 
-# Build-time public env vars (Astro bakes PUBLIC_* into the static output)
+# Build-time public env var. src/lib/apiBase.ts reads it at build time; keep it
+# relative ("/api") so the browser calls the same-origin nginx proxy.
 ARG PUBLIC_API_BASE_URL=/api
-ARG PUBLIC_APP_NAME=POS
-ARG PUBLIC_SESSION_MAX_AGE=2592000
-ARG PUBLIC_ADMIN_PATH_PREFIX=
-ENV PUBLIC_API_BASE_URL=$PUBLIC_API_BASE_URL \
-    PUBLIC_APP_NAME=$PUBLIC_APP_NAME \
-    PUBLIC_SESSION_MAX_AGE=$PUBLIC_SESSION_MAX_AGE \
-    PUBLIC_ADMIN_PATH_PREFIX=$PUBLIC_ADMIN_PATH_PREFIX
+ENV PUBLIC_API_BASE_URL=$PUBLIC_API_BASE_URL
 
 # Build static site
-RUN pnpm build
+RUN npm run build
 
 # ---------------------------------------------------------------
 # Stage 2: Serve static build behind nginx (with /api proxy + headers)
+# This container is the stack's single public entry point: it also proxies
+# /api, /ws and /adminer (see Dockerfile.fe.nginx).
 # ---------------------------------------------------------------
 FROM nginx:1.27-alpine AS prod
+
+# htpasswd for /adminer/ basic auth, openssl for the self-signed TLS fallback
+RUN apk add --no-cache apache2-utils openssl
 
 WORKDIR /usr/share/nginx/html
 COPY --from=build /app/dist/ ./
 
-# nginx config: static serving + security headers + /api proxy + cookie handling
+# nginx config: static serving + security headers + /api and /adminer proxies
 COPY Dockerfile.fe.nginx /etc/nginx/conf.d/default.conf
+
+# Runs via the nginx image entrypoint before nginx starts (generates .htpasswd
+# from ADMINER_USER/ADMINER_PASSWORD and fails closed if they are missing).
+COPY nginx-adminer-auth.sh /docker-entrypoint.d/40-adminer-auth.sh
+COPY nginx-tls-certs.sh /docker-entrypoint.d/30-tls-certs.sh
+RUN chmod +x /docker-entrypoint.d/40-adminer-auth.sh /docker-entrypoint.d/30-tls-certs.sh
 
 EXPOSE 80
 

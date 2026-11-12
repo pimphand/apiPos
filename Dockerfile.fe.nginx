@@ -6,8 +6,29 @@ upstream pos_api {
     server pos-app:8990;
 }
 
+# Upstream = Adminer DB UI (internal only, never published on a host port)
+upstream adminer_ui {
+    server adminer:8080;
+}
+
 server {
     listen 80;
+
+    # ---- TLS termination at the edge -----------------------------------
+    # Certs come from nginx-tls-certs.sh at container start: real ones mounted at
+    # /etc/nginx/certs, otherwise a self-signed pair in /etc/nginx/tls. Plain HTTP
+    # keeps working on port 80 (bound to loopback anyway) for local tooling.
+    listen 443 ssl;
+    http2 on;
+    ssl_certificate     /etc/nginx/tls/fullchain.pem;
+    ssl_certificate_key /etc/nginx/tls/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+    ssl_session_tickets off;
+
     server_name _;
     root /usr/share/nginx/html;
     index index.html;
@@ -27,8 +48,10 @@ server {
     add_header Cross-Origin-Resource-Policy "same-origin" always;
     add_header Cross-Origin-Opener-Policy "same-origin" always;
     add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" always;
-    # HSTS only over TLS; uncomment when serving HTTPS:
-    # add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    # HSTS: enable only after real certificates are mounted (browsers ignore HSTS
+    # delivered over an invalid/self-signed connection, and includeSubDomains
+    # affects every subdomain).
+    # add_header Strict-Transport-Security "max-age=31536000" always;
 
     # ---- API proxy to Go gateway --------------------------------------
     location /api/ {
@@ -65,6 +88,46 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_read_timeout 3600s;
         proxy_send_timeout 3600s;
+    }
+
+    # ---- Adminer DB UI (internal service) -------------------------------
+    # Reached only through this path: the container has no published port.
+    # Adminer >= 4.6 uses X-Forwarded-Prefix so its own links, redirects and
+    # cookies stay under /adminer/ instead of pointing at the site root.
+    # We always overwrite the header here, so a client cannot spoof it.
+    location = /adminer {
+        # Relative redirect: keep the client's scheme/host/port (this edge may sit
+        # behind the domain proxy on 443, and the edge itself may not be on 80).
+        absolute_redirect off;
+        return 301 /adminer/;
+    }
+
+    location /adminer/ {
+        # HTTP Basic Auth (credentials from ADMINER_USER/ADMINER_PASSWORD; the
+        # .htpasswd file is generated at container start — see
+        # nginx-adminer-auth.sh). Without it the DB UI would be open to anyone
+        # who can reach the edge port.
+        auth_basic "Adminer";
+        auth_basic_user_file /etc/nginx/.htpasswd;
+
+        # Adminer mengirim CSP-nya sendiri; dua CSP di-intersect browser dan bisa
+        # memblokir fitur tanpa alasan jelas. Sembunyikan milik upstream supaya
+        # hanya CSP edge yang berlaku (satu sumber kebenaran).
+        proxy_hide_header Content-Security-Policy;
+
+        proxy_pass http://adminer_ui/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Prefix /adminer;
+
+        # SQL dump import through the UI (nginx default is 1 MB).
+        client_max_body_size 64m;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 60s;
+        proxy_send_timeout 60s;
     }
 
     # ---- Public self-order page (docs/pos-self-order.md) -----------------

@@ -1,0 +1,13 @@
+# Keep the build context small and stop host artifacts from overriding what the
+# image installs (notably fe/node_modules, which is built for the host platform).
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+**/node_modules
+**/.astro
+**/dist
+**/.DS_Store
+*.log
+tmp/

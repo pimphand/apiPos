@@ -904,12 +904,20 @@ server: {
 
 ### 11.3 Docker / production
 
-- `nginx.conf` serves the Astro static build and reverse-proxies `/api` + refresh-cookie
-  handling to the Go gateway (port `8990`).
-- Healthcheck on the FE container.
+Satu stack, satu pintu masuk: container `fe-app` (nginx) melayani seluruh domain.
+
+| Path | Tujuan |
+|---|---|
+| `/` | static Astro build |
+| `/api/` | Go grpc-gateway (`pos-app:8990`) |
+| `/ws` | realtime WebSocket ke grpc-gateway |
+| `/adminer/` | Adminer (internal, tanpa port publik, HTTP Basic Auth via `ADMINER_USER`/`ADMINER_PASSWORD`) |
+
+Hanya port edge (`EDGE_PORT`, default `8990`) yang dipublikasikan, dan default-nya
+terikat ke `127.0.0.1`. Di server cukup arahkan domain ke port tersebut.
 
 ```bash
-docker compose -f docker-compose.fe.yml up -d
+docker compose up -d --build   # FE + API + PostgreSQL + Adminer
 ```
 
 ---

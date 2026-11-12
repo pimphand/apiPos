@@ -16,7 +16,7 @@ var swaggerUI embed.FS
 func main() {
 	port := os.Getenv("SWAGGER_PORT")
 	if port == "" {
-		port = "8080"
+		port = "8990"
 	}
 
 	// Load the swagger spec

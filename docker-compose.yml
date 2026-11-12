@@ -1,4 +1,65 @@
+# Single-entry stack for the POS app.
+#
+# The only public surface is ONE port: the `fe-app` nginx container, which routes
+#   /          -> static Astro build (served by nginx itself)
+#   /api/      -> pos-app Go grpc-gateway (:8990)
+#   /ws        -> pos-app realtime WebSocket
+#   /adminer/  -> adminer (:8080)
+#
+# TLS is terminated by the edge too (listen 443), so no separate host proxy is
+# required: point the domain at ${EDGE_TLS_BIND:-127.0.0.1}:${EDGE_TLS_PORT:-443}
+# and drop the certificates in ./certs. Plain HTTP stays on the loopback port
+# ${EDGE_PORT:-8990} for local tooling.
+# EDGE_BIND/EDGE_TLS_BIND default to 127.0.0.1 so nothing is reachable from
+# outside the host; set them to 0.0.0.0 only if the domain is forwarded from
+# another machine (firewall it to that IP).
+#
+# Everything else stays on the internal `pos-network`. The remaining published
+# ports are bound to 127.0.0.1 only, for tools that run on the host itself
+# (psql, grpcurl, `pnpm dev`) — never from the network.
+
 services:
+  fe-app:
+    build:
+      context: .
+      dockerfile: Dockerfile.fe
+      args:
+        # Baked into the static build (same-origin, so the browser hits nginx).
+        PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL:-/api}
+    image: pos-fe:latest
+    restart: unless-stopped
+    environment:
+      # HTTP Basic Auth for /adminer/. Required: the container refuses to start
+      # without them rather than serving an unprotected DB UI.
+      ADMINER_USER: ${ADMINER_USER:-admin}
+      ADMINER_PASSWORD: ${ADMINER_PASSWORD:?set ADMINER_PASSWORD in .env to protect /adminer}
+      # CN/SAN of the self-signed fallback certificate.
+      EDGE_SERVER_NAME: ${EDGE_SERVER_NAME:-localhost}
+    ports:
+      # HTTP (loopback, for local tooling / healthchecks)
+      - "${EDGE_BIND:-127.0.0.1}:${EDGE_PORT:-8990}:80"
+      # HTTPS terminated right here — no separate host proxy needed. Point the
+      # domain at this port (or forward 443 -> it) and put the certificates in
+      # ./certs (see TLS_CERT_DIR). Without them a self-signed pair is generated.
+      - "${EDGE_TLS_BIND:-127.0.0.1}:${EDGE_TLS_PORT:-443}:443"
+    volumes:
+      # fullchain.pem + privkey.pem (read-only). Empty/absent -> self-signed.
+      - ${TLS_CERT_DIR:-./certs}:/etc/nginx/certs:ro
+    depends_on:
+      # nginx resolves its upstreams at startup, so both must exist first.
+      pos-app:
+        condition: service_healthy
+      adminer:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - pos-network
+
   pos-app:
     build:
       context: .
@@ -6,9 +67,6 @@ services:
     restart: unless-stopped
     env_file:
       - .env
-    ports:
-      - "50051:50051"
-      - "8990:8990"
     environment:
       APP_ENV: ${APP_ENV:-development}
       GRPC_PORT: 50051
@@ -21,9 +79,17 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change-me}
       JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
       JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-720h}
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
+    ports:
+      # Loopback only, for grpcurl on the host. The HTTP gateway is NOT published:
+      # the edge (fe-app) already listens on 8990 and proxies /api internally.
+      - "127.0.0.1:50051:50051"
+    healthcheck:
+      # GET /health is served by the gateway (internal/server/server.go).
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8990/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
     depends_on:
       postgres:
         condition: service_healthy
@@ -38,7 +104,10 @@ services:
       POSTGRES_USER: ${DATABASE_USER:-postgres}
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-postgres}
     ports:
-      - "5432:5432"
+      # Loopback only, for psql / golang-migrate on the host. Host port 5444
+      # avoids clashing with a local PostgreSQL on 5432; inside the network the
+      # database still listens on 5432, so DATABASE_PORT=5432 for containers.
+      - "127.0.0.1:5444:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -55,13 +124,16 @@ services:
       - pos-network
 
   adminer:
-    image: adminer:latest
+    # Pinned: 5.5.1 sanitizes X-Forwarded-Prefix (CVE-2026-34959 / -16434), which
+    # this stack relies on to keep Adminer working under the /adminer/ sub-path.
+    image: adminer:5.5.1
     restart: unless-stopped
-    ports:
-      - "8081:8080"
     environment:
       ADMINER_DEFAULT_SERVER: postgres
       ADMINER_DESIGN: dracula
+    expose:
+      # No published port: reachable only through nginx at /adminer/.
+      - "8080"
     depends_on:
       postgres:
         condition: service_healthy

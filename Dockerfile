@@ -1,4 +1,4 @@
-FROM golang:1.24-alpine AS build
+FROM golang:1.25-alpine AS build
 
 ENV GOTOOLCHAIN=auto
 
@@ -35,5 +35,5 @@ COPY Makefile /app/Makefile
 RUN apk add --no-cache make
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
-EXPOSE 50051 8080
+EXPOSE 50051 8990
 ENTRYPOINT ["/app/entrypoint.sh"]

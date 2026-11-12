@@ -6,7 +6,7 @@ export
 # Version of the golang-migrate CLI used by the migrate-* targets
 MIGRATE_VERSION := v4.19.1
 
-.PHONY: all build test run proto sqlc migrate-install migrate-up migrate-down migrate-version docker-up docker-down lint clean swagger
+.PHONY: all build test run proto sqlc migrate-install migrate-up migrate-down migrate-version docker-up docker-down lint clean swagger docs
 
 # Build the application
 all: build test
@@ -65,6 +65,11 @@ test:
 	@echo "Running tests..."
 	@go test ./... -v
 
+# Serve API docs (Swagger UI + gRPC/REST examples) on :8990
+# Override with DOCS_PORT=... if the compose edge is already using 8990.
+docs:
+	@go run ./cmd/docs
+
 # Generate swagger spec
 swagger:
 	@echo "Generating swagger spec..."
@@ -74,8 +79,3 @@ swagger:
 clean:
 	@echo "Cleaning..."
 	@rm -f main
-
-# Stop docs container (if running)
-stop-docs:
-	@docker compose stop docs 2>/dev/null || true
-	@docker compose rm -f docs 2>/dev/null || true

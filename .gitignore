@@ -41,6 +41,9 @@ vendor/
 # Docker volumes
 postgres_data/
 
+# TLS certificates / private keys for the edge
+certs/
+
 # Build artifacts
 dist/
 build/
