@@ -4,14 +4,13 @@ import Button from '@/components/ui/button/Button.vue';
 import Input from '@/components/ui/input/Input.vue';
 import Badge from '@/components/ui/badge/Badge.vue';
 import { Card, CardContent } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useLocaleStore } from '@/stores/locale';
 import { formatCurrency } from '@/lib/utils';
 import type { Product, ProductSKU } from '@/types';
 
 /**
  * Left column of the POS: search box, barcode/SKU lookup and the
- * product grid (product header rows + SKU rows with live stock badges).
+ * product list rendered as cards (per-SKU cards with live stock badges).
  *
  * Pure view: typed text is two-way bound to the parent, the parent performs
  * search/lookup side effects, and every "Add" click is emitted upwards with
@@ -104,69 +103,51 @@ defineExpose({
     </div>
 
     <Card class="min-w-0">
-      <CardContent class="p-0">
-        <div class="overflow-x-auto">
-        <Table class="min-w-0 table-fixed">
-          <TableHeader>
-            <TableRow>
-              <TableHead class="w-[42%]">{{ t('admin.pos.productName') }}</TableHead>
-              <TableHead class="hidden sm:table-cell sm:w-[18%]">SKU</TableHead>
-              <TableHead class="w-[18%] text-right">{{ t('admin.pos.price') }}</TableHead>
-              <TableHead class="w-[10%] text-right">{{ t('admin.pos.stock') }}</TableHead>
-              <TableHead class="w-[20%] text-right">{{ t('admin.shared.actions') }}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-if="searching">
-              <TableCell :colspan="5" class="text-center py-8 text-muted-foreground">
-                {{ t('admin.shared.loading') }}
-              </TableCell>
-            </TableRow>
-            <template v-else>
-              <TableRow v-if="products.filter(p => p.skus && p.skus.length > 0).length === 0">
-                <TableCell :colspan="5" class="text-center py-8 text-muted-foreground">
-                  {{ t('admin.pos.noProducts') }}
-                </TableCell>
-              </TableRow>
-              <template v-for="p in products.filter(p => p.skus && p.skus.length > 0)" :key="p.id">
-                <!-- Product header row -->
-                <TableRow class="bg-muted/30">
-                  <TableCell colspan="5" class="max-w-0 truncate font-semibold">{{ p.name }}</TableCell>
-                </TableRow>
-                <!-- SKU rows -->
-                <TableRow v-for="sku in (p.skus ?? [])" :key="sku.id" class="hover:bg-muted/50">
-                  <TableCell class="max-w-0 truncate pl-2 sm:pl-8">
-                    <span class="text-muted-foreground text-xs">{{ sku.sku }}</span>
-                    <span v-if="sku.variant" class="text-xs text-muted-foreground ml-1">· {{ sku.variant }}</span>
-                    <span v-if="sku.size" class="text-xs text-muted-foreground ml-1">· {{ sku.size }}</span>
-                  </TableCell>
-                  <TableCell class="hidden sm:table-cell"></TableCell>
-                  <TableCell class="text-right tabular-nums text-sm">
-                    {{ formatCurrency(sku.selling_price) }}
-                  </TableCell>
-                  <TableCell class="text-right tabular-nums">
-                    <Badge :variant="isAvailable(p, sku) ? 'default' : 'destructive'">
-                      {{ remainingStock(sku) }}
-                    </Badge>
-                  </TableCell>
-                  <TableCell class="text-right">
-                    <Button
-                      size="sm"
-                      :disabled="!isAvailable(p, sku)"
-                      @click="addToCart(p, sku)"
-                    >{{ t('admin.pos.addToCart') }}</Button>
-                  </TableCell>
-                </TableRow>
-                <!-- No SKUs fallback -->
-                <TableRow v-if="!p.skus?.length">
-                  <TableCell colspan="5" class="pl-8 text-sm text-muted-foreground">
-                    No SKUs
-                  </TableCell>
-                </TableRow>
-              </template>
-            </template>
-          </TableBody>
-        </Table>
+      <CardContent class="p-3 sm:p-4">
+        <div v-if="searching" class="text-center py-8 text-muted-foreground">
+          {{ t('admin.shared.loading') }}
+        </div>
+
+        <div v-else-if="products.filter(p => p.skus && p.skus.length > 0).length === 0" class="text-center py-8 text-muted-foreground">
+          {{ t('admin.pos.noProducts') }}
+        </div>
+
+        <div v-else class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <template v-for="p in products.filter(p => p.skus && p.skus.length > 0)" :key="p.id">
+            <div
+              v-for="sku in (p.skus ?? [])"
+              :key="sku.id"
+              class="flex h-full flex-col rounded-lg border bg-card p-3 shadow-sm"
+            >
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <div class="truncate font-semibold">{{ p.name }}</div>
+                  <div class="mt-0.5 flex flex-wrap items-center gap-x-1 text-xs text-muted-foreground">
+                    <span class="font-mono">{{ sku.sku }}</span>
+                    <span v-if="sku.variant">· {{ sku.variant }}</span>
+                    <span v-if="sku.size">· {{ sku.size }}</span>
+                  </div>
+                </div>
+                <Badge :variant="isAvailable(p, sku) ? 'default' : 'destructive'" class="shrink-0">
+                  {{ t('admin.pos.stock') }}: {{ remainingStock(sku) }}
+                </Badge>
+              </div>
+
+              <div class="mt-3 flex items-center justify-between text-sm">
+                <span class="text-muted-foreground">{{ t('admin.pos.price') }}</span>
+                <span class="font-semibold tabular-nums">{{ formatCurrency(sku.selling_price) }}</span>
+              </div>
+
+              <Button
+                size="sm"
+                class="mt-3 w-full"
+                :disabled="!isAvailable(p, sku)"
+                @click="addToCart(p, sku)"
+              >
+                {{ t('admin.pos.addToCart') }}
+              </Button>
+            </div>
+          </template>
         </div>
       </CardContent>
     </Card>

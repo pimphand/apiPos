@@ -32,11 +32,11 @@ onMounted(async () => {
        injection) has a provider. -->
   <SidebarProvider v-if="isReady" class="block lg:flex lg:flex-row">
     <AppSidebar />
-    <SidebarInset class="min-w-0 min-h-0 min-h-svh lg:min-h-0">
+    <SidebarInset class="min-w-0 min-h-svh lg:h-svh lg:min-h-0 lg:overflow-hidden">
       <AppTopbar />
-      <main class="min-w-0 flex-1 p-3 pb-20 sm:p-4 md:pb-8 lg:p-6 lg:h-svh lg:overflow-y-auto lg:overscroll-contain">
+      <div class="min-w-0 flex-1 min-h-0 overflow-y-auto p-3 pb-20 sm:p-4 md:pb-8 lg:p-6 lg:overscroll-contain">
         <slot />
-      </main>
+      </div>
     </SidebarInset>
   </SidebarProvider>
 

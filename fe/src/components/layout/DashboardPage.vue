@@ -54,9 +54,9 @@ onMounted(async () => {
   <!-- SidebarProvider OUTERMOST so AppTopbar's SidebarTrigger has a provider. -->
   <SidebarProvider v-else class="block lg:flex lg:flex-row">
     <AppSidebar />
-    <SidebarInset class="min-w-0 min-h-0 min-h-svh lg:min-h-0">
+    <SidebarInset class="min-w-0 min-h-svh lg:h-svh lg:min-h-0 lg:overflow-hidden">
       <AppTopbar />
-      <main class="min-w-0 flex-1 p-3 pb-20 sm:p-4 md:pb-8 lg:p-6 lg:h-svh lg:overflow-y-auto lg:overscroll-contain">
+      <div class="min-w-0 flex-1 min-h-0 overflow-y-auto p-3 pb-20 sm:p-4 md:pb-8 lg:p-6 lg:overscroll-contain">
         <!-- Welcome Header -->
         <div class="mb-5 sm:mb-8">
           <h2 class="flex flex-wrap items-center gap-2 text-xl font-bold sm:text-2xl">{{ t('dashboard.welcome', { name: userName }) }} <Hand class="h-5 w-5 sm:h-6 sm:w-6 text-primary" aria-hidden="true" /></h2>
@@ -131,7 +131,7 @@ onMounted(async () => {
             <p class="text-sm mt-2">{{ t('dashboard.activityHint') }}</p>
           </div>
         </div>
-        </main>
+      </div>
     </SidebarInset>
   </SidebarProvider>
 

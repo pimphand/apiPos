@@ -118,9 +118,56 @@ func (h *ProductImportHandler) ServeSampleCSV(w http.ResponseWriter, r *http.Req
 	w.Header().Set("Content-Disposition", `attachment; filename="product_import_template.csv"`)
 	io.WriteString(w, "\ufeff") // BOM for Excel
 	w.Write([]byte(`name,sku,category,cost_price,selling_price,stock,minimum_stock,unit,barcode,variant
-Es Kopi Susu,KOP-001,Minuman,8000,18000,100,10,pcs,8991234567890,Large
-Es Kopi Susu,KOP-002,Minuman,8000,15000,100,10,pcs,,Small
-Croissant,CRO-001,Makanan,5000,15000,50,5,pcs,,Regular
+Es Kopi Susu,KOP-001,Minuman,8000,18000,100,10,pcs,8991234567890,Regular
+Es Kopi Susu,KOP-002,Minuman,9000,21000,100,10,pcs,8991234567891,Large
+Es Kopi Hitam,KPH-001,Minuman,4000,12000,100,10,pcs,8991234567892,Hot
+Es Kopi Hitam,KPH-002,Minuman,5000,14000,100,10,pcs,8991234567893,Ice
+Es Kopi Taro,TAR-001,Minuman,9000,22000,80,10,pcs,8991234567894,Hot
+Es Kopi Taro,TAR-002,Minuman,10000,24000,80,10,pcs,8991234567895,Ice
+Es Kopi Pandan,PDN-001,Minuman,9000,22000,80,10,pcs,8991234567896,Hot
+Es Kopi Pandan,PDN-002,Minuman,10000,24000,80,10,pcs,8991234567897,Ice
+Americano,AME-001,Minuman,5000,15000,120,15,pcs,8991234567901,Hot
+Americano,AME-002,Minuman,6000,17000,120,15,pcs,8991234567902,Ice
+Long Black,LBL-001,Minuman,5000,15000,100,10,pcs,8991234567903,Hot
+Long Black,LBL-002,Minuman,6000,17000,100,10,pcs,8991234567904,Ice
+Espresso,ESP-001,Minuman,4000,12000,150,15,pcs,8991234567905,Single
+Espresso,ESP-002,Minuman,6000,18000,150,15,pcs,8991234567906,Double
+Cappuccino,CAP-001,Minuman,7000,20000,100,10,pcs,8991234567911,Hot
+Cappuccino,CAP-002,Minuman,8000,22000,100,10,pcs,8991234567912,Ice
+Caffe Latte,LAT-001,Minuman,7000,20000,100,10,pcs,8991234567921,Hot
+Caffe Latte,LAT-002,Minuman,8000,22000,100,10,pcs,8991234567922,Ice
+Vanilla Latte,VNL-001,Minuman,9000,24000,80,10,pcs,8991234567923,Hot
+Vanilla Latte,VNL-002,Minuman,10000,26000,80,10,pcs,8991234567924,Ice
+Hazelnut Latte,HNL-001,Minuman,9000,24000,80,10,pcs,8991234567925,Hot
+Hazelnut Latte,HNL-002,Minuman,10000,26000,80,10,pcs,8991234567926,Ice
+Caramel Latte,CAR-001,Minuman,9000,24000,80,10,pcs,8991234567931,Hot
+Caramel Latte,CAR-002,Minuman,10000,26000,80,10,pcs,8991234567932,Ice
+Mocha,MOC-001,Minuman,9000,24000,80,10,pcs,8991234567941,Hot
+Mocha,MOC-002,Minuman,10000,26000,80,10,pcs,8991234567942,Ice
+White Chocolate Mocha,WCM-001,Minuman,10000,26000,80,10,pcs,8991234567943,Hot
+White Chocolate Mocha,WCM-002,Minuman,11000,28000,80,10,pcs,8991234567944,Ice
+Es Kopi Gula Aren,GAR-001,Minuman,8500,20000,100,10,pcs,8991234567951,Regular
+Es Kopi Gula Aren,GAR-002,Minuman,9500,23000,100,10,pcs,8991234567952,Large
+Kopi Susu Aren,KSA-001,Minuman,8500,20000,100,10,pcs,8991234567953,Hot
+Kopi Susu Aren,KSA-002,Minuman,9500,23000,100,10,pcs,8991234567954,Ice
+Salted Caramel Coffee,SCC-001,Minuman,9500,24000,80,10,pcs,8991234567955,Hot
+Salted Caramel Coffee,SCC-002,Minuman,10500,26000,80,10,pcs,8991234567956,Ice
+Dalgona Coffee,DAL-001,Minuman,9500,24000,80,10,pcs,8991234567957,Cold
+Affogato,AFF-001,Minuman,10000,28000,60,5,pcs,8991234567958,Regular
+Flat White,FLW-001,Minuman,8000,22000,80,10,pcs,8991234567959,Hot
+Cortado,COR-001,Minuman,7000,19000,80,10,pcs,8991234567960,Hot
+Cold Brew,CLB-001,Minuman,8000,20000,80,10,pcs,8991234567961,Regular
+Cold Brew Latte,CBL-001,Minuman,9500,24000,80,10,pcs,8991234567962,Ice
+Croissant,CRO-001,Makanan,5000,15000,50,5,pcs,8992234567890,Regular
+Butter Croissant,BCR-001,Makanan,5500,17000,50,5,pcs,8992234567891,Regular
+Chocolate Croissant,CCR-001,Makanan,6000,19000,50,5,pcs,8992234567892,Regular
+Almond Croissant,ACR-001,Makanan,6500,21000,40,5,pcs,8992234567893,Regular
+Roti Pisang,KUE-001,Makanan,3000,9000,60,10,pcs,8992234567894,Regular
+Donat Coklat,DNT-001,Makanan,2500,8000,80,10,pcs,8992234567895,Coklat
+Donat Gula,DNT-002,Makanan,2000,7000,80,10,pcs,8992234567896,Gula
+Cheesecake Slice,CKE-001,Makanan,9000,25000,40,5,pcs,8992234567897,Regular
+Brownies,BWN-001,Makanan,6000,15000,60,10,pcs,8992234567898,Regular
+Muffin Coklat,MUF-001,Makanan,5000,14000,60,10,pcs,8992234567899,Coklat
 `))
 }
 

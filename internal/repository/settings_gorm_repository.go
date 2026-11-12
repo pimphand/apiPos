@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
@@ -30,9 +31,12 @@ func NewSettingsRepository(db *gorm.DB) SettingsRepository {
 // GetByStoreID gets the settings row for a store
 func (r *SettingsRepo) GetByStoreID(ctx context.Context, storeID string) (*gormdb.StoreSetting, error) {
 	var setting gormdb.StoreSetting
-	err := r.WithContext(ctx).Where("store_id = ?", storeID).First(&setting).Error
+	err := r.WithContext(ctx).Where("store_id = ?", storeID).Limit(1).Find(&setting).Error
 	if err != nil {
 		return nil, err
+	}
+	if setting.StoreID == uuid.Nil {
+		return nil, gorm.ErrRecordNotFound
 	}
 	return &setting, nil
 }
