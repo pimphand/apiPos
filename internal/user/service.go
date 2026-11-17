@@ -504,8 +504,46 @@ func (s *Service) Logout(ctx context.Context, refreshToken, deviceID string) err
 	if refreshToken == "" {
 		return nil
 	}
+	// Token revocation on logout intentionally revokes only the token
+	// presented at this device; other devices stay signed in.
 	tokenHash := s.auth.HashToken(refreshToken)
 	return s.repos.RefreshToken.RevokeByTokenHash(ctx, tokenHash, deviceID)
+}
+
+// ChangePassword verifies the caller's current password and updates it. The
+// caller's refresh tokens are intentionally left alone (the user stays signed
+// in); other sessions will stop working on their next password reset only if
+// the deployment rotates credentials out-of-band.
+func (s *Service) ChangePassword(ctx context.Context, userID, currentPassword, newPassword string) error {
+	if !isValidUUID(userID) {
+		return apperror.Wrap(apperror.ErrInvalidRequest, "Invalid user ID format", fmt.Errorf("id: %s", userID))
+	}
+	if len(newPassword) < 8 {
+		return apperror.Wrap(apperror.ErrInvalidRequest, "New password must be at least 8 characters", nil)
+	}
+	if currentPassword == newPassword {
+		return apperror.Wrap(apperror.ErrInvalidRequest, "New password must differ from current password", nil)
+	}
+
+	u, err := s.repos.User.GetByID(ctx, userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return apperror.ErrUserNotFound
+		}
+		return apperror.Wrap(apperror.ErrInternal, "Failed to get user", err)
+	}
+	if !s.auth.CheckPassword(u.PasswordHash, currentPassword) {
+		return apperror.ErrInvalidCredentials
+	}
+
+	hashed, err := s.auth.HashPassword(newPassword)
+	if err != nil {
+		return apperror.Wrap(apperror.ErrInternal, "Failed to hash password", err)
+	}
+	if err := s.repos.User.UpdatePassword(ctx, userID, hashed); err != nil {
+		return apperror.Wrap(apperror.ErrInternal, "Failed to update password", err)
+	}
+	return nil
 }
 
 // parseUUID converts a string to UUID string

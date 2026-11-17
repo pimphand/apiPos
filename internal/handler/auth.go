@@ -8,6 +8,8 @@ import (
 	"apiPos/internal/apperror"
 	"apiPos/internal/response"
 	"apiPos/internal/user"
+
+	"google.golang.org/grpc/codes"
 )
 
 // AuthHandler implements the AuthService gRPC server
@@ -139,5 +141,31 @@ func (h *AuthHandler) Logout(ctx context.Context, req *authv1.LogoutRequest) (*a
 	return &authv1.LogoutResponse{
 		Success: true,
 		Message: response.MsgLogoutSuccess,
+	}, nil
+}
+
+// ChangePassword changes the authenticated user's password. The new password
+// must differ from the current one and be at least 8 characters.
+func (h *AuthHandler) ChangePassword(ctx context.Context, req *authv1.ChangePasswordRequest) (*authv1.ChangePasswordResponse, error) {
+	currentPassword := req.GetCurrentPassword()
+	newPassword := req.GetNewPassword()
+
+	userID := getUserIDFromContext(ctx)
+	if userID == "" {
+		return nil, apperror.New(codes.Unauthenticated, "Missing authenticated user", nil).GRPCStatus().Err()
+	}
+	if currentPassword == "" || newPassword == "" {
+		return nil, apperror.New(codes.InvalidArgument, "Current and new password are required", nil).GRPCStatus().Err()
+	}
+
+	if err := h.userService.ChangePassword(ctx, userID, currentPassword, newPassword); err != nil {
+		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
+	h.logs.Log(ctx, "CHANGE_PASSWORD", "auth", userID, `{}`)
+
+	return &authv1.ChangePasswordResponse{
+		Success: true,
+		Message: response.MsgOperationSuccess,
 	}, nil
 }
