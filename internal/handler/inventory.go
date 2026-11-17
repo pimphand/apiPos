@@ -30,9 +30,14 @@ func (h *InventoryHandler) CreateTransaction(ctx context.Context, req *inventory
 	// Get user from context (set by auth middleware)
 	userID := getUserIDFromContext(ctx)
 
+	storeID, err := scopeStore(ctx, req.StoreId)
+	if err != nil {
+		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
 	txn, err := h.service.CreateTransaction(ctx, inventory.CreateTransactionRequest{
 		ProductID:     req.ProductId,
-		StoreID:       req.StoreId,
+		StoreID:       storeID,
 		Type:          req.Type,
 		Quantity:      req.Quantity,
 		ReferenceType: req.ReferenceType,
@@ -54,7 +59,12 @@ func (h *InventoryHandler) CreateTransaction(ctx context.Context, req *inventory
 
 // GetTransaction gets an inventory transaction by ID
 func (h *InventoryHandler) GetTransaction(ctx context.Context, req *inventoryv1.GetTransactionRequest) (*inventoryv1.TransactionResponse, error) {
-	txn, err := h.service.GetTransaction(ctx, req.Id)
+	storeID, err := scopeStore(ctx, "")
+	if err != nil {
+		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
+	txn, err := h.service.GetTransaction(ctx, req.Id, storeID)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
@@ -66,7 +76,12 @@ func (h *InventoryHandler) GetTransaction(ctx context.Context, req *inventoryv1.
 
 // ListTransactions lists inventory transactions with filters
 func (h *InventoryHandler) ListTransactions(ctx context.Context, req *inventoryv1.ListTransactionsRequest) (*inventoryv1.ListTransactionsResponse, error) {
-	result, err := h.service.ListTransactions(ctx, req.ProductId, req.StoreId, req.Type, req.Page, req.PerPage)
+	storeID, err := scopeStore(ctx, req.StoreId)
+	if err != nil {
+		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
+	result, err := h.service.ListTransactions(ctx, req.ProductId, storeID, req.Type, req.Page, req.PerPage)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
@@ -88,9 +103,14 @@ func (h *InventoryHandler) ListTransactions(ctx context.Context, req *inventoryv
 func (h *InventoryHandler) AdjustStock(ctx context.Context, req *inventoryv1.AdjustStockRequest) (*inventoryv1.TransactionResponse, error) {
 	userID := getUserIDFromContext(ctx)
 
+	storeID, err := scopeStore(ctx, req.StoreId)
+	if err != nil {
+		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
 	txn, err := h.service.AdjustStock(ctx, inventory.AdjustStockRequest{
 		ProductID:   req.ProductId,
-		StoreID:     req.StoreId,
+		StoreID:     storeID,
 		Direction:   req.Direction,
 		Quantity:    req.Quantity,
 		Reason:      req.Reason,
@@ -111,7 +131,12 @@ func (h *InventoryHandler) AdjustStock(ctx context.Context, req *inventoryv1.Adj
 
 // GetStockSummary gets stock summary for a product
 func (h *InventoryHandler) GetStockSummary(ctx context.Context, req *inventoryv1.GetStockSummaryRequest) (*inventoryv1.StockSummaryResponse, error) {
-	summary, err := h.service.GetStockSummary(ctx, req.ProductId)
+	storeID, err := scopeStore(ctx, "")
+	if err != nil {
+		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
+	summary, err := h.service.GetStockSummary(ctx, req.ProductId, storeID)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
@@ -139,7 +164,12 @@ func (h *InventoryHandler) GetStockSummary(ctx context.Context, req *inventoryv1
 
 // GetLowStockAlert gets products with stock below minimum
 func (h *InventoryHandler) GetLowStockAlert(ctx context.Context, req *inventoryv1.LowStockAlertRequest) (*inventoryv1.LowStockAlertResponse, error) {
-	result, err := h.service.GetLowStockAlert(ctx, req.StoreId, req.Page, req.PerPage)
+	storeID, err := scopeStore(ctx, req.StoreId)
+	if err != nil {
+		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
+	result, err := h.service.GetLowStockAlert(ctx, storeID, req.Page, req.PerPage)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}

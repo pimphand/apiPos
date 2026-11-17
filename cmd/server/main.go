@@ -14,8 +14,12 @@ import (
 )
 
 func main() {
-	// Load configuration
+	// Load configuration and fail fast on unsafe values (e.g. a placeholder or
+	// short JWT secret) before touching the database or opening listeners.
 	cfg := config.Load()
+	if err := cfg.Validate(); err != nil {
+		log.Fatalf("Invalid configuration: %v", err)
+	}
 
 	// Date/timestamp layout for every API response that renders one; see
 	// config.FormatConfig. Set once, before the server starts serving.

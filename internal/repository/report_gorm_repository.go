@@ -13,7 +13,7 @@ type ReportRepository interface {
 	GetDailySalesReport(ctx context.Context, params ReportParams) ([]DailySalesReport, error)
 	GetSalesByDateRange(ctx context.Context, params ReportParams) ([]gormdb.Sale, error)
 	GetTopSellingProducts(ctx context.Context, params ReportParams) ([]TopSellingProduct, error)
-	GetInventorySummaryReport(ctx context.Context) ([]InventorySummary, error)
+	GetInventorySummaryReport(ctx context.Context, storeID string) ([]InventorySummary, error)
 	GetPaymentMethodSummary(ctx context.Context, params ReportParams) ([]PaymentMethodSummary, error)
 }
 
@@ -130,6 +130,9 @@ func (r *ReportRepo) GetTopSellingProducts(ctx context.Context, params ReportPar
 	if params.EndDate != "" {
 		query = query.Where("sales.created_at <= ?", params.EndDate)
 	}
+	if params.StoreID != "" {
+		query = query.Where("sales.store_id = ?", params.StoreID)
+	}
 
 	limit := params.Limit
 	if limit <= 0 {
@@ -144,16 +147,20 @@ func (r *ReportRepo) GetTopSellingProducts(ctx context.Context, params ReportPar
 	return results, err
 }
 
-// GetInventorySummaryReport gets inventory summary
-func (r *ReportRepo) GetInventorySummaryReport(ctx context.Context) ([]InventorySummary, error) {
+// GetInventorySummaryReport gets inventory summary, optionally limited to one store
+func (r *ReportRepo) GetInventorySummaryReport(ctx context.Context, storeID string) ([]InventorySummary, error) {
 	var results []InventorySummary
 
-	err := r.WithContext(ctx).
+	query := r.WithContext(ctx).
 		Model(&gormdb.Product{}).
 		Select("categories.name as category_name, COUNT(products.id) as product_count, SUM(products.stock) as total_stock, SUM(products.stock * products.cost_price) as total_value").
 		Joins("JOIN categories ON categories.id = products.category_id").
-		Where("products.is_active = ?", true).
-		Group("categories.name").
+		Where("products.is_active = ?", true)
+	if storeID != "" {
+		query = query.Where("products.store_id = ?", storeID)
+	}
+
+	err := query.Group("categories.name").
 		Order("category_name").
 		Find(&results).Error
 
@@ -173,6 +180,9 @@ func (r *ReportRepo) GetPaymentMethodSummary(ctx context.Context, params ReportP
 	}
 	if params.EndDate != "" {
 		query = query.Where("paid_at <= ?", params.EndDate)
+	}
+	if params.StoreID != "" {
+		query = query.Where("store_id = ?", params.StoreID)
 	}
 
 	err := query.Group("payment_method").Order("total_amount DESC").Find(&results).Error

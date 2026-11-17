@@ -402,8 +402,10 @@ func (s *Service) CreateSale(ctx context.Context, req CreateSaleRequest) (*SaleD
 	return &saleDetail, nil
 }
 
-// GetSale gets a sale by ID with items and payments
-func (s *Service) GetSale(ctx context.Context, id string) (*SaleDetail, error) {
+// GetSale gets a sale by ID with items and payments. storeID is the caller's
+// store (from the JWT); sales that belong to another store are reported as not
+// found so their existence is not disclosed.
+func (s *Service) GetSale(ctx context.Context, id, storeID string) (*SaleDetail, error) {
 	if !isValidUUID(id) {
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Invalid sale ID", nil)
 	}
@@ -412,12 +414,15 @@ func (s *Service) GetSale(ctx context.Context, id string) (*SaleDetail, error) {
 	if err != nil {
 		return nil, apperror.Wrap(apperror.ErrNotFound, "Sale not found", err)
 	}
+	if !saleBelongsToStore(sale, storeID) {
+		return nil, apperror.Wrap(apperror.ErrNotFound, "Sale not found", nil)
+	}
 
 	return s.getSaleDetail(ctx, sale)
 }
 
-// GetSaleByInvoice gets a sale by invoice number
-func (s *Service) GetSaleByInvoice(ctx context.Context, invoiceNumber string) (*SaleDetail, error) {
+// GetSaleByInvoice gets a sale by invoice number, scoped to the caller's store.
+func (s *Service) GetSaleByInvoice(ctx context.Context, invoiceNumber, storeID string) (*SaleDetail, error) {
 	if invoiceNumber == "" {
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Invoice number is required", nil)
 	}
@@ -426,8 +431,17 @@ func (s *Service) GetSaleByInvoice(ctx context.Context, invoiceNumber string) (*
 	if err != nil {
 		return nil, apperror.Wrap(apperror.ErrNotFound, "Sale not found", err)
 	}
+	if !saleBelongsToStore(sale, storeID) {
+		return nil, apperror.Wrap(apperror.ErrNotFound, "Sale not found", nil)
+	}
 
 	return s.getSaleDetail(ctx, sale)
+}
+
+// saleBelongsToStore reports whether the sale is inside the caller's store. An
+// empty storeID never matches, so an unresolved claim cannot widen the scope.
+func saleBelongsToStore(sale *gormdb.Sale, storeID string) bool {
+	return storeID != "" && sale.StoreID.String() == storeID
 }
 
 // getSaleDetail gets sale detail with items and payments
@@ -487,7 +501,7 @@ func (s *Service) ListSales(ctx context.Context, params repository.SaleListParam
 // CancelSale cancels a sale and restores stock. actorID is the acting user
 // (from the JWT); when they have an OPEN shift, the restored goods are
 // recorded as IN ledger rows on that shift.
-func (s *Service) CancelSale(ctx context.Context, id, actorID string) error {
+func (s *Service) CancelSale(ctx context.Context, id, actorID, storeID string) error {
 	if !isValidUUID(id) {
 		return apperror.Wrap(apperror.ErrInvalidRequest, "Invalid sale ID", nil)
 	}
@@ -495,6 +509,9 @@ func (s *Service) CancelSale(ctx context.Context, id, actorID string) error {
 	sale, err := s.repos.Sale.GetByID(ctx, id)
 	if err != nil {
 		return apperror.Wrap(apperror.ErrNotFound, "Sale not found", err)
+	}
+	if !saleBelongsToStore(sale, storeID) {
+		return apperror.Wrap(apperror.ErrNotFound, "Sale not found", nil)
 	}
 
 	if sale.Status == StatusCancelled {
@@ -555,7 +572,7 @@ func (s *Service) CancelSale(ctx context.Context, id, actorID string) error {
 // when they have an OPEN shift the returned goods are recorded as IN ledger
 // rows and (for sales paid in CASH) the shift's cash_refund is increased so
 // drawer reconciliation stays correct.
-func (s *Service) RefundSale(ctx context.Context, id, actorID string) error {
+func (s *Service) RefundSale(ctx context.Context, id, actorID, storeID string) error {
 	if !isValidUUID(id) {
 		return apperror.Wrap(apperror.ErrInvalidRequest, "Invalid sale ID", nil)
 	}
@@ -563,6 +580,9 @@ func (s *Service) RefundSale(ctx context.Context, id, actorID string) error {
 	sale, err := s.repos.Sale.GetByID(ctx, id)
 	if err != nil {
 		return apperror.Wrap(apperror.ErrNotFound, "Sale not found", err)
+	}
+	if !saleBelongsToStore(sale, storeID) {
+		return apperror.Wrap(apperror.ErrNotFound, "Sale not found", nil)
 	}
 
 	if sale.Status == StatusRefunded {

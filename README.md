@@ -375,9 +375,10 @@ Environment variables:
 | DATABASE_NAME | pos | Database name |
 | DATABASE_USER | postgres | Database user |
 | DATABASE_PASSWORD | postgres | Database password |
-| JWT_SECRET | change-me | JWT secret key |
+| JWT_SECRET | **wajib** (>= 32 byte) | JWT secret key. Server menolak start bila kosong, memakai nilai contoh, atau kurang dari 32 byte. Generate: `openssl rand -base64 48` |
 | JWT_ACCESS_TTL | 15m | JWT access token TTL |
 | JWT_REFRESH_TTL | 720h | JWT refresh token TTL |
+| TRUSTED_PROXIES | (kosong) | IP/CIDR proxy dipisah koma yang header `X-Forwarded-For`/`X-Real-IP`-nya dipercaya untuk rate limit per IP. Loopback selalu dipercaya (gateway internal). Di luar daftar ini, alamat TCP peer dipakai sehingga header tidak bisa dipalsukan |
 
 ## API Documentation
 

@@ -83,7 +83,9 @@ services:
       DATABASE_NAME: ${DATABASE_NAME:-pos}
       DATABASE_USER: ${DATABASE_USER:-postgres}
       DATABASE_PASSWORD: ${DATABASE_PASSWORD:-postgres}
-      JWT_SECRET: ${JWT_SECRET:-change-me}
+      # No default: a placeholder secret lets anyone forge tokens. Required,
+      # >= 32 bytes (generate with: openssl rand -base64 48).
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required (>= 32 bytes; openssl rand -base64 48)}
       JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
       JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-720h}
     ports:

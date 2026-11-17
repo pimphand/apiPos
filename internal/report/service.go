@@ -260,7 +260,7 @@ func (s *Service) GetSalesByCashier(ctx context.Context, startDate, endDate, sto
 }
 
 // GetSalesByProduct gets sales grouped by product
-func (s *Service) GetSalesByProduct(ctx context.Context, startDate, endDate string, limit int32) ([]ProductSalesReport, error) {
+func (s *Service) GetSalesByProduct(ctx context.Context, startDate, endDate, storeID string, limit int32) ([]ProductSalesReport, error) {
 	if limit <= 0 {
 		limit = 10
 	}
@@ -268,6 +268,7 @@ func (s *Service) GetSalesByProduct(ctx context.Context, startDate, endDate stri
 	reports, err := s.repos.Report.GetTopSellingProducts(ctx, repository.ReportParams{
 		StartDate: startDate,
 		EndDate:   endDate,
+		StoreID:   storeID,
 		Limit:     limit,
 	})
 	if err != nil {
@@ -288,7 +289,7 @@ func (s *Service) GetSalesByProduct(ctx context.Context, startDate, endDate stri
 }
 
 // GetSalesByCategory gets sales grouped by category
-func (s *Service) GetSalesByCategory(ctx context.Context, startDate, endDate string) ([]CategorySalesReport, error) {
+func (s *Service) GetSalesByCategory(ctx context.Context, startDate, endDate, storeID string) ([]CategorySalesReport, error) {
 	var results []struct {
 		CategoryID   string
 		CategoryName string
@@ -311,6 +312,9 @@ func (s *Service) GetSalesByCategory(ctx context.Context, startDate, endDate str
 	if endDate != "" {
 		query = query.Where("sales.created_at <= ?", endDate)
 	}
+	if storeID != "" {
+		query = query.Where("sales.store_id = ?", storeID)
+	}
 
 	if err := query.Group("categories.id, categories.name").Order("total_amount DESC").Find(&results).Error; err != nil {
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to get sales by category", err)
@@ -331,10 +335,11 @@ func (s *Service) GetSalesByCategory(ctx context.Context, startDate, endDate str
 }
 
 // GetPaymentMethodSummary gets payment method summary
-func (s *Service) GetPaymentMethodSummary(ctx context.Context, startDate, endDate string) (*PaymentMethodResult, error) {
+func (s *Service) GetPaymentMethodSummary(ctx context.Context, startDate, endDate, storeID string) (*PaymentMethodResult, error) {
 	reports, err := s.repos.Report.GetPaymentMethodSummary(ctx, repository.ReportParams{
 		StartDate: startDate,
 		EndDate:   endDate,
+		StoreID:   storeID,
 	})
 	if err != nil {
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to get payment method summary", err)
@@ -359,8 +364,8 @@ func (s *Service) GetPaymentMethodSummary(ctx context.Context, startDate, endDat
 }
 
 // GetInventorySummary gets inventory summary
-func (s *Service) GetInventorySummary(ctx context.Context) (*InventoryResult, error) {
-	reports, err := s.repos.Report.GetInventorySummaryReport(ctx)
+func (s *Service) GetInventorySummary(ctx context.Context, storeID string) (*InventoryResult, error) {
+	reports, err := s.repos.Report.GetInventorySummaryReport(ctx, storeID)
 	if err != nil {
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to get inventory summary", err)
 	}
@@ -392,7 +397,7 @@ func (s *Service) GetInventorySummary(ctx context.Context) (*InventoryResult, er
 }
 
 // GetLowStockProducts gets low stock products
-func (s *Service) GetLowStockProducts(ctx context.Context, limit int32) ([]LowStockReport, error) {
+func (s *Service) GetLowStockProducts(ctx context.Context, limit int32, storeID string) ([]LowStockReport, error) {
 	if limit <= 0 {
 		limit = 20
 	}
@@ -403,6 +408,9 @@ func (s *Service) GetLowStockProducts(ctx context.Context, limit int32) ([]LowSt
 		Where("stock <= minimum_stock AND is_active = ?", true).
 		Order("stock ASC").
 		Limit(int(limit))
+	if storeID != "" {
+		query = query.Where("store_id = ?", storeID)
+	}
 
 	if err := query.Find(&products).Error; err != nil {
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to get low stock products", err)

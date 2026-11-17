@@ -287,7 +287,7 @@ func (s *Service) AdjustStock(ctx context.Context, req AdjustStockRequest) (*gor
 }
 
 // GetTransaction gets an inventory transaction by ID
-func (s *Service) GetTransaction(ctx context.Context, id string) (*gormdb.InventoryTransaction, error) {
+func (s *Service) GetTransaction(ctx context.Context, id, storeID string) (*gormdb.InventoryTransaction, error) {
 	if !isValidUUID(id) {
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Invalid transaction ID", nil)
 	}
@@ -295,6 +295,9 @@ func (s *Service) GetTransaction(ctx context.Context, id string) (*gormdb.Invent
 	txn, err := s.repos.Inventory.GetTransactionByID(ctx, id)
 	if err != nil {
 		return nil, apperror.Wrap(apperror.ErrNotFound, "Transaction not found", err)
+	}
+	if storeID == "" || txn.StoreID.String() != storeID {
+		return nil, apperror.Wrap(apperror.ErrNotFound, "Transaction not found", nil)
 	}
 
 	return txn, nil
@@ -334,7 +337,7 @@ func (s *Service) ListTransactions(ctx context.Context, productID, storeID, txnT
 }
 
 // GetStockSummary gets stock summary for a product across all SKUs
-func (s *Service) GetStockSummary(ctx context.Context, productID string) (*StockSummary, error) {
+func (s *Service) GetStockSummary(ctx context.Context, productID, storeID string) (*StockSummary, error) {
 	if !isValidUUID(productID) {
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Invalid product ID", nil)
 	}
@@ -343,6 +346,9 @@ func (s *Service) GetStockSummary(ctx context.Context, productID string) (*Stock
 	var product gormdb.Product
 	if err := s.repos.DB().WithContext(ctx).Where("id = ?", productID).First(&product).Error; err != nil {
 		return nil, apperror.Wrap(apperror.ErrNotFound, "Product not found", err)
+	}
+	if storeID == "" || product.StoreID.String() != storeID {
+		return nil, apperror.Wrap(apperror.ErrNotFound, "Product not found", nil)
 	}
 
 	// Get SKUs
@@ -390,6 +396,9 @@ func (s *Service) GetLowStockAlert(ctx context.Context, storeID string, page, pe
 
 	query := s.repos.DB().WithContext(ctx).Model(&gormdb.Product{}).
 		Where("stock <= minimum_stock AND is_active = ?", true)
+	if storeID != "" {
+		query = query.Where("store_id = ?", storeID)
+	}
 
 	if err := query.Count(&totalCount).Error; err != nil {
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to count low stock products", err)

@@ -673,7 +673,8 @@ DATABASE_NAME=pos
 DATABASE_USER=postgres
 DATABASE_PASSWORD=postgres
 
-JWT_SECRET=change-me
+# Wajib >= 32 byte dan bukan nilai contoh: openssl rand -base64 48
+JWT_SECRET=
 JWT_ACCESS_TTL=15m
 JWT_REFRESH_TTL=720h
 ```
@@ -722,6 +723,15 @@ make lint
 ## 11. Testing
 
 Write unit tests for business logic.
+
+Cross-tenant isolation has a database-backed regression test in
+`internal/integration/tenant_isolation_test.go`. It skips unless
+`TEST_DATABASE_DSN` is set, creates a throwaway schema, and drops it afterwards:
+
+```bash
+TEST_DATABASE_DSN='postgres://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable' \
+  go test ./internal/integration/...
+```
 
 Especially test:
 

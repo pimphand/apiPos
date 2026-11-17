@@ -12,6 +12,9 @@ import (
 	"apiPos/internal/repository"
 )
 
+// testStoreID is a valid UUID used where the caller's store must be present.
+const testStoreID = "11111111-1111-1111-1111-111111111111"
+
 // mockSaleRepo implements a minimal mock for sale repository
 type mockSaleRepo struct{}
 
@@ -98,7 +101,7 @@ func TestSaleService_GetSale(t *testing.T) {
 		repos := &repository.Repositories{}
 		svc := NewService(repos)
 
-		_, err := svc.GetSale(ctx, "invalid")
+		_, err := svc.GetSale(ctx, "invalid", testStoreID)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "Invalid sale ID")
 	})
@@ -111,7 +114,7 @@ func TestSaleService_GetSaleByInvoice(t *testing.T) {
 		repos := &repository.Repositories{}
 		svc := NewService(repos)
 
-		_, err := svc.GetSaleByInvoice(ctx, "")
+		_, err := svc.GetSaleByInvoice(ctx, "", testStoreID)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "Invoice number is required")
 	})
@@ -157,7 +160,7 @@ func TestSaleService_CancelSale(t *testing.T) {
 		repos := &repository.Repositories{}
 		svc := NewService(repos)
 
-		err := svc.CancelSale(ctx, "invalid", "")
+		err := svc.CancelSale(ctx, "invalid", "", testStoreID)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "Invalid sale ID")
 	})
@@ -170,7 +173,7 @@ func TestSaleService_RefundSale(t *testing.T) {
 		repos := &repository.Repositories{}
 		svc := NewService(repos)
 
-		err := svc.RefundSale(ctx, "invalid", "")
+		err := svc.RefundSale(ctx, "invalid", "", testStoreID)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "Invalid sale ID")
 	})

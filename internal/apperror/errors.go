@@ -19,6 +19,7 @@ var (
 	ErrTokenExpired       = errors.New("token expired")
 	ErrUnauthorized       = errors.New("unauthorized")
 	ErrForbidden          = errors.New("forbidden")
+	ErrTooManyAttempts    = errors.New("too many failed attempts")
 
 	// User errors
 	ErrUserNotFound      = errors.New("user not found")
@@ -227,6 +228,8 @@ func MapError(err error) *AppError {
 		return New(codes.Unauthenticated, "Invalid token", err)
 	case errors.Is(err, ErrTokenExpired):
 		return New(codes.Unauthenticated, "Token expired", err)
+	case errors.Is(err, ErrTooManyAttempts):
+		return New(codes.ResourceExhausted, "Too many failed login attempts, please try again later", err)
 	case errors.Is(err, ErrUnauthorized):
 		return New(codes.PermissionDenied, "Unauthorized access", err)
 	case errors.Is(err, ErrForbidden):

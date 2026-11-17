@@ -21,7 +21,12 @@ func NewReportHandler(service *report.Service) *ReportHandler {
 
 // GetDailySalesReport gets daily sales report
 func (h *ReportHandler) GetDailySalesReport(ctx context.Context, req *reportv1.DailySalesReportRequest) (*reportv1.DailySalesReportResponse, error) {
-	result, err := h.service.GetDailySalesReport(ctx, req.StartDate, req.EndDate, req.StoreId)
+	storeID, err := scopeStore(ctx, req.StoreId)
+	if err != nil {
+		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
+	result, err := h.service.GetDailySalesReport(ctx, req.StartDate, req.EndDate, storeID)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
@@ -44,7 +49,12 @@ func (h *ReportHandler) GetDailySalesReport(ctx context.Context, req *reportv1.D
 
 // GetSalesByDateRange gets sales by date range
 func (h *ReportHandler) GetSalesByDateRange(ctx context.Context, req *reportv1.SalesByDateRangeRequest) (*reportv1.SalesByDateRangeResponse, error) {
-	result, err := h.service.GetSalesByDateRange(ctx, req.StartDate, req.EndDate, req.StoreId, req.CashierId)
+	storeID, err := scopeStore(ctx, req.StoreId)
+	if err != nil {
+		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
+	result, err := h.service.GetSalesByDateRange(ctx, req.StartDate, req.EndDate, storeID, req.CashierId)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
@@ -75,7 +85,12 @@ func (h *ReportHandler) GetSalesByDateRange(ctx context.Context, req *reportv1.S
 
 // GetSalesByCashier gets sales by cashier
 func (h *ReportHandler) GetSalesByCashier(ctx context.Context, req *reportv1.SalesByCashierRequest) (*reportv1.SalesByCashierResponse, error) {
-	reports, err := h.service.GetSalesByCashier(ctx, req.StartDate, req.EndDate, req.StoreId)
+	storeID, err := scopeStore(ctx, req.StoreId)
+	if err != nil {
+		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
+	reports, err := h.service.GetSalesByCashier(ctx, req.StartDate, req.EndDate, storeID)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
@@ -97,7 +112,12 @@ func (h *ReportHandler) GetSalesByCashier(ctx context.Context, req *reportv1.Sal
 
 // GetSalesByProduct gets sales by product
 func (h *ReportHandler) GetSalesByProduct(ctx context.Context, req *reportv1.SalesByProductRequest) (*reportv1.SalesByProductResponse, error) {
-	reports, err := h.service.GetSalesByProduct(ctx, req.StartDate, req.EndDate, req.Limit)
+	storeID, err := scopeStore(ctx, "")
+	if err != nil {
+		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
+	reports, err := h.service.GetSalesByProduct(ctx, req.StartDate, req.EndDate, storeID, req.Limit)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
@@ -119,7 +139,12 @@ func (h *ReportHandler) GetSalesByProduct(ctx context.Context, req *reportv1.Sal
 
 // GetSalesByCategory gets sales by category
 func (h *ReportHandler) GetSalesByCategory(ctx context.Context, req *reportv1.SalesByCategoryRequest) (*reportv1.SalesByCategoryResponse, error) {
-	reports, err := h.service.GetSalesByCategory(ctx, req.StartDate, req.EndDate)
+	storeID, err := scopeStore(ctx, "")
+	if err != nil {
+		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
+	reports, err := h.service.GetSalesByCategory(ctx, req.StartDate, req.EndDate, storeID)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
@@ -142,7 +167,12 @@ func (h *ReportHandler) GetSalesByCategory(ctx context.Context, req *reportv1.Sa
 
 // GetPaymentMethodSummary gets payment method summary
 func (h *ReportHandler) GetPaymentMethodSummary(ctx context.Context, req *reportv1.PaymentMethodSummaryRequest) (*reportv1.PaymentMethodSummaryResponse, error) {
-	result, err := h.service.GetPaymentMethodSummary(ctx, req.StartDate, req.EndDate)
+	storeID, err := scopeStore(ctx, "")
+	if err != nil {
+		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
+	result, err := h.service.GetPaymentMethodSummary(ctx, req.StartDate, req.EndDate, storeID)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
@@ -164,7 +194,12 @@ func (h *ReportHandler) GetPaymentMethodSummary(ctx context.Context, req *report
 
 // GetInventorySummary gets inventory summary
 func (h *ReportHandler) GetInventorySummary(ctx context.Context, req *reportv1.InventorySummaryRequest) (*reportv1.InventorySummaryResponse, error) {
-	result, err := h.service.GetInventorySummary(ctx)
+	storeID, err := scopeStore(ctx, "")
+	if err != nil {
+		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
+	result, err := h.service.GetInventorySummary(ctx, storeID)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
@@ -189,7 +224,12 @@ func (h *ReportHandler) GetInventorySummary(ctx context.Context, req *reportv1.I
 
 // GetLowStockProducts gets low stock products
 func (h *ReportHandler) GetLowStockProducts(ctx context.Context, req *reportv1.LowStockProductsRequest) (*reportv1.LowStockProductsResponse, error) {
-	reports, err := h.service.GetLowStockProducts(ctx, req.Limit)
+	storeID, err := scopeStore(ctx, "")
+	if err != nil {
+		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
+	reports, err := h.service.GetLowStockProducts(ctx, req.Limit, storeID)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}

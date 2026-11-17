@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	_ "github.com/joho/godotenv/autoload"
@@ -70,6 +71,43 @@ func (d *DatabaseConfig) DSN() string {
 	)
 }
 
+// minJWTSecretBytes is the shortest JWT secret accepted at startup. HS256
+// secrets shorter than the 256-bit hash output reduce the effective key space.
+const minJWTSecretBytes = 32
+
+// placeholderJWTSecrets are the values shipped by examples and compose files.
+// They are publicly known, so accepting them would let anyone forge tokens.
+var placeholderJWTSecrets = []string{
+	"change-me",
+	"changeme",
+	"change_me",
+	"jwt-secret",
+	"your-secret-key",
+}
+
+// Validate rejects configuration that would start the server in an unsafe
+// state. Call it at startup, before opening the database or network listeners,
+// so a misconfigured deployment fails fast instead of issuing tokens that
+// anyone can forge.
+func (c *Config) Validate() error {
+	secret := strings.TrimSpace(c.JWT.Secret)
+	if secret == "" {
+		return fmt.Errorf("JWT_SECRET is empty; set it to a unique random value (for example: openssl rand -base64 48)")
+	}
+
+	for _, placeholder := range placeholderJWTSecrets {
+		if strings.EqualFold(secret, placeholder) {
+			return fmt.Errorf("JWT_SECRET still uses the public placeholder %q; set it to a unique random value (for example: openssl rand -base64 48)", placeholder)
+		}
+	}
+
+	if len(secret) < minJWTSecretBytes {
+		return fmt.Errorf("JWT_SECRET must be at least %d bytes, got %d", minJWTSecretBytes, len(secret))
+	}
+
+	return nil
+}
+
 // Load reads configuration from environment variables.
 func Load() *Config {
 	return &Config{
@@ -91,6 +129,8 @@ func Load() *Config {
 			SSLMode:  getEnv("DATABASE_SSLMODE", "disable"),
 		},
 		JWT: JWTConfig{
+			// The fallback exists only so Validate can report a precise error about
+			// the placeholder instead of a generic missing value.
 			Secret:     getEnv("JWT_SECRET", "change-me"),
 			AccessTTL:  getEnvAsDuration("JWT_ACCESS_TTL", 15*time.Minute),
 			RefreshTTL: getEnvAsDuration("JWT_REFRESH_TTL", 720*time.Hour),

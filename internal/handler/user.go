@@ -24,7 +24,12 @@ func NewUserHandler(service *user.Service, logs *ActivityLogger) *UserHandler {
 
 // CreateUser creates a new user
 func (h *UserHandler) CreateUser(ctx context.Context, req *userv1.CreateUserRequest) (*userv1.UserResponse, error) {
-	u, err := h.service.CreateUser(ctx, req.Username, req.Email, req.Password, req.FullName, req.RoleId, req.StoreId)
+	storeID, err := scopeStore(ctx, req.StoreId)
+	if err != nil {
+		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
+	u, err := h.service.CreateUser(ctx, req.Username, req.Email, req.Password, req.FullName, req.RoleId, storeID)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
@@ -39,7 +44,12 @@ func (h *UserHandler) CreateUser(ctx context.Context, req *userv1.CreateUserRequ
 
 // GetUser gets a user by ID
 func (h *UserHandler) GetUser(ctx context.Context, req *userv1.GetUserRequest) (*userv1.UserResponse, error) {
-	u, err := h.service.GetUser(ctx, req.Id)
+	storeID, err := scopeStore(ctx, "")
+	if err != nil {
+		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
+	u, err := h.service.GetUser(ctx, req.Id, storeID)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
@@ -80,7 +90,12 @@ func (h *UserHandler) ListUsers(ctx context.Context, req *userv1.ListUsersReques
 
 // UpdateUser updates a user
 func (h *UserHandler) UpdateUser(ctx context.Context, req *userv1.UpdateUserRequest) (*userv1.UserResponse, error) {
-	u, err := h.service.UpdateUser(ctx, req.Id, req.Email, req.FullName, req.RoleId, req.StoreId, req.IsActive)
+	storeID, err := scopeStore(ctx, req.StoreId)
+	if err != nil {
+		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
+	u, err := h.service.UpdateUser(ctx, req.Id, req.Email, req.FullName, req.RoleId, storeID, req.IsActive)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
@@ -95,12 +110,17 @@ func (h *UserHandler) UpdateUser(ctx context.Context, req *userv1.UpdateUserRequ
 
 // DeleteUser deletes a user
 func (h *UserHandler) DeleteUser(ctx context.Context, req *userv1.DeleteUserRequest) (*userv1.DeleteUserResponse, error) {
+	storeID, err := scopeStore(ctx, "")
+	if err != nil {
+		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
 	var meta interface{}
-	if u, gerr := h.service.GetUser(ctx, req.Id); gerr == nil {
+	if u, gerr := h.service.GetUser(ctx, req.Id, storeID); gerr == nil {
 		meta = u
 	}
 
-	err := h.service.DeleteUser(ctx, req.Id)
+	err = h.service.DeleteUser(ctx, req.Id, storeID)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
@@ -119,7 +139,12 @@ func (h *UserHandler) DeleteUser(ctx context.Context, req *userv1.DeleteUserRequ
 
 // UpdateUserRole updates a user's role
 func (h *UserHandler) UpdateUserRole(ctx context.Context, req *userv1.UpdateUserRoleRequest) (*userv1.UserResponse, error) {
-	u, err := h.service.UpdateUserRole(ctx, req.Id, req.RoleId)
+	storeID, err := scopeStore(ctx, "")
+	if err != nil {
+		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
+	u, err := h.service.UpdateUserRole(ctx, req.Id, req.RoleId, storeID)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
@@ -135,7 +160,12 @@ func (h *UserHandler) UpdateUserRole(ctx context.Context, req *userv1.UpdateUser
 // ToggleUserActive toggles a user's active status
 func (h *UserHandler) ToggleUserActive(ctx context.Context, req *userv1.ToggleUserActiveRequest) (*userv1.UserResponse, error) {
 	isActive := req.Action == "activate"
-	u, err := h.service.ToggleUserActive(ctx, req.Id, isActive)
+	storeID, err := scopeStore(ctx, "")
+	if err != nil {
+		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
+	u, err := h.service.ToggleUserActive(ctx, req.Id, isActive, storeID)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}

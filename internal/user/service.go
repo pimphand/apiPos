@@ -100,8 +100,9 @@ func (s *Service) RolePermissionNames(ctx context.Context, roleID string) ([]str
 	return names, nil
 }
 
-// GetUser gets a user by ID
-func (s *Service) GetUser(ctx context.Context, id string) (*gormdb.User, error) {
+// GetUser gets a user by ID, scoped to the caller's store. Users of another
+// store are reported as not found so their existence is not disclosed.
+func (s *Service) GetUser(ctx context.Context, id, storeID string) (*gormdb.User, error) {
 	if !isValidUUID(id) {
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Invalid user ID format", fmt.Errorf("id: %s", id))
 	}
@@ -113,7 +114,16 @@ func (s *Service) GetUser(ctx context.Context, id string) (*gormdb.User, error) 
 		}
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to get user", err)
 	}
+	if !userBelongsToStore(user, storeID) {
+		return nil, apperror.ErrUserNotFound
+	}
 	return user, nil
+}
+
+// userBelongsToStore reports whether the user is inside the caller's store. An
+// empty storeID never matches, so an unresolved claim cannot widen the scope.
+func userBelongsToStore(user *gormdb.User, storeID string) bool {
+	return storeID != "" && user.StoreID.String() == storeID
 }
 
 // ListUsers lists users with filters. Non-superadmin callers are restricted to
@@ -165,12 +175,16 @@ func (s *Service) UpdateUser(ctx context.Context, idStr, email, fullName, roleID
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Invalid user ID format", fmt.Errorf("id: %s", idStr))
 	}
 
-	// Check if user exists
-	if _, err := s.repos.User.GetByID(ctx, idStr); err != nil {
+	// Check if user exists and belongs to the caller's store.
+	existing, err := s.repos.User.GetByID(ctx, idStr)
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperror.ErrUserNotFound
 		}
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to get user", err)
+	}
+	if !userBelongsToStore(existing, storeIDStr) {
+		return nil, apperror.ErrUserNotFound
 	}
 
 	// Build a map of fields to update so we only touch columns that were
@@ -198,35 +212,42 @@ func (s *Service) UpdateUser(ctx context.Context, idStr, email, fullName, roleID
 	return s.repos.User.GetByID(ctx, idStr)
 }
 
-// DeleteUser deletes a user
-func (s *Service) DeleteUser(ctx context.Context, idStr string) error {
+// DeleteUser deletes a user, scoped to the caller's store.
+func (s *Service) DeleteUser(ctx context.Context, idStr, storeID string) error {
 	if !isValidUUID(idStr) {
 		return apperror.Wrap(apperror.ErrInvalidRequest, "Invalid user ID format", fmt.Errorf("id: %s", idStr))
 	}
 
-	// Check if user exists
-	_, err := s.repos.User.GetByID(ctx, idStr)
+	// Check if user exists and belongs to the caller's store.
+	existing, err := s.repos.User.GetByID(ctx, idStr)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return apperror.ErrUserNotFound
 		}
 		return apperror.Wrap(apperror.ErrInternal, "Failed to get user", err)
 	}
+	if !userBelongsToStore(existing, storeID) {
+		return apperror.ErrUserNotFound
+	}
 
 	return s.repos.User.Delete(ctx, idStr)
 }
 
-// ToggleUserActive toggles a user's active status.
-func (s *Service) ToggleUserActive(ctx context.Context, idStr string, isActive bool) (*gormdb.User, error) {
+// ToggleUserActive toggles a user's active status, scoped to the caller's store.
+func (s *Service) ToggleUserActive(ctx context.Context, idStr string, isActive bool, storeID string) (*gormdb.User, error) {
 	if !isValidUUID(idStr) {
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Invalid user ID format", fmt.Errorf("id: %s", idStr))
 	}
 
-	if _, err := s.repos.User.GetByID(ctx, idStr); err != nil {
+	existing, err := s.repos.User.GetByID(ctx, idStr)
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperror.ErrUserNotFound
 		}
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to get user", err)
+	}
+	if !userBelongsToStore(existing, storeID) {
+		return nil, apperror.ErrUserNotFound
 	}
 
 	if err := s.repos.User.UpdateFields(ctx, idStr, map[string]interface{}{
@@ -238,8 +259,9 @@ func (s *Service) ToggleUserActive(ctx context.Context, idStr string, isActive b
 	return s.repos.User.GetByID(ctx, idStr)
 }
 
-// UpdateUserRole updates a user's role using targeted updates.
-func (s *Service) UpdateUserRole(ctx context.Context, idStr, roleIDStr string) (*gormdb.User, error) {
+// UpdateUserRole updates a user's role using targeted updates, scoped to the
+// caller's store.
+func (s *Service) UpdateUserRole(ctx context.Context, idStr, roleIDStr, storeID string) (*gormdb.User, error) {
 	if !isValidUUID(idStr) {
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Invalid user ID format", fmt.Errorf("id: %s", idStr))
 	}
@@ -248,12 +270,16 @@ func (s *Service) UpdateUserRole(ctx context.Context, idStr, roleIDStr string) (
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Invalid role_id format", fmt.Errorf("role_id: %s", roleIDStr))
 	}
 
-	// Check if user exists
-	if _, err := s.repos.User.GetByID(ctx, idStr); err != nil {
+	// Check if user exists and belongs to the caller's store.
+	existing, err := s.repos.User.GetByID(ctx, idStr)
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperror.ErrUserNotFound
 		}
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to get user", err)
+	}
+	if !userBelongsToStore(existing, storeID) {
+		return nil, apperror.ErrUserNotFound
 	}
 
 	// Use targeted update to avoid foreign-key issues with Store relation
@@ -364,10 +390,18 @@ func (s *Service) DecodeAccessToken(tokenString string) (*auth.Claims, error) {
 
 // Login authenticates a user
 func (s *Service) Login(ctx context.Context, username, password, deviceID string) (*auth.TokenPair, *gormdb.User, error) {
+	// Refuse early while the account is locked out after repeated failures.
+	if err := s.auth.CheckLoginLockout(username); err != nil {
+		return nil, nil, err
+	}
+
 	// Get user by username
 	user, err := s.repos.User.GetByUsername(ctx, username)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// Count unknown usernames too so lockout behaviour cannot reveal
+			// which accounts exist.
+			s.auth.RecordLoginFailure(username)
 			return nil, nil, apperror.ErrInvalidCredentials
 		}
 		return nil, nil, apperror.Wrap(apperror.ErrInternal, "Failed to get user", err)
@@ -380,8 +414,12 @@ func (s *Service) Login(ctx context.Context, username, password, deviceID string
 
 	// Check password
 	if !s.auth.CheckPassword(user.PasswordHash, password) {
+		s.auth.RecordLoginFailure(username)
 		return nil, nil, apperror.ErrInvalidCredentials
 	}
+
+	// Successful login clears any accumulated failure counter.
+	s.auth.ResetLoginFailures(username)
 
 	// Issue a device-bound token pair
 	tokenPair, err := s.issueTokenPair(ctx, user, deviceID, user.Role.Name)

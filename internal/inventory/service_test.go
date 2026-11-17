@@ -191,7 +191,7 @@ func TestInventoryService_GetTransaction(t *testing.T) {
 		repos := &repository.Repositories{}
 		svc := NewService(repos)
 
-		_, err := svc.GetTransaction(ctx, "invalid")
+		_, err := svc.GetTransaction(ctx, "invalid", "11111111-1111-1111-1111-111111111111")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "Invalid transaction ID")
 	})
@@ -231,7 +231,7 @@ func TestInventoryService_GetStockSummary(t *testing.T) {
 		repos := &repository.Repositories{}
 		svc := NewService(repos)
 
-		_, err := svc.GetStockSummary(ctx, "invalid")
+		_, err := svc.GetStockSummary(ctx, "invalid", "11111111-1111-1111-1111-111111111111")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "Invalid product ID")
 	})

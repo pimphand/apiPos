@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"net"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -32,6 +33,15 @@ var selfOrderRateLimits = []rateLimitRule{
 	{method: "/selforder.v1.SelfOrderService/CreatePublicOrder", limit: 10, window: time.Minute},
 	{method: "/selforder.v1.SelfOrderService/PayPublicOrder", limit: 60, window: time.Minute},
 	{method: "/selforder.v1.SelfOrderService/*", limit: 120, window: time.Minute},
+}
+
+// authRateLimits throttles the unauthenticated credential endpoints per client
+// IP. It is the first of two layers: per-account lockout (internal/auth)
+// handles slow, distributed guessing against a single username, while these
+// limits stop one host from spraying many usernames or mass-registering stores.
+var authRateLimits = []rateLimitRule{
+	{method: "/auth.v1.AuthService/Login", limit: 10, window: time.Minute},
+	{method: "/auth.v1.AuthService/Register", limit: 5, window: 10 * time.Minute},
 }
 
 // windowEntry is one observed call inside a sliding window.
@@ -112,34 +122,117 @@ func ruleMethodSpecificity(r rateLimitRule) int {
 	return 2
 }
 
-// clientIP extracts the caller's IP, preferring the first x-forwarded-for
-// value (set by the grpc-gateway / reverse proxy) and falling back to the
-// gRPC peer address.
+// loopbackProxyNets are always treated as trusted forwarding proxies: the
+// in-process grpc-gateway dials the gRPC server over loopback, so its peer
+// address is a loopback IP.
+var loopbackProxyNets = func() []*net.IPNet {
+	var nets []*net.IPNet
+	for _, cidr := range []string{"127.0.0.0/8", "::1/128"} {
+		if _, network, err := net.ParseCIDR(cidr); err == nil {
+			nets = append(nets, network)
+		}
+	}
+	return nets
+}()
+
+// trustedProxyNets returns the networks whose forwarding headers are believed.
+// TRUSTED_PROXIES is a comma-separated list of IPs or CIDRs (for example the
+// reverse proxy in front of the API); loopback is always included.
+func trustedProxyNets() []*net.IPNet {
+	nets := append([]*net.IPNet(nil), loopbackProxyNets...)
+	for _, entry := range strings.Split(os.Getenv("TRUSTED_PROXIES"), ",") {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+		if _, network, err := net.ParseCIDR(entry); err == nil {
+			nets = append(nets, network)
+			continue
+		}
+		if ip := net.ParseIP(entry); ip != nil {
+			bits := 32
+			if ip.To4() == nil {
+				bits = 128
+			}
+			nets = append(nets, &net.IPNet{IP: ip, Mask: net.CIDRMask(bits, bits)})
+		}
+	}
+	return nets
+}
+
+func isTrustedProxy(ip net.IP) bool {
+	for _, network := range trustedProxyNets() {
+		if network.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+// peerIP returns the address of the TCP peer that opened the gRPC connection.
+// Forwarding headers are intentionally ignored here: they are caller supplied
+// and must not influence the result.
+func peerIP(ctx context.Context) string {
+	p, ok := peer.FromContext(ctx)
+	if !ok || p.Addr == nil {
+		return ""
+	}
+	if host, _, err := net.SplitHostPort(p.Addr.String()); err == nil {
+		return host
+	}
+	return p.Addr.String()
+}
+
+// clientIP extracts the caller's IP.
+//
+// The gRPC peer address is authoritative. x-forwarded-for and x-real-ip are
+// only consulted when that peer is a trusted proxy (loopback or
+// TRUSTED_PROXIES), and the X-Forwarded-For chain is read from the right: the
+// rightmost entry is the one appended by the nearest proxy, while anything to
+// its left can be forged by the client to get a fresh rate-limit bucket.
 func clientIP(ctx context.Context) string {
-	if md, ok := metadata.FromIncomingContext(ctx); ok {
-		if v := md.Get("x-forwarded-for"); len(v) > 0 {
-			first := v[0]
-			if idx := strings.IndexByte(first, ','); idx >= 0 {
-				first = first[:idx]
-			}
-			if ip := net.ParseIP(strings.TrimSpace(first)); ip != nil {
-				return ip.String()
-			}
+	peerAddr := peerIP(ctx)
+	if peerAddr == "" {
+		return "unknown"
+	}
+	peerIP := net.ParseIP(peerAddr)
+	if peerIP == nil || !isTrustedProxy(peerIP) {
+		return peerAddr
+	}
+
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return peerAddr
+	}
+
+	var hops []string
+	for _, header := range md.Get("x-forwarded-for") {
+		hops = append(hops, strings.Split(header, ",")...)
+	}
+	for i := len(hops) - 1; i >= 0; i-- {
+		ip := net.ParseIP(strings.TrimSpace(hops[i]))
+		if ip == nil || isTrustedProxy(ip) {
+			continue
+		}
+		return ip.String()
+	}
+
+	if v := md.Get("x-real-ip"); len(v) > 0 {
+		if ip := net.ParseIP(strings.TrimSpace(v[0])); ip != nil && !isTrustedProxy(ip) {
+			return ip.String()
 		}
 	}
-	if p, ok := peer.FromContext(ctx); ok && p.Addr != nil {
-		if host, _, err := net.SplitHostPort(p.Addr.String()); err == nil {
-			return host
-		}
-		return p.Addr.String()
-	}
-	return "unknown"
+
+	return peerAddr
 }
 
 // UnaryServerRateLimitInterceptor returns an interceptor that rate limits the
 // configured public methods per client IP. Unlisted methods pass through.
 func UnaryServerRateLimitInterceptor() grpc.UnaryServerInterceptor {
-	limiter := newRateLimiter(selfOrderRateLimits)
+	rules := make([]rateLimitRule, 0, len(selfOrderRateLimits)+len(authRateLimits))
+	rules = append(rules, selfOrderRateLimits...)
+	rules = append(rules, authRateLimits...)
+	limiter := newRateLimiter(rules)
 	return func(
 		ctx context.Context,
 		req interface{},

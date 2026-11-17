@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -242,6 +243,19 @@ func (s *Server) startHTTP() error {
 			MarshalOptions: protojson.MarshalOptions{
 				UseProtoNames: true,
 			},
+		}),
+		// Forward the proxy's client-address headers to the gRPC layer so the
+		// rate limiter can key on the real caller instead of the gateway's
+		// loopback address. middleware.clientIP only trusts these headers when
+		// the gRPC peer is a trusted proxy (loopback), and reads the
+		// X-Forwarded-For chain from the right, so the leftmost hop cannot be
+		// spoofed by the client.
+		runtime.WithIncomingHeaderMatcher(func(key string) (string, bool) {
+			switch strings.ToLower(key) {
+			case "x-forwarded-for", "x-real-ip":
+				return key, true
+			}
+			return runtime.DefaultHeaderMatcher(key)
 		}),
 	)
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}

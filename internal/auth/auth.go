@@ -37,12 +37,29 @@ type TokenPair struct {
 
 // AuthService handles authentication operations
 type AuthService struct {
-	config *config.Config
+	config  *config.Config
+	lockout *LoginLockout
 }
 
 // NewAuthService creates a new AuthService
 func NewAuthService(cfg *config.Config) *AuthService {
-	return &AuthService{config: cfg}
+	return &AuthService{config: cfg, lockout: NewLoginLockout()}
+}
+
+// CheckLoginLockout reports apperror.ErrTooManyAttempts while the username is
+// locked out after repeated failed logins.
+func (s *AuthService) CheckLoginLockout(username string) error {
+	return s.lockout.Check(username)
+}
+
+// RecordLoginFailure counts one failed login attempt for the username.
+func (s *AuthService) RecordLoginFailure(username string) {
+	s.lockout.RecordFailure(username)
+}
+
+// ResetLoginFailures clears the failure counter after a successful login.
+func (s *AuthService) ResetLoginFailures(username string) {
+	s.lockout.Reset(username)
 }
 
 // HashPassword hashes a password using bcrypt

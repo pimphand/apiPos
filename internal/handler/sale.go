@@ -30,6 +30,11 @@ func (h *SaleHandler) CreateSale(ctx context.Context, req *salev1.CreateSaleRequ
 	// Get user from context
 	userID := getUserIDFromContext(ctx)
 
+	storeID, err := scopeStore(ctx, req.StoreId)
+	if err != nil {
+		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
 	// Convert items
 	var items []sale.SaleItemInput
 	for _, item := range req.Items {
@@ -42,7 +47,7 @@ func (h *SaleHandler) CreateSale(ctx context.Context, req *salev1.CreateSaleRequ
 		})
 	}
 	detail, err := h.service.CreateSale(ctx, sale.CreateSaleRequest{
-		StoreID:          req.StoreId,
+		StoreID:          storeID,
 		CustomerID:       req.CustomerId,
 		CustomerName:     req.CustomerName,
 		Notes:            req.Notes,
@@ -68,7 +73,12 @@ func (h *SaleHandler) CreateSale(ctx context.Context, req *salev1.CreateSaleRequ
 
 // GetSale gets a sale by ID with items
 func (h *SaleHandler) GetSale(ctx context.Context, req *salev1.GetSaleRequest) (*salev1.SaleDetailResponse, error) {
-	detail, err := h.service.GetSale(ctx, req.Id)
+	storeID, err := scopeStore(ctx, "")
+	if err != nil {
+		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
+	detail, err := h.service.GetSale(ctx, req.Id, storeID)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
@@ -78,7 +88,12 @@ func (h *SaleHandler) GetSale(ctx context.Context, req *salev1.GetSaleRequest) (
 
 // GetSaleByInvoice gets a sale by invoice number
 func (h *SaleHandler) GetSaleByInvoice(ctx context.Context, req *salev1.GetSaleByInvoiceRequest) (*salev1.SaleDetailResponse, error) {
-	detail, err := h.service.GetSaleByInvoice(ctx, req.InvoiceNumber)
+	storeID, err := scopeStore(ctx, "")
+	if err != nil {
+		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
+	detail, err := h.service.GetSaleByInvoice(ctx, req.InvoiceNumber, storeID)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
@@ -88,8 +103,13 @@ func (h *SaleHandler) GetSaleByInvoice(ctx context.Context, req *salev1.GetSaleB
 
 // ListSales lists sales with filters
 func (h *SaleHandler) ListSales(ctx context.Context, req *salev1.ListSalesRequest) (*salev1.ListSalesResponse, error) {
+	storeID, err := scopeStore(ctx, req.StoreId)
+	if err != nil {
+		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
 	result, err := h.service.ListSales(ctx, repository.SaleListParams{
-		StoreID:    req.StoreId,
+		StoreID:    storeID,
 		CashierID:  req.CashierId,
 		CustomerID: req.CustomerId,
 		Status:     req.Status,
@@ -118,12 +138,18 @@ func (h *SaleHandler) ListSales(ctx context.Context, req *salev1.ListSalesReques
 // CancelSale cancels a sale
 func (h *SaleHandler) CancelSale(ctx context.Context, req *salev1.CancelSaleRequest) (*salev1.SaleResponse, error) {
 	userID := getUserIDFromContext(ctx)
-	err := h.service.CancelSale(ctx, req.Id, userID)
+
+	storeID, err := scopeStore(ctx, "")
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
 
-	detail, err := h.service.GetSale(ctx, req.Id)
+	err = h.service.CancelSale(ctx, req.Id, userID, storeID)
+	if err != nil {
+		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
+	detail, err := h.service.GetSale(ctx, req.Id, storeID)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
@@ -139,12 +165,18 @@ func (h *SaleHandler) CancelSale(ctx context.Context, req *salev1.CancelSaleRequ
 // RefundSale refunds a sale
 func (h *SaleHandler) RefundSale(ctx context.Context, req *salev1.RefundSaleRequest) (*salev1.SaleResponse, error) {
 	userID := getUserIDFromContext(ctx)
-	err := h.service.RefundSale(ctx, req.Id, userID)
+
+	storeID, err := scopeStore(ctx, "")
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
 
-	detail, err := h.service.GetSale(ctx, req.Id)
+	err = h.service.RefundSale(ctx, req.Id, userID, storeID)
+	if err != nil {
+		return nil, apperror.MapError(err).GRPCStatus().Err()
+	}
+
+	detail, err := h.service.GetSale(ctx, req.Id, storeID)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
