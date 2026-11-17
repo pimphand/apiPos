@@ -19,19 +19,28 @@ import (
 // filters instead of the raw request field.
 func scopeStore(ctx context.Context, requested string) (string, error) {
 	claims, ok := auth.ClaimsFromContext(ctx)
-	if !ok || claims == nil || claims.StoreID == "" {
+	if !ok || claims == nil {
 		return "", apperror.ErrUnauthorized
 	}
 
 	requested = strings.TrimSpace(requested)
-	switch {
-	case requested == "":
-		return claims.StoreID, nil
-	case strings.EqualFold(requested, claims.StoreID):
-		return claims.StoreID, nil
-	case claims.RoleName == "superadmin":
-		return requested, nil
-	default:
-		return "", apperror.ErrForbidden
+	if claims.RoleName == "superadmin" {
+		// System-wide accounts may not be bound to a store (the seeded
+		// superadmin has none), so an explicit store_id is what scopes them.
+		if requested != "" {
+			return requested, nil
+		}
+		if claims.StoreID != "" {
+			return claims.StoreID, nil
+		}
+		return "", apperror.ErrUnauthorized
 	}
+
+	if claims.StoreID == "" {
+		return "", apperror.ErrUnauthorized
+	}
+	if requested == "" || strings.EqualFold(requested, claims.StoreID) {
+		return claims.StoreID, nil
+	}
+	return "", apperror.ErrForbidden
 }

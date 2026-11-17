@@ -237,6 +237,27 @@ func TestInventoryService_GetStockSummary(t *testing.T) {
 	})
 }
 
+// TestInventoryService_ReadsWithoutDB verifies the DB-backed reads report an
+// error (instead of panicking) when the service is built without a connection,
+// which is how the mock-based unit tests construct it.
+func TestInventoryService_ReadsWithoutDB(t *testing.T) {
+	ctx := context.Background()
+	repos := &repository.Repositories{}
+	svc := NewService(repos)
+
+	t.Run("stock summary", func(t *testing.T) {
+		_, err := svc.GetStockSummary(ctx, uuid.New().String(), uuid.New().String())
+		require.Error(t, err)
+		assert.Equal(t, codes.Internal, apperror.MapError(err).GRPCStatus().Code())
+	})
+
+	t.Run("low stock alert", func(t *testing.T) {
+		_, err := svc.GetLowStockAlert(ctx, uuid.New().String(), 1, 20)
+		require.Error(t, err)
+		assert.Equal(t, codes.Internal, apperror.MapError(err).GRPCStatus().Code())
+	})
+}
+
 // newMockedRepos builds a Repositories whose inventory repo is the controllable
 // mockInventoryRepo, so the service business logic can be tested without a DB.
 func newMockedRepos() (*repository.Repositories, *mockInventoryRepo) {

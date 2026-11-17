@@ -36,8 +36,8 @@ const (
 
 // Service handles sale business logic
 type Service struct {
-	repos    *repository.Repositories
-	posting  *accounting.PostingService
+	repos   *repository.Repositories
+	posting *accounting.PostingService
 }
 
 // NewService creates a new sale Service
@@ -809,10 +809,20 @@ func generateInvoiceNumber() string {
 //     same name in the store (case-insensitive), or create a new one.
 //  3. No customer: the sale is stored with a NULL customer_id.
 func (s *Service) resolveCustomer(ctx context.Context, tx *gorm.DB, req CreateSaleRequest, storeID uuid.UUID) (uuid.UUID, bool, error) {
-	// 1. Explicit customer ID takes precedence.
+	// 1. Explicit customer ID takes precedence, but it must belong to the store
+	// running the sale: a client-supplied ID from another tenant is rejected
+	// instead of being referenced across stores.
 	if req.CustomerID != "" && isValidUUID(req.CustomerID) {
 		customerID, _ := uuid.Parse(req.CustomerID)
-		return customerID, true, nil
+		var customer gormdb.Customer
+		err := tx.Where("id = ? AND store_id = ?", customerID, storeID).First(&customer).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return uuid.Nil, false, apperror.Wrap(apperror.ErrNotFound, "Customer not found", nil)
+			}
+			return uuid.Nil, false, apperror.Wrap(apperror.ErrInternal, "Failed to load customer", err)
+		}
+		return customer.ID, true, nil
 	}
 
 	// 2. Customer typed by name: find-or-create.

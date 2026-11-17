@@ -412,6 +412,24 @@ curl http://localhost:18730/api/v1/users \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
+## CI (GitHub Actions)
+
+`.github/workflows/ci.yml` runs **unit tests only**, on pull requests, pushes to
+`main`, and manual dispatch:
+
+| Job | Command |
+|-----|---------|
+| `backend` | `go test ./internal/... ./middleware/... ./pkg/... ./cmd/server/...` |
+| `frontend` | `npm ci` then `npm test -- --run` (Vitest) in `./fe` |
+
+There is no deployment step and no image publishing: the pipeline never reaches a
+server. `internal/integration` (cross-tenant, needs a real PostgreSQL) skips
+itself unless `TEST_DATABASE_DSN` is set; run it locally per `AGENTS.md` §11.
+
+Note: `cmd/swagger` is excluded from the test command because its `//go:embed
+swagger-ui/*` matches no committed files, so it does not compile in a clean
+checkout.
+
 ## License
 
 MIT

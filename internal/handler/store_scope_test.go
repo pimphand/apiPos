@@ -61,3 +61,17 @@ func TestScopeStoreAllowsSuperadminToTargetOtherStore(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, storeB, storeID)
 }
+
+// The seeded superadmin has no store binding, so the account may only act on a
+// store it explicitly names.
+func TestScopeStoreSuperadminWithoutStoreBinding(t *testing.T) {
+	ctx := ctxWithClaims("", "superadmin")
+
+	storeID, err := scopeStore(ctx, storeB)
+	require.NoError(t, err)
+	assert.Equal(t, storeB, storeID)
+
+	_, err = scopeStore(ctx, "")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, apperror.ErrUnauthorized)
+}

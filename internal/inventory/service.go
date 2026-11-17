@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 
 	"apiPos/internal/accounting"
 	"apiPos/internal/apperror"
@@ -185,13 +186,16 @@ func (s *Service) CreateTransaction(ctx context.Context, req CreateTransactionRe
 
 	// Accounting: post PURCHASE / ADJUSTMENT / DAMAGE journals.
 	// SALE and RETURN are already covered by the SALE/REVERSAL journals.
-	if req.Type == TypePurchase {
-		if _, err := s.posting.PostPurchase(ctx, s.repos.DB().WithContext(ctx), transaction); err != nil {
-			_ = err // best-effort: stock movement already succeeded
-		}
-	} else if req.Type == TypeAdjustment || req.Type == TypeDamage {
-		if _, err := s.posting.PostAdjustment(ctx, s.repos.DB().WithContext(ctx), transaction); err != nil {
-			_ = err
+	// Posting is best-effort and may be unavailable in DB-free service tests.
+	if db := s.repos.DB(); db != nil {
+		if req.Type == TypePurchase {
+			if _, err := s.posting.PostPurchase(ctx, db.WithContext(ctx), transaction); err != nil {
+				_ = err // best-effort: stock movement already succeeded
+			}
+		} else if req.Type == TypeAdjustment || req.Type == TypeDamage {
+			if _, err := s.posting.PostAdjustment(ctx, db.WithContext(ctx), transaction); err != nil {
+				_ = err
+			}
 		}
 	}
 
@@ -200,9 +204,9 @@ func (s *Service) CreateTransaction(ctx context.Context, req CreateTransactionRe
 		Resource:   "inventory_transactions",
 		ResourceID: transaction.ID.String(),
 		Data: map[string]any{
-			"product_id":  req.ProductID,
-			"type":        req.Type,
-			"quantity":    req.Quantity,
+			"product_id":   req.ProductID,
+			"type":         req.Type,
+			"quantity":     req.Quantity,
 			"before_stock": beforeStock,
 			"after_stock":  afterStock,
 		},
@@ -336,15 +340,34 @@ func (s *Service) ListTransactions(ctx context.Context, productID, storeID, txnT
 	}, nil
 }
 
+// db returns the shared GORM connection, or an internal error when the service
+// was built without one (e.g. a DB-free unit test). Callers that need the
+// database must use this instead of touching repos.DB() directly so a missing
+// connection surfaces as an error instead of a nil-pointer panic.
+func (s *Service) db() (*gorm.DB, error) {
+	if s.repos == nil {
+		return nil, apperror.Wrap(apperror.ErrInternal, "Database not configured", nil)
+	}
+	db := s.repos.DB()
+	if db == nil {
+		return nil, apperror.Wrap(apperror.ErrInternal, "Database not configured", nil)
+	}
+	return db, nil
+}
+
 // GetStockSummary gets stock summary for a product across all SKUs
 func (s *Service) GetStockSummary(ctx context.Context, productID, storeID string) (*StockSummary, error) {
 	if !isValidUUID(productID) {
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Invalid product ID", nil)
 	}
+	db, err := s.db()
+	if err != nil {
+		return nil, err
+	}
 
 	// Get product
 	var product gormdb.Product
-	if err := s.repos.DB().WithContext(ctx).Where("id = ?", productID).First(&product).Error; err != nil {
+	if err := db.WithContext(ctx).Where("id = ?", productID).First(&product).Error; err != nil {
 		return nil, apperror.Wrap(apperror.ErrNotFound, "Product not found", err)
 	}
 	if storeID == "" || product.StoreID.String() != storeID {
@@ -353,7 +376,7 @@ func (s *Service) GetStockSummary(ctx context.Context, productID, storeID string
 
 	// Get SKUs
 	var skus []gormdb.ProductSKU
-	if err := s.repos.DB().WithContext(ctx).Where("product_id = ?", productID).Find(&skus).Error; err != nil {
+	if err := db.WithContext(ctx).Where("product_id = ?", productID).Find(&skus).Error; err != nil {
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to get SKUs", err)
 	}
 
@@ -391,10 +414,15 @@ func (s *Service) GetLowStockAlert(ctx context.Context, storeID string, page, pe
 		perPage = 100
 	}
 
+	db, err := s.db()
+	if err != nil {
+		return nil, err
+	}
+
 	var products []gormdb.Product
 	var totalCount int64
 
-	query := s.repos.DB().WithContext(ctx).Model(&gormdb.Product{}).
+	query := db.WithContext(ctx).Model(&gormdb.Product{}).
 		Where("stock <= minimum_stock AND is_active = ?", true)
 	if storeID != "" {
 		query = query.Where("store_id = ?", storeID)
@@ -422,7 +450,7 @@ func (s *Service) GetLowStockAlert(ctx context.Context, storeID string, page, pe
 		categoryName := ""
 		if p.CategoryID != uuid.Nil {
 			var cat gormdb.Category
-			if err := s.repos.DB().WithContext(ctx).Where("id = ?", p.CategoryID).First(&cat).Error; err == nil {
+			if err := db.WithContext(ctx).Where("id = ?", p.CategoryID).First(&cat).Error; err == nil {
 				categoryName = cat.Name
 			}
 		}

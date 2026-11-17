@@ -139,6 +139,17 @@ func (s *Service) ListUsers(ctx context.Context, roleIDStr string, isActiveStr s
 		perPage = 100
 	}
 
+	// Fail closed: without claims there is no tenant to scope to, so listing
+	// must not fall back to every store. Superadmins are system-wide and may
+	// legitimately have no store binding.
+	claims, ok := auth.ClaimsFromContext(ctx)
+	if !ok || claims == nil {
+		return nil, 0, apperror.ErrUnauthorized
+	}
+	if claims.RoleName != "superadmin" && claims.StoreID == "" {
+		return nil, 0, apperror.ErrUnauthorized
+	}
+
 	users, totalCount, err := s.repos.User.List(ctx, repository.UserListParams{
 		RoleID:   roleIDStr,
 		IsActive: isActiveStr,

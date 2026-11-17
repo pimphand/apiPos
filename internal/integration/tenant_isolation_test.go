@@ -43,6 +43,7 @@ type testTenant struct {
 	user     gormdb.User
 	category gormdb.Category
 	product  gormdb.Product
+	customer gormdb.Customer
 	sale     gormdb.Sale
 	txn      gormdb.InventoryTransaction
 }
@@ -93,6 +94,21 @@ func TestTenantIsolation(t *testing.T) {
 
 		err = svc.RefundSale(ctx, tenantB.sale.ID.String(), tenantB.user.ID.String(), tenantA.store.ID.String())
 		requireDenied(t, err)
+
+		// A client-supplied customer_id from another store must not be attached
+		// to this store's sale. No payment method is sent so the check fails on
+		// the customer scope rather than later in the payment flow.
+		_, err = svc.CreateSale(ctx, sale.CreateSaleRequest{
+			StoreID:    tenantA.store.ID.String(),
+			CustomerID: tenantB.customer.ID.String(),
+			Items:      []sale.SaleItemInput{{ProductID: tenantA.product.ID.String(), Quantity: 1, UnitPrice: tenantA.sale.GrandTotal}},
+			CreatedBy:  tenantA.user.ID.String(),
+		})
+		requireDenied(t, err)
+
+		var saleCount int64
+		require.NoError(t, db.Model(&gormdb.Sale{}).Where("store_id = ?", tenantA.store.ID).Count(&saleCount).Error)
+		assert.EqualValues(t, 1, saleCount, "a rejected checkout must not leave a sale behind")
 
 		var stored gormdb.Sale
 		require.NoError(t, db.First(&stored, "id = ?", tenantB.sale.ID).Error)
@@ -225,6 +241,8 @@ func newTestDB(t *testing.T, dsn string) *gorm.DB {
 	require.NoError(t, scoped.AutoMigrate(
 		&gormdb.Store{},
 		&gormdb.Role{},
+		&gormdb.Permission{},
+		&gormdb.RolePermission{},
 		&gormdb.User{},
 		&gormdb.Category{},
 		&gormdb.Product{},
@@ -286,6 +304,14 @@ func seedTenant(t *testing.T, db *gorm.DB, role gormdb.Role, suffix string, amou
 	tenant.category.StoreID = tenant.store.ID
 	tenant.user.StoreID = tenant.store.ID
 
+	tenant.customer = gormdb.Customer{
+		ID:       uuid.New(),
+		StoreID:  tenant.store.ID,
+		Code:     "CUS-" + suffix,
+		Name:     "Customer " + suffix,
+		IsActive: true,
+	}
+
 	tenant.product = gormdb.Product{
 		ID:           uuid.New(),
 		StoreID:      tenant.store.ID,
@@ -345,6 +371,7 @@ func seedTenant(t *testing.T, db *gorm.DB, role gormdb.Role, suffix string, amou
 	require.NoError(t, db.Create(&tenant.user).Error)
 	require.NoError(t, db.Create(&tenant.category).Error)
 	require.NoError(t, db.Create(&tenant.product).Error)
+	require.NoError(t, db.Create(&tenant.customer).Error)
 	require.NoError(t, db.Create(&tenant.sale).Error)
 	require.NoError(t, db.Create(&item).Error)
 	require.NoError(t, db.Create(&payment).Error)

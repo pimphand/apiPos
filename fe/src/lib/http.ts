@@ -1,7 +1,6 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import type { ApiError } from '@/types';
 import { API_BASE_URL } from '@/lib/apiBase';
-import { navigateTo } from '@/lib/navigation';
 import { getDeviceId } from '@/lib/device';
 import { authStorage } from '@/lib/auth';
 
