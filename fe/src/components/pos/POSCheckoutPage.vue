@@ -175,6 +175,8 @@ interface CartItem {
   sku_id: string;
   name: string;
   sku_code: string;
+  /** SKU barcode snapshot so the struk can print it when enabled. */
+  barcode?: string;
   unit_price: number;
   quantity: number;
   stock: number;
@@ -360,6 +362,7 @@ function addToCart(product: Product, sku?: ProductSKU) {
       sku_id: skuData.id,
       name: product.name,
       sku_code: skuData.sku,
+      barcode: skuData.barcode || undefined,
       unit_price: skuData.selling_price,
       quantity: 1,
       stock: skuData.stock,
@@ -407,6 +410,7 @@ const holdableCartItems = computed<HeldOrderItem[]>(() =>
     sku_id: i.sku_id,
     name: i.name,
     sku_code: i.sku_code,
+    barcode: i.barcode,
     unit_price: i.unit_price,
     quantity: i.quantity,
     stock: i.stock,
@@ -553,6 +557,7 @@ function pushItemsToCart(items: HeldOrderItem[]) {
         sku_id: it.sku_id,
         name: it.name,
         sku_code: it.sku_code,
+        barcode: it.barcode,
         unit_price: it.unit_price,
         quantity: it.quantity,
         stock: it.stock,
@@ -790,6 +795,7 @@ async function submitSale(payload: {
   const saleLines = cart.value.map(i => ({
     name: i.name,
     sku_code: i.sku_code,
+    barcode: i.barcode,
     quantity: i.quantity,
     unit_price: i.unit_price,
   }));
@@ -1153,9 +1159,9 @@ onUnmounted(() => {
               </div>
 
               <!-- Grand total bar: channel selector, total, dan action terpisah -->
-              <div class="flex flex-col gap-3 rounded-md border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
+              <div class="flex flex-col gap-3 rounded-md border-t pt-3">
                 <PosOrderChannelSelector v-model:model-value="orderChannel" />
-                <div class="flex items-center gap-2">
+                <div class="flex items-center justify-end gap-2">
                   <Button
                     class="h-10 min-w-0 flex-1 px-4 text-sm sm:h-8 sm:flex-none"
                     :disabled="cart.length === 0"

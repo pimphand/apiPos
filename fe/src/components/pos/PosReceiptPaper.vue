@@ -6,7 +6,7 @@
  */
 import { computed } from 'vue';
 import { useLocaleStore } from '@/stores/locale';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatReceiptDateTime } from '@/lib/utils';
 import { ORDER_CHANNEL_LABELS, type OrderChannel, type StoreSettings } from '@/types';
 
 export interface ReceiptLine {
@@ -87,7 +87,7 @@ const footerText = computed(() => props.settings?.receipt_footer || '');
 
     <!-- Meta rows -->
     <div v-if="data.invoice_number" class="flex justify-between"><span>{{ t('posReceipt.invoice') }}</span><span>{{ data.invoice_number }}</span></div>
-    <div v-if="data.created_at" class="flex justify-between"><span>{{ t('posReceipt.date') }}</span><span>{{ data.created_at }}</span></div>
+    <div v-if="data.created_at" class="flex justify-between"><span>{{ t('posReceipt.date') }}</span><span>{{ formatReceiptDateTime(data.created_at) }}</span></div>
     <div v-if="s().show_cashier && data.cashier_name" class="flex justify-between"><span>{{ t('posReceipt.cashier') }}</span><span>{{ data.cashier_name }}</span></div>
     <div v-if="s().show_customer" class="flex justify-between">
       <span>{{ t('posReceipt.customer') }}</span>

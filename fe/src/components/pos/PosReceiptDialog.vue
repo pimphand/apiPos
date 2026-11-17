@@ -7,6 +7,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
 import PosReceiptPaper, { type ReceiptData } from '@/components/pos/PosReceiptPaper.vue';
+import { formatReceiptDateTime } from '@/lib/utils';
 import {
   ORDER_CHANNEL_LABELS,
   type StoreSettings,
@@ -56,7 +57,7 @@ function buildPrintHtml(): string {
   }
   lines.push(dash);
   if (d.invoice_number) lines.push(row(esc(t('posReceipt.invoice')), esc(d.invoice_number)));
-  if (d.created_at) lines.push(row(esc(t('posReceipt.date')), esc(d.created_at)));
+  if (d.created_at) lines.push(row(esc(t('posReceipt.date')), esc(formatReceiptDateTime(d.created_at))));
   if (s.show_cashier !== false && d.cashier_name) lines.push(row(esc(t('posReceipt.cashier')), esc(d.cashier_name)));
   if (s.show_customer !== false) {
     lines.push(row(esc(t('posReceipt.customer')), esc(d.customer_name || t('posReceipt.walkIn'))));
@@ -120,7 +121,7 @@ function buildKitchenHtml(): string {
   lines.push(`  <div style="text-align:center;font-weight:bold;text-transform:uppercase;font-size:14px">${esc(t('posReceipt.kitchenTitle'))}</div>\n`);
   lines.push(dash);
   if (d.invoice_number) lines.push(`  <div>Invoice: ${esc(d.invoice_number)}</div>\n`);
-  if (d.created_at) lines.push(`  <div>${esc(d.created_at)}</div>\n`);
+  if (d.created_at) lines.push(`  <div>${esc(formatReceiptDateTime(d.created_at))}</div>\n`);
   if (d.orderChannel) lines.push(`  <div>${esc(t('orderChannel.title'))}: ${esc(ORDER_CHANNEL_LABELS[d.orderChannel])}</div>\n`);
   lines.push(dash);
 

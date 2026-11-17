@@ -306,6 +306,7 @@ export interface HeldOrderItem {
   sku_id: string;
   name: string; // product name snapshot (display only)
   sku_code: string; // SKU/variant code snapshot (display only)
+  barcode?: string; // barcode snapshot for the struk (show_item_barcode)
   unit_price: number; // selling price AT hold time (R7)
   quantity: number;
   stock: number; // stock at hold time (snapshot reference)

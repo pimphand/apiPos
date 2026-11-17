@@ -63,6 +63,20 @@ export function formatDateTime(date: string | Date): string {
   }).format(d);
 }
 
+// Format timestamp for a receipt/nota. Mirrors the mobile app so a struk reads
+// the same everywhere: "18 Nov 2026, 09.31" instead of a raw ISO timestamp.
+export function formatReceiptDateTime(date: string | Date): string {
+  const d = toValidDate(date);
+  if (!d) return typeof date === 'string' ? date : '—';
+  return new Intl.DateTimeFormat(activeLocale(), {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(d);
+}
+
 // Format time only
 export function formatTime(date: string | Date): string {
   const d = toValidDate(date);

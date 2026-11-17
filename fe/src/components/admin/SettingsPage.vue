@@ -158,7 +158,7 @@ const previewData = computed<ReceiptData>(() => {
     store_address: storeInfo.value.address || currentUser?.store?.address || '',
     store_phone: storeInfo.value.phone || currentUser?.store?.phone || '',
     invoice_number: 'INV-DEMO-0001',
-    created_at: new Date().toISOString().slice(0, 16).replace('T', ' '),
+    created_at: new Date().toISOString(),
     cashier_name: authStore.userName || 'Kasir',
     customer_name: '',
     tax_rate: taxPct.value,
