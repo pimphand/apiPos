@@ -10,6 +10,7 @@ import (
 	"apiPos/internal/apperror"
 	gormdb "apiPos/internal/database/gorm"
 	"apiPos/internal/repository"
+	"apiPos/pkg/timeutil"
 )
 
 // ValidationWarning is returned when a reconciliation check fails.
@@ -110,7 +111,7 @@ func (s *Service) TrialBalance(ctx context.Context, startDate, endDate string) (
 	if err != nil {
 		return nil, apperror.Wrap(apperror.ErrInternal, "failed to get trial balance", err)
 	}
-	result := &StatementResult{Title: "Trial Balance", StartDate: startDate, EndDate: endDate, GeneratedAt: time.Now().Format(time.RFC3339)}
+	result := &StatementResult{Title: "Trial Balance", StartDate: startDate, EndDate: endDate, GeneratedAt: timeutil.FormatDateTime(time.Now())}
 	totalDr := decimal.Zero
 	totalCr := decimal.Zero
 	for _, b := range balances {
@@ -177,7 +178,7 @@ func (s *Service) IncomeStatement(ctx context.Context, startDate, endDate string
 	if err != nil {
 		return nil, apperror.Wrap(apperror.ErrInternal, "failed to get income statement", err)
 	}
-	result := &StatementResult{Title: "Income Statement", StartDate: startDate, EndDate: endDate, GeneratedAt: time.Now().Format(time.RFC3339)}
+	result := &StatementResult{Title: "Income Statement", StartDate: startDate, EndDate: endDate, GeneratedAt: timeutil.FormatDateTime(time.Now())}
 	revTotal := decimal.Zero
 	expTotal := decimal.Zero
 	for _, b := range balances {
@@ -224,7 +225,7 @@ func (s *Service) BalanceSheet(ctx context.Context, asOf string) (*StatementResu
 	if err != nil {
 		return nil, apperror.Wrap(apperror.ErrInternal, "failed to get balance sheet", err)
 	}
-	result := &StatementResult{Title: "Balance Sheet", EndDate: asOf, GeneratedAt: time.Now().Format(time.RFC3339)}
+	result := &StatementResult{Title: "Balance Sheet", EndDate: asOf, GeneratedAt: timeutil.FormatDateTime(time.Now())}
 	assets := decimal.Zero
 	liab := decimal.Zero
 	equity := decimal.Zero
@@ -305,7 +306,7 @@ func (s *Service) ChangesInEquity(ctx context.Context, startDate, endDate string
 	if err != nil {
 		return nil, apperror.Wrap(apperror.ErrInternal, "failed to get changes in equity", err)
 	}
-	result := &StatementResult{Title: "Changes in Equity", StartDate: startDate, EndDate: endDate, GeneratedAt: time.Now().Format(time.RFC3339)}
+	result := &StatementResult{Title: "Changes in Equity", StartDate: startDate, EndDate: endDate, GeneratedAt: timeutil.FormatDateTime(time.Now())}
 	var beginning, profit, ending decimal.Decimal
 	// Opening equity = all EQUITY balances before startDate.
 	var opening []repository.AccountBalance
@@ -421,7 +422,7 @@ func (s *Service) CashFlow(ctx context.Context, startDate, endDate string) (*Sta
 
 	operating := netProfit.Sub(recvDelta).Sub(invDelta).Add(payDelta).Add(taxDelta)
 
-	result := &StatementResult{Title: "Cash Flow Statement", StartDate: startDate, EndDate: endDate, GeneratedAt: time.Now().Format(time.RFC3339)}
+	result := &StatementResult{Title: "Cash Flow Statement", StartDate: startDate, EndDate: endDate, GeneratedAt: timeutil.FormatDateTime(time.Now())}
 	result.Lines = []StatementLine{
 		{AccountName: "Net Profit Before Tax", Balance: netProfit, IsSubtotal: true},
 		{AccountName: "Change in Receivables", Balance: recvDelta.Neg()},

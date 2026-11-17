@@ -7,15 +7,18 @@ import (
 	"time"
 
 	_ "github.com/joho/godotenv/autoload"
+
+	"apiPos/pkg/timeutil"
 )
 
 // Config holds all configuration for the application.
 type Config struct {
-	App  AppConfig
-	GRPC GRPCConfig
-	HTTP HTTPConfig
-	DB   DatabaseConfig
-	JWT  JWTConfig
+	App    AppConfig
+	GRPC   GRPCConfig
+	HTTP   HTTPConfig
+	DB     DatabaseConfig
+	JWT    JWTConfig
+	Format FormatConfig
 }
 
 // AppConfig holds application-level configuration.
@@ -50,6 +53,15 @@ type JWTConfig struct {
 	RefreshTTL time.Duration
 }
 
+// FormatConfig holds the layouts used when the API renders dates and
+// timestamps. Both are Go time layouts (not strftime), so adjusting the API
+// output everywhere only requires changing APP_DATE_FORMAT /
+// APP_DATETIME_FORMAT.
+type FormatConfig struct {
+	Date     string
+	DateTime string
+}
+
 // DSN returns the PostgreSQL connection string.
 func (d *DatabaseConfig) DSN() string {
 	return fmt.Sprintf(
@@ -82,6 +94,10 @@ func Load() *Config {
 			Secret:     getEnv("JWT_SECRET", "change-me"),
 			AccessTTL:  getEnvAsDuration("JWT_ACCESS_TTL", 15*time.Minute),
 			RefreshTTL: getEnvAsDuration("JWT_REFRESH_TTL", 720*time.Hour),
+		},
+		Format: FormatConfig{
+			Date:     getEnv("APP_DATE_FORMAT", timeutil.DefaultDateLayout),
+			DateTime: getEnv("APP_DATETIME_FORMAT", timeutil.DefaultDateTimeLayout),
 		},
 	}
 }

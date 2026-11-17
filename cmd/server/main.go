@@ -10,11 +10,16 @@ import (
 	"apiPos/internal/config"
 	gormdb "apiPos/internal/database/gorm"
 	"apiPos/internal/server"
+	"apiPos/pkg/timeutil"
 )
 
 func main() {
 	// Load configuration
 	cfg := config.Load()
+
+	// Date/timestamp layout for every API response that renders one; see
+	// config.FormatConfig. Set once, before the server starts serving.
+	timeutil.Configure(cfg.Format.Date, cfg.Format.DateTime)
 
 	log.Printf("Starting POS application in %s mode", cfg.App.Env)
 

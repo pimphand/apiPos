@@ -128,6 +128,9 @@ async function handleLogin() {
               type="text"
               :placeholder="t('auth.login.usernamePlaceholder')"
               autocomplete="username"
+              autocapitalize="none"
+              autocorrect="off"
+              spellcheck="false"
               :disabled="isLoading"
               class="h-12 rounded-xl px-4 text-base"
             />
@@ -142,6 +145,9 @@ async function handleLogin() {
                 :type="showPassword ? 'text' : 'password'"
                 :placeholder="t('auth.login.passwordPlaceholder')"
                 autocomplete="current-password"
+                autocapitalize="none"
+                autocorrect="off"
+                spellcheck="false"
                 :disabled="isLoading"
                 class="h-12 rounded-xl px-4 pr-12 text-base"
               />

@@ -8,6 +8,7 @@ import (
 	"apiPos/internal/apperror"
 	gormdb "apiPos/internal/database/gorm"
 	"apiPos/internal/repository"
+	"apiPos/pkg/timeutil"
 )
 
 // Service handles report business logic
@@ -143,7 +144,7 @@ func (s *Service) GetDailySalesReport(ctx context.Context, startDate, endDate, s
 
 	for _, r := range reports {
 		result.Reports = append(result.Reports, DailySalesReport{
-			Date:        r.Date,
+			Date:        timeutil.NormalizeDate(r.Date),
 			TotalSales:  r.TotalSales,
 			TotalAmount: r.TotalAmount,
 		})
@@ -206,7 +207,7 @@ func (s *Service) GetSalesByDateRange(ctx context.Context, startDate, endDate, s
 			Tax:           sale.Tax,
 			GrandTotal:    sale.GrandTotal,
 			Status:        sale.Status,
-			CreatedAt:     sale.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			CreatedAt:     timeutil.FormatDateTime(sale.CreatedAt),
 		})
 
 		result.TotalCount++

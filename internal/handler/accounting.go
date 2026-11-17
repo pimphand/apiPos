@@ -12,6 +12,7 @@ import (
 	"apiPos/internal/auth"
 	gormdb "apiPos/internal/database/gorm"
 	"apiPos/internal/repository"
+	"apiPos/pkg/timeutil"
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
@@ -407,7 +408,7 @@ func (h *AccountingHandler) ValidateBooks(ctx context.Context, req *accountingv1
 			AccountCode: w.AccountCode, Expected: w.Expected, Actual: w.Actual,
 		})
 	}
-	return &accountingv1.ValidateResponse{Warnings: out, GeneratedAt: time.Now().Format(time.RFC3339)}, nil
+	return &accountingv1.ValidateResponse{Warnings: out, GeneratedAt: timeutil.FormatDateTime(time.Now())}, nil
 }
 
 // ---- Export ----
