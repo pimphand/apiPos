@@ -453,7 +453,10 @@ func (s *Service) computeReconciliationWith(ctx context.Context, db *gorm.DB, sh
 		recon.TotalSalesAmount += sale.GrandTotal
 		recon.TotalRevenue += sale.GrandTotal
 
-		// Determine the sale's payment method from its payment rows.
+		// Split the sale's grand total across its payment rows so a
+		// multi-method sale is counted per method. Payment rows can exceed the
+		// grand total (change given on cash), so each row is capped by the
+		// remaining sale amount; the per-method amounts add up to the sale total.
 		var payments []gormdb.Payment
 		if err := db.Where("sale_id = ?", sale.ID).Find(&payments).Error; err != nil {
 			payments = nil
@@ -462,10 +465,23 @@ func (s *Service) computeReconciliationWith(ctx context.Context, db *gorm.DB, sh
 		if len(payments) > 0 {
 			paymentMethod = payments[0].PaymentMethod
 		}
-
-		recon.RevenueByMethod[paymentMethod] += sale.GrandTotal
-		if paymentMethod == "CASH" {
-			recon.RevenueCash += sale.GrandTotal
+		if len(payments) == 0 {
+			recon.RevenueByMethod[""] += sale.GrandTotal
+		}
+		remaining := sale.GrandTotal
+		for _, p := range payments {
+			if remaining <= 0 {
+				break
+			}
+			applied := p.Amount
+			if applied > remaining {
+				applied = remaining
+			}
+			remaining -= applied
+			recon.RevenueByMethod[p.PaymentMethod] += applied
+			if p.PaymentMethod == "CASH" {
+				recon.RevenueCash += applied
+			}
 		}
 
 		recon.Sales = append(recon.Sales, ShiftSale{
