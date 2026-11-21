@@ -12,10 +12,10 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"apiPos/internal/apperror"
 	gormdb "apiPos/internal/database/gorm"
-	"apiPos/internal/realtime"
 	"apiPos/internal/repository"
 )
 
@@ -51,8 +51,8 @@ func NewService(repos *repository.Repositories) *Service {
 
 // TableInfo is the resolved table + store for the public flow.
 type TableInfo struct {
-	Table  *gormdb.Table
-	Store  *gormdb.Store
+	Table   *gormdb.Table
+	Store   *gormdb.Store
 	Setting *gormdb.StoreSetting
 }
 
@@ -392,25 +392,25 @@ func (s *Service) resolveCustomer(ctx context.Context, tx *gorm.DB, storeID uuid
 	return customer.ID, true, nil
 }
 
-// PayPublicOrder marks a submitted order as PAID and records the payment in
-// one transaction, then publishes the realtime events (sale.created with
-// order_source=SELF_ORDER + status=PAID, and inventory.adjusted so POS stock
-// views update in real time).
-func (s *Service) PayPublicOrder(ctx context.Context, orderToken, paymentMethod, reference string) (*gormdb.Sale, error) {
-	ot := strings.TrimSpace(orderToken)
-	if ot == "" {
+// PayPublicOrder reports success to older clients only after staff records payment.
+func (s *Service) PayPublicOrder(ctx context.Context, orderToken, paymentMethod string) (*gormdb.Sale, error) {
+	orderToken = strings.TrimSpace(orderToken)
+	if orderToken == "" {
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Order token is required", nil)
 	}
-	if err := validatePaymentMethod(paymentMethod); err != nil {
+	if err := ValidatePaymentMethod(paymentMethod); err != nil {
 		return nil, err
 	}
 
-	sale, err := s.saleByOrderToken(ctx, ot)
+	sale, err := s.saleByOrderToken(ctx, orderToken)
 	if err != nil {
 		return nil, err
 	}
 	if sale.OrderSource != "SELF_ORDER" {
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Order is not a self order", nil)
+	}
+	if sale.Status == StatusPaid {
+		return sale, nil
 	}
 	if sale.Status != StatusPending {
 		return nil, apperror.Wrap(apperror.ErrInvalidSaleStatus, "Order is not awaiting payment", nil)
@@ -418,52 +418,7 @@ func (s *Service) PayPublicOrder(ctx context.Context, orderToken, paymentMethod,
 	if time.Since(sale.CreatedAt) > SelfOrderPaymentTimeout {
 		return nil, apperror.Wrap(apperror.ErrFailedPrecondition, "Order has expired, please submit again", nil)
 	}
-
-	paidAt := time.Now()
-	err = s.repos.DB().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		payment := &gormdb.Payment{
-			SaleID:        sale.ID,
-			StoreID:       sale.StoreID,
-			PaymentMethod: paymentMethod,
-			Amount:        sale.GrandTotal,
-			Reference:     reference,
-			PaidAt:        paidAt,
-		}
-		if err := tx.Create(payment).Error; err != nil {
-			return apperror.Wrap(apperror.ErrInternal, "Failed to record payment", err)
-		}
-		if err := tx.Model(&gormdb.Sale{}).Where("id = ?", sale.ID).Update("status", StatusPaid).Error; err != nil {
-			return apperror.Wrap(apperror.ErrInternal, "Failed to update order status", err)
-		}
-		sale.Status = StatusPaid
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	// Public endpoints carry no JWT claims, so PublishFromContext would leave
-	// StoreID empty — set it explicitly (docs/pos-self-order.md §6.2).
-	realtime.Publish(realtime.Event{
-		Event:      realtime.EventSaleCreated,
-		Resource:   "sales",
-		ResourceID: sale.ID.String(),
-		StoreID:    sale.StoreID.String(),
-		Data: map[string]any{
-			"order_source":  "SELF_ORDER",
-			"status":        StatusPaid,
-			"invoice_number": sale.InvoiceNumber,
-			"table_no":      sale.TableNo,
-		},
-	})
-	realtime.Publish(realtime.Event{
-		Event:      realtime.EventInventoryAdjusted,
-		Resource:   "sales",
-		ResourceID: sale.ID.String(),
-		StoreID:    sale.StoreID.String(),
-	})
-
-	return sale, nil
+	return nil, apperror.Wrap(apperror.ErrFailedPrecondition, "Payment must be confirmed at the counter", nil)
 }
 
 // GetOrderStatus returns the current status of the customer's order.
@@ -493,9 +448,9 @@ func (s *Service) saleByOrderToken(ctx context.Context, token string) (*gormdb.S
 
 // OrderItem is a validated cart line (server-side pricing).
 type OrderItem struct {
-	ProductID   string
+	ProductID    string
 	ProductSKUID string
-	Quantity    int32
+	Quantity     int32
 }
 
 // CancelExpiredPending cancels self orders stuck in PENDING past the payment
@@ -514,7 +469,18 @@ func (s *Service) CancelExpiredPending(ctx context.Context) (int, error) {
 	cancelled := 0
 	for i := range expired {
 		sale := &expired[i]
+		restored := false
 		err := s.repos.DB().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			var current gormdb.Sale
+			err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+				Where("id = ? AND store_id = ? AND status = ?", sale.ID, sale.StoreID, StatusPending).
+				First(&current).Error
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
 			var items []gormdb.SaleItem
 			if err := tx.Where("sale_id = ?", sale.ID).Find(&items).Error; err != nil {
 				return err
@@ -555,19 +521,22 @@ func (s *Service) CancelExpiredPending(ctx context.Context) (int, error) {
 					return apperror.Wrap(apperror.ErrInternal, "Failed to record inventory", err)
 				}
 			}
-			return tx.Model(&gormdb.Sale{}).Where("id = ?", sale.ID).Update("status", StatusCancelled).Error
+			restored = true
+			return tx.Model(&current).Where("store_id = ?", sale.StoreID).Update("status", StatusCancelled).Error
 		})
 		if err != nil {
 			return cancelled, err
 		}
-		cancelled++
+		if restored {
+			cancelled++
+		}
 	}
 	return cancelled, nil
 }
 
-// validatePaymentMethod rejects CASH (no cashier at the table) and unknown
+// ValidatePaymentMethod rejects CASH (no cashier at the table) and unknown
 // methods for self ordering.
-func validatePaymentMethod(method string) error {
+func ValidatePaymentMethod(method string) error {
 	if !allowedPaymentMethods[method] {
 		return apperror.Wrap(apperror.ErrInvalidRequest, "Cash payment is not supported for self ordering", nil)
 	}

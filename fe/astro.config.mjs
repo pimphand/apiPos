@@ -7,7 +7,7 @@ const env = loadEnv(process.env.NODE_ENV || 'development', process.cwd(), '');
 
 const host = env.HOST || 'localhost';
 const port = Number(env.PORT) || 4000;
-const apiUrl = env.PUBLIC_API_URL || 'http://localhost:8990';
+const apiUrl = env.PUBLIC_API_URL || 'https://pos.dwiki.id';
 const isProd = (process.env.NODE_ENV || 'development') === 'production';
 
 export default defineConfig({

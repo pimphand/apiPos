@@ -412,19 +412,36 @@ curl http://localhost:18730/api/v1/users \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
+## Upgrade keamanan
+
+- Jalankan semua migrasi hingga `000020` sebelum memulai backend baru. Migrasi
+  menonaktifkan akun superadmin lama yang masih menyimpan hash bawaan dan
+  mencabut refresh token akun tersebut.
+- Jika perlu akun sistem baru, isi ketiga variabel `BOOTSTRAP_SUPERADMIN_*`
+  di `.env` dan jalankan server setelah migrasi. Gunakan nama pengguna dan email
+  baru serta password acak 24–72 byte. Hapus variabel bootstrap dari konfigurasi
+  setelah akun dibuat.
+- Untuk deployment yang pernah memakai akun bawaan atau mencatat JWT WebSocket,
+  rotasi `JWT_SECRET`, batasi akses ke log lama, dan periksa akun serta role
+  sistem yang sudah ada.
+- Deploy frontend, backend, dan konfigurasi Nginx bersama supaya koneksi WebSocket
+  memakai tiket sekali pakai. Endpoint tiket dan socket harus berada pada proses
+  backend yang sama.
+- Pembayaran self-order dikonfirmasi dari detail transaksi di halaman Penjualan.
+  Kasir memverifikasi dana sebelum mencatat pembayaran. Pelanggan dapat memantau
+  status pesanan dari halaman QR.
+
 ## CI (GitHub Actions)
 
-`.github/workflows/ci.yml` runs **unit tests only**, on pull requests, pushes to
-`main`, and manual dispatch:
+`.github/workflows/ci.yml` runs on pull requests, pushes to `main`, and manual dispatch.
 
 | Job | Command |
 |-----|---------|
-| `backend` | `go test ./internal/... ./middleware/... ./pkg/... ./cmd/server/...` |
-| `frontend` | `npm ci` then `npm test -- --run` (Vitest) in `./fe` |
+| `backend` | Unit and integration tests with a disposable PostgreSQL service |
+| `frontend` | `npm ci`, typecheck, Vitest, and a production-dependency audit that fails on high or critical findings |
 
 There is no deployment step and no image publishing: the pipeline never reaches a
-server. `internal/integration` (cross-tenant, needs a real PostgreSQL) skips
-itself unless `TEST_DATABASE_DSN` is set; run it locally per `AGENTS.md` §11.
+server. For local integration tests, set `TEST_DATABASE_DSN` as described in `AGENTS.md` §11.
 
 Note: `cmd/swagger` is excluded from the test command because its `//go:embed
 swagger-ui/*` matches no committed files, so it does not compile in a clean

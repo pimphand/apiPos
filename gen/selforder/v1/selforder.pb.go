@@ -685,7 +685,7 @@ type PayPublicOrderRequest struct {
 	OrderToken string                 `protobuf:"bytes,1,opt,name=order_token,json=orderToken,proto3" json:"order_token,omitempty"`
 	// One of CARD, BANK_TRANSFER, EWALLET, OTHER. CASH is rejected.
 	PaymentMethod string `protobuf:"bytes,2,opt,name=payment_method,json=paymentMethod,proto3" json:"payment_method,omitempty"`
-	// Payment gateway reference (e.g. QRIS transaction id). Optional.
+	// Legacy field. Ignored.
 	Reference     string `protobuf:"bytes,3,opt,name=reference,proto3" json:"reference,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

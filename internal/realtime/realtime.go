@@ -10,7 +10,10 @@ package realtime
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"strings"
@@ -19,15 +22,16 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"apiPos/internal/apperror"
 	"apiPos/internal/auth"
 )
 
 // Event types published to WebSocket clients.
 // Keep these in sync with the frontend (fe/src/lib/realtime.ts).
 const (
-	EventProductCreated  = "product.created"
-	EventProductUpdated  = "product.updated"
-	EventProductDeleted  = "product.deleted"
+	EventProductCreated    = "product.created"
+	EventProductUpdated    = "product.updated"
+	EventProductDeleted    = "product.deleted"
 	EventProductSKUCreated = "productsku.created"
 	EventProductSKUUpdated = "productsku.updated"
 	EventProductSKUDeleted = "productsku.deleted"
@@ -57,6 +61,7 @@ const (
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
+	Subprotocols:    []string{"pos-realtime"},
 	// The browser connects to the WS endpoint through the same origin as the
 	// app (Vite dev proxy / nginx). JWT auth is enforced below for every
 	// connection, so checking the origin is not required for security.
@@ -65,11 +70,12 @@ var upgrader = websocket.Upgrader{
 
 // Client represents a single connected WebSocket client.
 type Client struct {
-	hub     *Hub
-	conn    *websocket.Conn
-	send    chan []byte
-	storeID string
-	userID  string
+	hub       *Hub
+	conn      *websocket.Conn
+	send      chan []byte
+	storeID   string
+	userID    string
+	expiresAt time.Time
 }
 
 // Hub manages connected clients and routes events to the right store.
@@ -123,7 +129,7 @@ func (h *Hub) publish(ev Event) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	for c := range h.clients {
-		if c.storeID == ev.StoreID {
+		if c.storeID == ev.StoreID && time.Now().Before(c.expiresAt) {
 			select {
 			case c.send <- data:
 			default:
@@ -173,6 +179,8 @@ func (c *Client) readPump() {
 // writePump delivers queued events and sends periodic pings.
 func (c *Client) writePump() {
 	ticker := time.NewTicker(pingPeriod)
+	expiry := time.NewTimer(time.Until(c.expiresAt))
+	defer expiry.Stop()
 	defer func() {
 		ticker.Stop()
 		_ = c.conn.Close()
@@ -189,6 +197,8 @@ func (c *Client) writePump() {
 			if err := c.conn.WriteMessage(websocket.TextMessage, message); err != nil {
 				return
 			}
+		case <-expiry.C:
+			return
 		case <-ticker.C:
 			_ = c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
@@ -198,55 +208,111 @@ func (c *Client) writePump() {
 	}
 }
 
-// Handler returns an HTTP handler that upgrades a connection to WebSocket.
-// Authentication is required: the JWT access token must be provided either as
-// the `token` query parameter or as a standard `Authorization: Bearer ...`
-// header. The client is scoped to the store carried by the token claims.
-func Handler(hub *Hub, authSvc *auth.AuthService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		claims, ok := authenticate(r, authSvc)
-		if !ok {
-			http.Error(w, `{"code":"UNAUTHENTICATED","message":"invalid or missing token"}`, http.StatusUnauthorized)
-			return
-		}
+const (
+	ticketTTL  = 30 * time.Second
+	maxTickets = 4096
+)
 
-		conn, err := upgrader.Upgrade(w, r, nil)
-		if err != nil {
-			log.Printf("realtime: websocket upgrade failed: %v", err)
-			return
-		}
-
-		client := &Client{
-			hub:     hub,
-			conn:    conn,
-			send:    make(chan []byte, sendBufferSize),
-			storeID: claims.StoreID,
-			userID:  claims.UserID,
-		}
-		hub.register(client)
-
-		go client.writePump()
-		go client.readPump()
-
-		log.Printf("realtime: client connected store=%s user=%s", client.storeID, client.userID)
-	}
+type ticket struct {
+	claims *auth.Claims
+	until  time.Time
 }
 
-// authenticate extracts and validates a JWT from either the `token` query
-// parameter or the Authorization header.
-func authenticate(r *http.Request, authSvc *auth.AuthService) (*auth.Claims, bool) {
-	token := r.URL.Query().Get("token")
-	if token == "" {
-		hdr := r.Header.Get("Authorization")
-		if len(hdr) < 8 || !strings.EqualFold(hdr[:7], "Bearer ") {
-			return nil, false
+type Gateway struct {
+	hub     *Hub
+	auth    *auth.AuthService
+	mu      sync.Mutex
+	tickets map[string]ticket
+}
+
+func NewGateway(hub *Hub, authSvc *auth.AuthService) *Gateway {
+	return &Gateway{hub: hub, auth: authSvc, tickets: make(map[string]ticket)}
+}
+
+// IssueTicket authenticates the browser over HTTP before issuing a single-use WebSocket credential.
+func (g *Gateway) IssueTicket(w http.ResponseWriter, r *http.Request) {
+	claims, err := g.auth.ClaimsFromRequest(r)
+	if err != nil {
+		if errors.Is(err, apperror.ErrInvalidToken) || errors.Is(err, apperror.ErrTokenExpired) {
+			writeJSON(w, http.StatusUnauthorized, map[string]string{"code": "UNAUTHENTICATED", "message": "Unauthorized"})
+		} else {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"code": "INTERNAL", "message": "Could not validate session"})
 		}
-		token = hdr[7:]
+		return
+	}
+	secret := make([]byte, 32)
+	if _, err := rand.Read(secret); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"code": "INTERNAL", "message": "Could not issue ticket"})
+		return
+	}
+	key := base64.RawURLEncoding.EncodeToString(secret)
+	now := time.Now()
+	expires := now.Add(ticketTTL)
+	if claims.ExpiresAt.Before(expires) {
+		expires = claims.ExpiresAt.Time
+	}
+	g.mu.Lock()
+	for candidate, entry := range g.tickets {
+		if !now.Before(entry.until) {
+			delete(g.tickets, candidate)
+		}
+	}
+	if len(g.tickets) >= maxTickets {
+		g.mu.Unlock()
+		writeJSON(w, http.StatusTooManyRequests, map[string]string{"code": "RESOURCE_EXHAUSTED", "message": "Too many outstanding tickets"})
+		return
+	}
+	g.tickets[key] = ticket{claims: claims, until: expires}
+	g.mu.Unlock()
+
+	writeJSON(w, http.StatusOK, map[string]string{"ticket": key})
+}
+
+func writeJSON(w http.ResponseWriter, status int, data map[string]string) {
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(data)
+}
+
+func (g *Gateway) consume(key string) *auth.Claims {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	entry, found := g.tickets[key]
+	delete(g.tickets, key)
+	if !found || !time.Now().Before(entry.until) {
+		return nil
+	}
+	return entry.claims
+}
+
+func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	var claims *auth.Claims
+	for _, protocol := range websocket.Subprotocols(r) {
+		if key, ok := strings.CutPrefix(protocol, "ticket."); ok {
+			claims = g.consume(key)
+			break
+		}
+	}
+	if claims == nil {
+		claims, _ = g.auth.ClaimsFromRequest(r)
+	}
+	if claims == nil {
+		http.Error(w, `{"code":"UNAUTHENTICATED","message":"invalid or missing token"}`, http.StatusUnauthorized)
+		return
 	}
 
-	claims, err := authSvc.ValidateToken(token)
+	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		return nil, false
+		log.Printf("realtime: websocket upgrade failed: %v", err)
+		return
 	}
-	return claims, true
+
+	client := &Client{
+		hub: g.hub, conn: conn, send: make(chan []byte, sendBufferSize),
+		storeID: claims.StoreID, userID: claims.UserID, expiresAt: claims.ExpiresAt.Time,
+	}
+	g.hub.register(client)
+	go client.writePump()
+	go client.readPump()
 }

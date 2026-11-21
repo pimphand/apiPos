@@ -78,6 +78,7 @@ server {
 
     # ---- Realtime WebSocket proxy to Go gateway ------------------------
     location /ws {
+        access_log off;
         proxy_pass http://pos_api;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;

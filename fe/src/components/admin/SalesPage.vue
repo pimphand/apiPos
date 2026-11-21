@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { saleService } from '@/services/sale';
+import { paymentService } from '@/services/payment';
 import { useUiStore } from '@/stores/ui';
 import { useLocaleStore } from '@/stores/locale';
 import { usePageGuard } from '@/composables/usePageGuard';
@@ -40,6 +41,15 @@ const detailOpen = ref(false);
 const detail = ref<SaleDetailResponse | null>(null);
 const detailLoading = ref(false);
 const actionBusy = ref(false);
+const paymentMethod = ref('');
+const paymentReference = ref('');
+const canConfirm = computed(() =>
+  detail.value?.sale.status === 'PENDING' && can(authStore.currentUser, 'payments.create')
+);
+const amountDue = computed(() => detail.value
+  ? Math.max(0, Math.round((detail.value.sale.grand_total - detail.value.amount_paid) * 100) / 100)
+  : 0);
+const paymentMethods = ['CARD', 'BANK_TRANSFER', 'EWALLET', 'OTHER'];
 
 const saleStatusKey = (s: string) =>
   `admin.sales.status${s.charAt(0)}${s.slice(1).toLowerCase()}` as const;
@@ -77,6 +87,8 @@ function applyFilter() {
 
 async function openDetail(sale: Sale) {
   detail.value = null;
+  paymentMethod.value = '';
+  paymentReference.value = '';
   detailOpen.value = true;
   detailLoading.value = true;
   try {
@@ -86,6 +98,26 @@ async function openDetail(sale: Sale) {
     detailOpen.value = false;
   } finally {
     detailLoading.value = false;
+  }
+}
+
+async function confirmPayment() {
+  if (!detail.value || !canConfirm.value || !paymentMethod.value || amountDue.value <= 0) return;
+  actionBusy.value = true;
+  try {
+    await paymentService.create({
+      sale_id: detail.value.sale.id,
+      payment_method: paymentMethod.value,
+      amount: amountDue.value,
+      reference: paymentReference.value.trim() || undefined,
+    });
+    ui.addToast('success', t('admin.sales.paymentConfirmed'));
+    detailOpen.value = false;
+    await load();
+  } catch (err) {
+    ui.addToast('error', apiMessage(err));
+  } finally {
+    actionBusy.value = false;
   }
 }
 
@@ -295,6 +327,22 @@ watch(isReady, (r) => {
             </div>
           </div>
         </template>
+
+        <form v-if="canConfirm" class="space-y-2 border-t pt-4" @submit.prevent="confirmPayment">
+          <p class="font-medium">{{ t('admin.sales.confirmPayment') }} · {{ formatCurrency(amountDue) }}</p>
+          <p class="text-sm text-muted-foreground">{{ t('admin.sales.confirmPaymentHint') }}</p>
+          <Select v-model="paymentMethod">
+            <SelectTrigger :aria-label="t('admin.sales.paymentMethod')">
+              <SelectValue :placeholder="t('admin.sales.paymentMethod')" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="method in paymentMethods" :key="method" :value="method">{{ method }}</SelectItem>
+            </SelectContent>
+          </Select>
+          <Label for="confirmed-payment-reference">{{ t('admin.sales.paymentReference') }}</Label>
+          <Input id="confirmed-payment-reference" v-model="paymentReference" />
+          <Button type="submit" :disabled="actionBusy || !paymentMethod || amountDue <= 0">{{ t('admin.sales.confirmPayment') }}</Button>
+        </form>
 
         <DialogFooter v-if="detail && (canCancel || canRefund)" class="flex justify-end gap-2">
           <AlertDialog v-if="canCancel">

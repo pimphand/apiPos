@@ -41,7 +41,7 @@ import type {
 } from '@/types';
 import { ORDER_CHANNEL_LABELS } from '@/types';
 import { Bell, BellOff, RefreshCw, WifiOff } from '@lucide/vue';
-import type { ReceiptData } from '@/components/pos/PosReceiptPaper.vue';
+import type { ReceiptData, ReceiptLine } from '@/components/pos/PosReceiptPaper.vue';
 import DashboardShell from '@/components/layout/DashboardShell.vue';
 import PosCartCard from '@/components/pos/PosCartCard.vue';
 import PosPaymentDialog from '@/components/pos/PosPaymentDialog.vue';
@@ -534,10 +534,14 @@ async function resolveRestoredItems(items: HeldOrderItem[]): Promise<{
             new: liveStock,
           }),
         });
-        resolved.push({ ...it, quantity: liveStock, stock: liveStock, original_stock: liveStock });
-      } else {
-        resolved.push({ ...it, stock: liveStock, original_stock: liveStock });
       }
+      resolved.push({
+        ...it,
+        barcode: it.barcode || sku.barcode || undefined,
+        quantity: Math.min(it.quantity, liveStock),
+        stock: liveStock,
+        original_stock: liveStock,
+      });
       continue;
     }
     // No live data (offline) → restore from snapshot as-is.
@@ -551,6 +555,7 @@ function pushItemsToCart(items: HeldOrderItem[]) {
     const existing = cart.value.find((i) => i.sku_id === it.sku_id);
     if (existing) {
       existing.quantity += it.quantity;
+      existing.barcode ||= it.barcode;
     } else {
       cart.value.push({
         product_id: it.product_id,
@@ -638,7 +643,7 @@ function buildSalePayload(
 function showReceipt(opts: {
   invoice: string;
   createdAt: string;
-  lines: { name: string; sku_code: string; quantity: number; unit_price: number }[];
+  lines: ReceiptLine[];
   subtotal: number;
   discount: number;
   tax: number;
@@ -699,7 +704,7 @@ function decrementCachedStock(lines: { sku_id?: string; quantity: number }[]) {
 function queueOfflineSale(opts: {
   storeId: string;
   body: CreateSaleRequest;
-  lines: { name: string; sku_code: string; quantity: number; unit_price: number }[];
+  lines: Pick<CartItem, 'name' | 'sku_code' | 'barcode' | 'quantity' | 'unit_price'>[];
   typedName: string;
   paidAmount: number;
   method: string;

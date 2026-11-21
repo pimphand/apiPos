@@ -19,8 +19,8 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/encoding/protojson"
 
-	activitylogv1 "apiPos/gen/activitylog/v1"
 	accountingv1 "apiPos/gen/accounting/v1"
+	activitylogv1 "apiPos/gen/activitylog/v1"
 	authv1 "apiPos/gen/auth/v1"
 	cashierpb "apiPos/gen/cashier/v1"
 	categoryv1 "apiPos/gen/category/v1"
@@ -101,7 +101,7 @@ type Server struct {
 // New creates a new gRPC server
 func New(cfg *config.Config, db *gormdb.DB) *Server {
 	repos := repository.New(db.GetDB())
-	authService := auth.NewAuthService(cfg)
+	authService := auth.NewAuthService(cfg, repos.User)
 	userService := user.NewService(repos, authService)
 	categoryService := category.NewService(repos)
 	productService := product.NewService(repos)
@@ -355,13 +355,15 @@ func (s *Server) startHTTP() error {
 		return fmt.Errorf("failed to register accounting gateway: %w", err)
 	}
 
-	importHandler := handler.NewProductImportHandler(s.productService, s.categoryService, s.repositories, s.authService, s.config)
+	importHandler := handler.NewProductImportHandler(s.productService, s.categoryService, s.repositories, s.authService)
 
 	httpMux := http.NewServeMux()
 	httpMux.HandleFunc("/", s.handleSwaggerUI)
 	httpMux.HandleFunc("/swagger.json", s.handleSwaggerJSON)
 	httpMux.HandleFunc("/health", s.handleHealth)
-	httpMux.HandleFunc("/ws", realtime.Handler(s.realtimeHub, s.authService))
+	realtimeGateway := realtime.NewGateway(s.realtimeHub, s.authService)
+	httpMux.Handle("GET /ws", realtimeGateway)
+	httpMux.HandleFunc("POST /api/v1/realtime/ticket", realtimeGateway.IssueTicket)
 	httpMux.HandleFunc("/api/v1/products/import", importHandler.ServeHTTP)
 	httpMux.HandleFunc("/api/v1/products/import-sample", importHandler.ServeSampleCSV)
 	httpMux.Handle("/api/", enableCORS(mux))
@@ -603,17 +605,17 @@ func endpointPermissions() map[string]string {
 		"/report.v1.ReportService/GetLowStockProducts":     "reports.read",
 
 		// ── Accounting ────────────────────────────────────────────
-		"/accounting.v1.AccountingService/ListAccounts":         "accounting.read",
-		"/accounting.v1.AccountingService/GetAccount":           "accounting.read",
-		"/accounting.v1.AccountingService/CreateAccount":      "accounting.post",
+		"/accounting.v1.AccountingService/ListAccounts":        "accounting.read",
+		"/accounting.v1.AccountingService/GetAccount":          "accounting.read",
+		"/accounting.v1.AccountingService/CreateAccount":       "accounting.post",
 		"/accounting.v1.AccountingService/UpdateAccount":       "accounting.post",
-		"/accounting.v1.AccountingService/ListJournals":         "accounting.read",
-		"/accounting.v1.AccountingService/GetJournal":           "accounting.read",
+		"/accounting.v1.AccountingService/ListJournals":        "accounting.read",
+		"/accounting.v1.AccountingService/GetJournal":          "accounting.read",
 		"/accounting.v1.AccountingService/CreateManualJournal": "accounting.post",
 		"/accounting.v1.AccountingService/PostJournal":         "accounting.post",
 		"/accounting.v1.AccountingService/ReverseJournal":      "accounting.post",
 		"/accounting.v1.AccountingService/ListPeriods":         "accounting.read",
-		"/accounting.v1.AccountingService/CreatePeriod":       "accounting.close",
+		"/accounting.v1.AccountingService/CreatePeriod":        "accounting.close",
 		"/accounting.v1.AccountingService/ClosePeriod":         "accounting.close",
 		"/accounting.v1.AccountingService/GetTrialBalance":     "accounting.read",
 		"/accounting.v1.AccountingService/GetGeneralLedger":    "accounting.read",
@@ -650,11 +652,12 @@ func endpointPermissions() map[string]string {
 		// NOTE: GetUser is intentionally NOT permission-gated. The frontend
 		// needs it to refresh the user profile on session restore (bootstrap).
 		// It is read-only and already protected by JWT auth.
-		"/user.v1.UserService/CreateUser":     "users.create",
-		"/user.v1.UserService/ListUsers":      "users.read",
-		"/user.v1.UserService/UpdateUser":     "users.update",
-		"/user.v1.UserService/DeleteUser":     "users.delete",
-		"/user.v1.UserService/UpdateUserRole": "users.update",
+		"/user.v1.UserService/CreateUser":       "users.create",
+		"/user.v1.UserService/ListUsers":        "users.read",
+		"/user.v1.UserService/UpdateUser":       "users.update",
+		"/user.v1.UserService/DeleteUser":       "users.delete",
+		"/user.v1.UserService/UpdateUserRole":   "users.update",
+		"/user.v1.UserService/ToggleUserActive": "users.update",
 
 		// ── Store (superadmin only) ──────────────────────────────
 		"/store.v1.StoreService/CreateStore": "roles.create",
@@ -671,12 +674,12 @@ func endpointPermissions() map[string]string {
 		"/activitylog.v1.ActivityLogService/GetActivityLogsByUser":     "activity_logs.read",
 
 		// ── Tables (self ordering) ─────────────────────────────────
-		"/table.v1.TableService/CreateTable":        "tables.create",
-		"/table.v1.TableService/ListTables":         "tables.read",
-		"/table.v1.TableService/GetTable":           "tables.read",
-		"/table.v1.TableService/UpdateTable":        "tables.update",
-		"/table.v1.TableService/DeleteTable":        "tables.delete",
-		"/table.v1.TableService/RotateTableToken":   "tables.update",
+		"/table.v1.TableService/CreateTable":      "tables.create",
+		"/table.v1.TableService/ListTables":       "tables.read",
+		"/table.v1.TableService/GetTable":         "tables.read",
+		"/table.v1.TableService/UpdateTable":      "tables.update",
+		"/table.v1.TableService/DeleteTable":      "tables.delete",
+		"/table.v1.TableService/RotateTableToken": "tables.update",
 	}
 }
 

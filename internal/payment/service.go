@@ -2,15 +2,22 @@ package payment
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"apiPos/internal/accounting"
 	"apiPos/internal/apperror"
+	"apiPos/internal/auth"
 	gormdb "apiPos/internal/database/gorm"
+	"apiPos/internal/realtime"
 	"apiPos/internal/repository"
+	"apiPos/internal/selforder"
 )
 
 // Payment method constants
@@ -71,7 +78,7 @@ func (s *Service) CreatePayment(ctx context.Context, req CreatePaymentRequest) (
 	if !isValidUUID(req.SaleID) {
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Invalid sale ID", nil)
 	}
-	if req.Amount <= 0 {
+	if req.Amount <= 0 || math.IsNaN(req.Amount) || math.IsInf(req.Amount, 0) {
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Amount must be greater than 0", nil)
 	}
 
@@ -87,64 +94,106 @@ func (s *Service) CreatePayment(ctx context.Context, req CreatePaymentRequest) (
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, fmt.Sprintf("Invalid payment method: %s", req.PaymentMethod), nil)
 	}
 
-	// Get sale
-	sale, err := s.repos.Sale.GetByID(ctx, req.SaleID)
-	if err != nil {
-		return nil, apperror.Wrap(apperror.ErrNotFound, "Sale not found", err)
+	claims, ok := auth.ClaimsFromContext(ctx)
+	if !ok || claims == nil {
+		return nil, apperror.ErrUnauthorized
+	}
+	storeID, err := uuid.Parse(claims.StoreID)
+	if err != nil || storeID == uuid.Nil {
+		return nil, apperror.ErrForbidden
 	}
 
-	// Check if sale is already paid
-	if sale.Status == "PAID" {
-		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Sale is already paid", nil)
-	}
-	if sale.Status == "CANCELLED" || sale.Status == "REFUNDED" {
-		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Cannot add payment to cancelled/refunded sale", nil)
-	}
+	var sale gormdb.Sale
+	var payment gormdb.Payment
+	err = s.repos.DB().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("id = ? AND store_id = ?", req.SaleID, storeID).
+			First(&sale).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return apperror.Wrap(apperror.ErrNotFound, "Sale not found", nil)
+		}
+		if err != nil {
+			return err
+		}
+		switch sale.Status {
+		case "PENDING":
+		case "PAID":
+			return apperror.Wrap(apperror.ErrInvalidRequest, "Sale is already paid", nil)
+		case "CANCELLED", "REFUNDED":
+			return apperror.Wrap(apperror.ErrInvalidRequest, "Cannot add payment to cancelled/refunded sale", nil)
+		default:
+			return apperror.Wrap(apperror.ErrFailedPrecondition, "Sale is not awaiting payment", nil)
+		}
 
-	// Get current total paid
-	currentTotalPaid, err := s.repos.Payment.GetTotalBySaleID(ctx, req.SaleID)
-	if err != nil {
-		currentTotalPaid = 0
-	}
-
-	// Check if payment exceeds grand total (for non-cash payments)
-	remaining := sale.GrandTotal - currentTotalPaid
-	if req.PaymentMethod != PaymentMethodCash && req.Amount > remaining {
-		return nil, apperror.Wrap(apperror.ErrInvalidRequest,
-			fmt.Sprintf("Payment amount (%.2f) exceeds remaining (%.2f)", req.Amount, remaining), nil)
-	}
-
-	// Create payment
-	payment := &gormdb.Payment{
-		SaleID:        sale.ID,
-		PaymentMethod: req.PaymentMethod,
-		Amount:        req.Amount,
-		Reference:     req.Reference,
-		PaidAt:        time.Now(),
-	}
-
-	if err := s.repos.Payment.Create(ctx, payment); err != nil {
-		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to create payment", err)
-	}
-
-	// Check if sale is now fully paid
-	newTotalPaid := currentTotalPaid + req.Amount
-	if newTotalPaid >= sale.GrandTotal {
+		var paid float64
+		if err := tx.Model(&gormdb.Payment{}).Where("sale_id = ? AND store_id = ?", sale.ID, storeID).
+			Select("COALESCE(SUM(amount), 0)").Scan(&paid).Error; err != nil {
+			return err
+		}
+		amount := accounting.COGSMoney(req.Amount)
+		remaining := accounting.COGSMoney(sale.GrandTotal).Sub(accounting.COGSMoney(paid))
+		if !amount.IsPositive() {
+			return apperror.Wrap(apperror.ErrInvalidRequest, "Amount must be at least 0.01", nil)
+		}
+		isSelfOrder := sale.OrderSource == "SELF_ORDER"
+		if req.PaymentMethod != PaymentMethodCash && req.Amount > remaining.InexactFloat64() {
+			return apperror.Wrap(apperror.ErrInvalidRequest,
+				fmt.Sprintf("Payment amount (%.2f) exceeds remaining (%.2f)", req.Amount, remaining.InexactFloat64()), nil)
+		}
+		if isSelfOrder {
+			if time.Since(sale.CreatedAt) >= selforder.SelfOrderPaymentTimeout {
+				return apperror.Wrap(apperror.ErrFailedPrecondition, "Order has expired", nil)
+			}
+			if err := selforder.ValidatePaymentMethod(req.PaymentMethod); err != nil {
+				return err
+			}
+			if !amount.Equal(remaining) {
+				return apperror.Wrap(apperror.ErrInvalidRequest, "Self orders require full payment", nil)
+			}
+		}
+		payment = gormdb.Payment{
+			SaleID: sale.ID, StoreID: storeID, PaymentMethod: req.PaymentMethod,
+			Amount: req.Amount, Reference: req.Reference, PaidAt: time.Now(),
+		}
+		if err := tx.Create(&payment).Error; err != nil {
+			return apperror.Wrap(apperror.ErrInternal, "Failed to create payment", err)
+		}
+		if amount.LessThan(remaining) {
+			return nil
+		}
 		sale.Status = "PAID"
-		s.repos.Sale.Update(ctx, sale)
+		if err := tx.Model(&sale).Where("store_id = ?", storeID).Update("status", sale.Status).Error; err != nil {
+			return err
+		}
+		if isSelfOrder {
+			var items []gormdb.SaleItem
+			if err := tx.Where("sale_id = ? AND store_id = ?", sale.ID, storeID).Find(&items).Error; err != nil {
+				return err
+			}
+			_, err := s.posting.PostSale(ctx, tx, &sale, items, []gormdb.Payment{payment})
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	// Accounting: post payment journal if the sale has an outstanding
-	// receivable (i.e. it was not fully settled in the SALE entry).
-	// The posting is idempotent; failure is logged but does not fail the
-	// payment (payments are a financial write — better to surface than crash).
-	// We run it in a transaction to avoid partial writes.
-	if err := s.postPaymentJournal(ctx, payment, sale); err != nil {
-		// Best-effort: do not fail the payment for accounting errors.
-		_ = err
+	if sale.OrderSource == "SELF_ORDER" {
+		realtime.Publish(realtime.Event{
+			Event: realtime.EventSaleCreated, Resource: "sales",
+			ResourceID: sale.ID.String(), StoreID: storeID.String(),
+			Data: map[string]any{"order_source": sale.OrderSource, "status": sale.Status,
+				"invoice_number": sale.InvoiceNumber, "table_no": sale.TableNo},
+		})
+		realtime.Publish(realtime.Event{
+			Event: realtime.EventInventoryAdjusted, Resource: "sales",
+			ResourceID: sale.ID.String(), StoreID: storeID.String(),
+		})
+	} else {
+		_ = s.postPaymentJournal(ctx, &payment, &sale)
 	}
-
-	return payment, nil
+	return &payment, nil
 }
 
 // postPaymentJournal posts the PAYMENT journal when the sale has an

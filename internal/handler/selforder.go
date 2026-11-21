@@ -108,15 +108,12 @@ func (h *SelfOrderHandler) CreatePublicOrder(ctx context.Context, req *selforder
 	return &selforderv1.OrderResponse{Order: toProtoOrder(sale)}, nil
 }
 
-// PayPublicOrder pays a submitted order (→ PAID) and triggers realtime events.
+// PayPublicOrder returns order status for older self-order clients.
 func (h *SelfOrderHandler) PayPublicOrder(ctx context.Context, req *selforderv1.PayPublicOrderRequest) (*selforderv1.OrderResponse, error) {
-	sale, err := h.service.PayPublicOrder(ctx, req.OrderToken, req.PaymentMethod, req.Reference)
+	sale, err := h.service.PayPublicOrder(ctx, req.OrderToken, req.PaymentMethod)
 	if err != nil {
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
-
-	h.logs.LogWithUser(ctx, "", sale.StoreID.String(), "", "PAY", "sales", sale.ID.String(),
-		`{"invoice_number":"`+sale.InvoiceNumber+`","payment_method":"`+req.PaymentMethod+`"}`)
 
 	return &selforderv1.OrderResponse{Order: toProtoOrder(sale)}, nil
 }
@@ -133,22 +130,22 @@ func (h *SelfOrderHandler) GetOrderStatus(ctx context.Context, req *selforderv1.
 // toProtoOrder converts a GORM Sale to the public Order proto.
 func toProtoOrder(s *gormdb.Sale) *selforderv1.Order {
 	order := &selforderv1.Order{
-		Id:           s.ID.String(),
+		Id:            s.ID.String(),
 		InvoiceNumber: s.InvoiceNumber,
-		StoreId:      s.StoreID.String(),
-		TableId:      "",
-		TableNo:      s.TableNo,
-		Status:       s.Status,
-		OrderStatus:  s.OrderStatus,
-		OrderSource:  s.OrderSource,
-		CustomerName: "",
-		Subtotal:     s.Subtotal,
-		Discount:     s.Discount,
-		Tax:          s.Tax,
-		GrandTotal:   s.GrandTotal,
-		OrderToken:   "",
-		CreatedAt:    s.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		UpdatedAt:    s.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		StoreId:       s.StoreID.String(),
+		TableId:       "",
+		TableNo:       s.TableNo,
+		Status:        s.Status,
+		OrderStatus:   s.OrderStatus,
+		OrderSource:   s.OrderSource,
+		CustomerName:  "",
+		Subtotal:      s.Subtotal,
+		Discount:      s.Discount,
+		Tax:           s.Tax,
+		GrandTotal:    s.GrandTotal,
+		OrderToken:    "",
+		CreatedAt:     s.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		UpdatedAt:     s.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
 	if s.TableID != nil {
 		order.TableId = s.TableID.String()

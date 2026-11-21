@@ -6,14 +6,12 @@
  *
  * Connection strategy:
  * - One shared socket per page (module singleton).
- * - Authenticated with the access token via `?token=` (also accepted via
- *   `Authorization: Bearer`). Access tokens are memory-only, so if we need a
- *   token and none is cached we quietly wait (fail closed) rather than opening
- *   an unauthenticated socket.
+ * - Authenticated with a single-use ticket issued over HTTP.
  * - Automatic reconnect with exponential backoff.
  * - `on(event, handler)` subscribes and returns an unsubscribe function.
  */
 import { authStorage } from '@/lib/auth';
+import http from '@/lib/http';
 import { WS_URL } from '@/lib/apiBase';
 
 export interface RealtimeEvent {
@@ -51,10 +49,11 @@ class RealtimeClient {
   private noTokenRetries = 0;
   private shouldReconnect = false;
   private manualClose = false;
+  private ticketRequest: AbortController | null = null;
 
   /** Start (or restart) the connection if not open. Idempotent. */
   connect(): void {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || this.ticketRequest) return;
     if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
       return;
     }
@@ -81,15 +80,32 @@ class RealtimeClient {
     this.shouldReconnect = true;
     this.manualClose = false;
 
-    // WS_URL is absolute under Tauri (no proxy) and derived from the current
-    // origin in the browser.
-    this.ws = new WebSocket(`${WS_URL}?token=${encodeURIComponent(token)}`);
+    void this.openSocket();
+  }
 
-    this.ws.onopen = () => {
+  private async openSocket(): Promise<void> {
+    const request = new AbortController();
+    this.ticketRequest = request;
+    try {
+      const { data } = await http.post<{ ticket: string }>('/v1/realtime/ticket', undefined, {
+        signal: request.signal,
+      });
+      if (request.signal.aborted) return;
+      this.attachSocket(new WebSocket(WS_URL, ['pos-realtime', `ticket.${data.ticket}`]));
+    } catch {
+      if (!request.signal.aborted && this.shouldReconnect) this.scheduleReconnect();
+    } finally {
+      if (this.ticketRequest === request) this.ticketRequest = null;
+    }
+  }
+
+  private attachSocket(socket: WebSocket): void {
+    this.ws = socket;
+    socket.onopen = () => {
       this.reconnectAttempts = 0;
     };
 
-    this.ws.onmessage = (msg) => {
+    socket.onmessage = (msg) => {
       let ev: RealtimeEvent;
       try {
         ev = JSON.parse(msg.data as string) as RealtimeEvent;
@@ -108,14 +124,15 @@ class RealtimeClient {
       }
     };
 
-    this.ws.onclose = () => {
+    socket.onclose = () => {
+      if (this.ws !== socket) return;
       this.ws = null;
       if (this.shouldReconnect && !this.manualClose) {
         this.scheduleReconnect();
       }
     };
 
-    this.ws.onerror = () => {
+    socket.onerror = () => {
       // onclose handles reconnect; nothing to do here.
     };
   }
@@ -133,6 +150,8 @@ class RealtimeClient {
       this.noTokenTimer = null;
     }
     this.noTokenRetries = 0;
+    this.ticketRequest?.abort();
+    this.ticketRequest = null;
     this.ws?.close();
     this.ws = null;
   }

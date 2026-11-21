@@ -209,6 +209,9 @@ export default {
     methodCard: 'Card',
     methodBankTransfer: 'Bank Transfer',
     methodOther: 'Other',
+    awaitingPayment: 'Awaiting payment',
+    awaitingPaymentDesc: 'Show your order number to the cashier to complete payment.',
+    paymentClosed: 'Payment closed',
     paymentSuccess: 'Payment successful!',
     paymentSuccessDesc: 'Your order has been received. Please wait at your table.',
     queueNumber: 'Order No.',
@@ -705,6 +708,10 @@ export default {
       noPermissionAction: 'manage customers',
     },
     sales: {
+      confirmPayment: 'Confirm payment',
+      confirmPaymentHint: 'Verify that the funds were received before confirming.',
+      paymentConfirmed: 'Payment confirmed',
+      paymentReference: 'Payment reference',
       title: 'Sales',
       description:
         'View and manage all sales transactions, cancellations, and refunds.',

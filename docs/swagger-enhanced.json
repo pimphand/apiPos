@@ -11,6 +11,10 @@
   },
   "tags": [
     {
+      "name": "Realtime",
+      "description": "Store-scoped WebSocket events"
+    },
+    {
       "name": "Authentication",
       "description": "User authentication and token management"
     },
@@ -2785,7 +2789,7 @@
           "Payments"
         ],
         "summary": "Create Payment",
-        "description": "Create a new payment for a sale.",
+        "description": "Record a verified payment for a sale in the caller’s store. Self-order payments must cover the entire outstanding total and use a non-cash method.",
         "operationId": "payment_create",
         "security": [
           {
@@ -4084,13 +4088,38 @@
         }
       }
     },
+    "/api/v1/realtime/ticket": {
+      "post": {
+        "tags": ["Realtime"],
+        "summary": "Issue WebSocket ticket",
+        "description": "Issue a single-use ticket valid for up to 30 seconds. Offer pos-realtime and ticket.<ticket> in Sec-WebSocket-Protocol when connecting to /ws.",
+        "operationId": "realtime_issue_ticket",
+        "security": [{"BearerAuth": []}],
+        "responses": {
+          "200": {
+            "description": "Ticket issued",
+            "schema": {
+              "type": "object",
+              "required": ["ticket"],
+              "properties": {
+                "ticket": {"type": "string", "example": "opaque-single-use-ticket"}
+              }
+            }
+          },
+          "401": {"$ref": "#/definitions/ErrorResponse"},
+          "429": {"$ref": "#/definitions/ErrorResponse"},
+          "500": {"$ref": "#/definitions/ErrorResponse"}
+        }
+      }
+    },
     "/api/v1/public/orders/{orderToken}/pay": {
       "post": {
         "tags": [
           "Self Order"
         ],
-        "summary": "Pay Public Order",
-        "description": "Pay a submitted order (non-cash only). On success the sale becomes PAID, one sale.created realtime event is published (order_source=SELF_ORDER + status=PAID) and inventory.adjusted is emitted so POS product browsers update stock in real time. Public — no authentication (rate limited).",
+        "summary": "Check Public Order Payment (Legacy)",
+        "description": "Read-only compatibility endpoint. Returns success after authorized staff records the payment. Use the order status endpoint for new clients.",
+        "deprecated": true,
         "operationId": "selforder_pay",
         "parameters": [
           {
@@ -4110,7 +4139,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Order paid",
+            "description": "Payment already confirmed by staff",
             "schema": {
               "$ref": "#/definitions/v1OrderResponse"
             }
@@ -7313,7 +7342,7 @@
         },
         "reference": {
           "type": "string",
-          "description": "Payment gateway reference (e.g. QRIS transaction id). Optional."
+          "description": "Legacy field. Ignored."
         }
       }
     }

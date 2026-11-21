@@ -214,6 +214,9 @@ export default {
     methodCard: 'Kartu',
     methodBankTransfer: 'Transfer Bank',
     methodOther: 'Lainnya',
+    awaitingPayment: 'Menunggu pembayaran',
+    awaitingPaymentDesc: 'Tunjukkan nomor pesanan kepada kasir untuk menyelesaikan pembayaran.',
+    paymentClosed: 'Pembayaran ditutup',
     paymentSuccess: 'Pembayaran berhasil!',
     paymentSuccessDesc: 'Pesanan Anda telah diterima. Silakan tunggu di meja Anda.',
     queueNumber: 'No. Pesanan',
@@ -714,6 +717,10 @@ export default {
       noPermissionAction: 'mengelola pelanggan',
     },
     sales: {
+      confirmPayment: 'Konfirmasi pembayaran',
+      confirmPaymentHint: 'Verifikasi dana sudah diterima sebelum mengonfirmasi.',
+      paymentConfirmed: 'Pembayaran dikonfirmasi',
+      paymentReference: 'Referensi pembayaran',
       title: 'Penjualan',
       description:
         'Lihat dan kelola semua transaksi penjualan, pembatalan, dan pengembalian.',

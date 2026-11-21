@@ -14,7 +14,6 @@ import (
 
 	"apiPos/internal/auth"
 	"apiPos/internal/category"
-	"apiPos/internal/config"
 	"apiPos/internal/product"
 	"apiPos/internal/repository"
 )
@@ -23,11 +22,10 @@ import (
 // (multipart form upload). Registered directly on the HTTP mux because
 // grpc-gateway does not support multipart file uploads.
 type ProductImportHandler struct {
-	productService    *product.Service
-	categoryService   *category.Service
-	repos             *repository.Repositories
-	authService       *auth.AuthService
-	config            *config.Config
+	productService  *product.Service
+	categoryService *category.Service
+	repos           *repository.Repositories
+	authService     *auth.AuthService
 }
 
 func NewProductImportHandler(
@@ -35,14 +33,12 @@ func NewProductImportHandler(
 	categoryService *category.Service,
 	repos *repository.Repositories,
 	authService *auth.AuthService,
-	cfg *config.Config,
 ) *ProductImportHandler {
 	return &ProductImportHandler{
 		productService:  productService,
 		categoryService: categoryService,
 		repos:           repos,
 		authService:     authService,
-		config:          cfg,
 	}
 }
 
@@ -67,8 +63,8 @@ func (h *ProductImportHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Authenticate via JWT.
-	claims, ok := auth.ClaimsFromRequest(r, h.config.JWT.Secret)
-	if !ok || claims == nil {
+	claims, err := h.authService.ClaimsFromRequest(r)
+	if err != nil {
 		http.Error(w, `{"error":"unauthenticated"}`, http.StatusUnauthorized)
 		return
 	}

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * Public self-order flow (docs/pos-self-order.md §8.1). Runs unauthenticated:
- * resolve table → menu → cart → submit (PENDING) → pay (PAID) → status.
+ * resolve table → menu → cart → submit → await cashier confirmation → status.
  */
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { selfOrderService } from '@/services/selforder';
@@ -17,12 +17,11 @@ const props = defineProps<{ tableToken?: string }>();
 const t = useLocaleStore().t;
 
 // ---- State ---------------------------------------------------------------
-type Stage = 'loading' | 'error' | 'menu' | 'paying' | 'processing' | 'success';
+type Stage = 'loading' | 'error' | 'menu' | 'status';
 
 const stage = ref<Stage>('loading');
 /** In-flight guards (button disabled states + labels). */
 const submitting = ref(false);
-const paying = ref(false);
 const errorMessage = ref('');
 const tableInfo = ref<{ code: string; name: string; store_name: string } | null>(null);
 const menu = ref<PublicMenu | null>(null);
@@ -42,14 +41,8 @@ const cart = ref<CartLine[]>([]);
 const customerName = ref('');
 const notes = ref('');
 
-const paymentMethod = ref('');
-const paymentReference = ref('');
 const order = ref<SelfOrder | null>(null);
 const orderError = ref('');
-
-const PAY_METHODS = ['EWALLET', 'CARD', 'BANK_TRANSFER', 'OTHER'] as const;
-const methodKey = (m: string) =>
-  ({ EWALLET: 'methodEwallet', CARD: 'methodCard', BANK_TRANSFER: 'methodBankTransfer', OTHER: 'methodOther' })[m] ?? 'methodOther';
 
 // ---- Computed ------------------------------------------------------------
 const subtotal = computed(() => cart.value.reduce((s, i) => s + i.unit_price * i.quantity, 0));
@@ -115,6 +108,8 @@ function resolveToken(): string {
 }
 
 async function boot() {
+  stopStatusPolling();
+  order.value = null;
   const token = resolveToken();
   if (!token) {
     stage.value = 'error';
@@ -157,7 +152,8 @@ async function submitOrder() {
       customer_name: customerName.value.trim() || undefined,
       notes: notes.value.trim() || undefined,
     });
-    stage.value = 'paying';
+    stage.value = 'status';
+    startStatusPolling();
   } catch (err: any) {
     const msg = String(err?.response?.data?.message ?? err?.message ?? '');
     orderError.value = /stok|stock/i.test(msg) ? t('selfOrder.orderTooLarge') : msg || t('selfOrder.orderFailed');
@@ -166,42 +162,20 @@ async function submitOrder() {
   }
 }
 
-async function payOrder() {
-  if (!paymentMethod.value) {
-    orderError.value = t('selfOrder.requireMethod');
-    return;
-  }
-  if (!order.value) {
-    orderError.value = t('selfOrder.submitRequired');
-    return;
-  }
-  orderError.value = '';
-  paying.value = true;
-  try {
-    order.value = await selfOrderService.payOrder({
-      order_token: order.value.order_token,
-      payment_method: paymentMethod.value,
-      reference: paymentReference.value.trim() || undefined,
-    });
-    stage.value = 'success';
-    startStatusPolling();
-  } catch (err: any) {
-    const msg = String(err?.response?.data?.message ?? err?.message ?? '');
-    orderError.value = msg || t('selfOrder.orderFailed');
-  } finally {
-    paying.value = false;
-  }
-}
-
-// ---- Status polling (after payment) ---------------------------------------
+// ---- Order status polling -------------------------------------------------
 let statusTimer: ReturnType<typeof setInterval> | null = null;
 
 function startStatusPolling() {
   stopStatusPolling();
   statusTimer = setInterval(async () => {
-    if (!order.value) return;
+    const token = order.value?.order_token;
+    if (!token || stage.value !== 'status') return;
     try {
-      order.value = await selfOrderService.getOrderStatus(order.value.order_token);
+      const latest = await selfOrderService.getOrderStatus(token);
+      if (order.value?.order_token === token && stage.value === 'status') {
+        order.value = latest;
+        if (latest.status === 'CANCELLED' || latest.status === 'REFUNDED') stopStatusPolling();
+      }
     } catch {
       // Keep last known status; polling continues.
     }
@@ -362,56 +336,18 @@ onUnmounted(stopStatusPolling);
     </div>
 
     <!-- Payment -->
-    <div v-else-if="stage === 'paying'" class="mx-auto max-w-md px-4 pt-8">
-      <div class="rounded-xl border bg-card p-5">
-        <h2 class="text-lg font-bold">{{ t('selfOrder.payNow') }}</h2>
-        <p class="mt-1 text-sm text-muted-foreground">{{ t('selfOrder.payDescription') }}</p>
-
-        <div class="mt-4 space-y-1 text-sm">
-          <div class="flex justify-between"><span class="text-muted-foreground">{{ t('admin.sales.invoice') }}</span><span class="tabular-nums">{{ order?.invoice_number }}</span></div>
-          <div class="flex justify-between"><span class="text-muted-foreground">{{ t('selfOrder.queueNumber') }}</span><span class="tabular-nums">{{ order?.invoice_number }}</span></div>
-          <div class="flex justify-between font-bold text-base"><span>{{ t('selfOrder.total') }}</span><span class="tabular-nums">{{ formatCurrency(order?.grand_total ?? 0) }}</span></div>
-        </div>
-
-        <div class="mt-4">
-          <p class="mb-2 text-sm font-medium">{{ t('selfOrder.paymentMethod') }}</p>
-          <div class="grid grid-cols-1 gap-2">
-            <button
-              v-for="m in PAY_METHODS"
-              :key="m"
-              type="button"
-              class="rounded-lg border px-3 py-2.5 text-left text-sm transition"
-              :class="paymentMethod === m ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border'"
-              @click="paymentMethod = m"
-            >
-              {{ t(`selfOrder.${methodKey(m)}`) }}
-            </button>
-          </div>
-          <Input
-            v-model="paymentReference"
-            class="mt-3 h-9"
-            :placeholder="t('selfOrder.paymentReferencePlaceholder')"
-          />
-        </div>
-
-        <p v-if="orderError" class="mt-3 text-xs text-destructive">{{ orderError }}</p>
-
-        <div class="mt-4 flex gap-2">
-          <Button variant="outline" class="flex-1" @click="stage = 'menu'">{{ t('admin.shared.cancel') }}</Button>
-          <Button class="flex-1" :disabled="paying" @click="payOrder">
-            {{ paying ? t('selfOrder.paying') : `${t('selfOrder.payNow')} ${formatCurrency(order?.grand_total ?? 0)}` }}
-          </Button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Success -->
-    <div v-else-if="stage === 'success' && order" class="mx-auto max-w-md px-4 pt-12 text-center">
-      <div class="rounded-full bg-green-100 text-green-700 mx-auto flex h-20 w-20 items-center justify-center text-4xl dark:bg-green-900/40 dark:text-green-300">
+    <div v-else-if="stage === 'status' && order" class="mx-auto max-w-md px-4 pt-12 text-center">
+      <div
+        v-if="order.status === 'PAID'"
+        class="rounded-full bg-green-100 text-green-700 mx-auto flex h-20 w-20 items-center justify-center dark:bg-green-900/40 dark:text-green-300"
+      >
         <Check class="h-10 w-10" aria-hidden="true" />
       </div>
-      <h2 class="mt-4 text-2xl font-bold">{{ t('selfOrder.paymentSuccess') }}</h2>
-      <p class="mt-1 text-sm text-muted-foreground">{{ t('selfOrder.paymentSuccessDesc') }}</p>
+      <h2 class="mt-4 text-2xl font-bold">
+        {{ t(order.status === 'PAID' ? 'selfOrder.paymentSuccess' : order.status === 'PENDING' ? 'selfOrder.awaitingPayment' : 'selfOrder.paymentClosed') }}
+      </h2>
+      <p v-if="order.status === 'PENDING'" class="mt-1 text-sm text-muted-foreground">{{ t('selfOrder.awaitingPaymentDesc') }}</p>
+      <p v-if="order.status === 'PAID'" class="mt-1 text-sm text-muted-foreground">{{ t('selfOrder.paymentSuccessDesc') }}</p>
 
       <div class="mt-5 space-y-1 rounded-xl border bg-card p-4 text-sm">
         <div class="flex justify-between">
@@ -424,7 +360,7 @@ onUnmounted(stopStatusPolling);
         </div>
         <div class="flex justify-between">
           <span class="text-muted-foreground">{{ t('selfOrder.orderStatus') }}</span>
-          <span class="font-medium">{{ t(orderStatusKey) }}</span>
+          <span class="font-medium">{{ t(order.status === 'CANCELLED' || order.status === 'REFUNDED' ? `admin.sales.status${order.status.charAt(0)}${order.status.slice(1).toLowerCase()}` : orderStatusKey) }}</span>
         </div>
       </div>
 

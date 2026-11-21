@@ -43,13 +43,10 @@ type SelfOrderServiceClient interface {
 	// belongs to. Never exposes cost price, raw stock levels or the qr_token.
 	GetPublicMenu(ctx context.Context, in *GetPublicMenuRequest, opts ...grpc.CallOption) (*GetPublicMenuResponse, error)
 	// CreatePublicOrder submits an order: creates a PENDING sale
-	// (order_source=SELF_ORDER) and locks stock in one DB transaction. No
-	// realtime event is published at this step (see PayPublicOrder).
+	// (order_source=SELF_ORDER) and reserves stock in one DB transaction.
 	CreatePublicOrder(ctx context.Context, in *CreatePublicOrderRequest, opts ...grpc.CallOption) (*OrderResponse, error)
-	// PayPublicOrder pays a submitted order (non-cash only). On success the
-	// sale becomes PAID, one sale.created realtime event is published (with
-	// order_source=SELF_ORDER + status=PAID) and inventory.adjusted is emitted
-	// so POS product browsers update stock in real time.
+	// PayPublicOrder is a legacy read-only check. It succeeds only after an
+	// authorized staff member has confirmed payment through PaymentService.
 	PayPublicOrder(ctx context.Context, in *PayPublicOrderRequest, opts ...grpc.CallOption) (*OrderResponse, error)
 	// GetOrderStatus returns the current status of the customer's order. Only
 	// reachable with the order_token of the order itself (no cross-tenant
@@ -132,13 +129,10 @@ type SelfOrderServiceServer interface {
 	// belongs to. Never exposes cost price, raw stock levels or the qr_token.
 	GetPublicMenu(context.Context, *GetPublicMenuRequest) (*GetPublicMenuResponse, error)
 	// CreatePublicOrder submits an order: creates a PENDING sale
-	// (order_source=SELF_ORDER) and locks stock in one DB transaction. No
-	// realtime event is published at this step (see PayPublicOrder).
+	// (order_source=SELF_ORDER) and reserves stock in one DB transaction.
 	CreatePublicOrder(context.Context, *CreatePublicOrderRequest) (*OrderResponse, error)
-	// PayPublicOrder pays a submitted order (non-cash only). On success the
-	// sale becomes PAID, one sale.created realtime event is published (with
-	// order_source=SELF_ORDER + status=PAID) and inventory.adjusted is emitted
-	// so POS product browsers update stock in real time.
+	// PayPublicOrder is a legacy read-only check. It succeeds only after an
+	// authorized staff member has confirmed payment through PaymentService.
 	PayPublicOrder(context.Context, *PayPublicOrderRequest) (*OrderResponse, error)
 	// GetOrderStatus returns the current status of the customer's order. Only
 	// reachable with the order_token of the order itself (no cross-tenant

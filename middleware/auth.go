@@ -47,16 +47,14 @@ func UnaryServerAuthInterceptor(authService *auth.AuthService) grpc.UnaryServerI
 		}
 
 		// Validate token
-		claims, err := authService.ValidateToken(token)
+		claims, err := authService.Authenticate(ctx, token)
 		if err != nil {
-		switch err {
-		case apperror.ErrTokenExpired:
-			return nil, status.Error(codes.Unauthenticated, "Token expired")
-		case apperror.ErrInvalidToken:
-			return nil, status.Error(codes.Unauthenticated, "Invalid token")
-		default:
-			return nil, status.Error(codes.Unauthenticated, "Unauthorized")
-		}
+			switch err {
+			case apperror.ErrTokenExpired, apperror.ErrInvalidToken:
+				return nil, status.Error(codes.Unauthenticated, "Invalid token")
+			default:
+				return nil, status.Error(codes.Unauthenticated, "Unauthorized")
+			}
 		}
 
 		// Add claims to context

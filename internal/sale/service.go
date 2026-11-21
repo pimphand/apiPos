@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"apiPos/internal/accounting"
 	"apiPos/internal/apperror"
@@ -514,17 +515,21 @@ func (s *Service) CancelSale(ctx context.Context, id, actorID, storeID string) e
 		return apperror.Wrap(apperror.ErrNotFound, "Sale not found", nil)
 	}
 
-	if sale.Status == StatusCancelled {
-		return apperror.Wrap(apperror.ErrInvalidRequest, "Sale is already cancelled", nil)
-	}
-	if sale.Status == StatusRefunded {
-		return apperror.Wrap(apperror.ErrInvalidRequest, "Cannot cancel a refunded sale", nil)
-	}
-
 	actorUUID, _ := uuid.Parse(actorID)
 
 	// Restore stock in a transaction
 	err = s.repos.DB().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("id = ? AND store_id = ?", sale.ID, sale.StoreID).First(sale).Error; err != nil {
+			return err
+		}
+		switch sale.Status {
+		case StatusCancelled:
+			return apperror.Wrap(apperror.ErrInvalidRequest, "Sale is already cancelled", nil)
+		case StatusRefunded:
+			return apperror.Wrap(apperror.ErrInvalidRequest, "Cannot cancel a refunded sale", nil)
+		}
+
 		// Get sale items
 		var items []gormdb.SaleItem
 		if err := tx.Where("sale_id = ?", sale.ID).Find(&items).Error; err != nil {

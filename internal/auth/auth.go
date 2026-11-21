@@ -6,15 +6,19 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 
 	"apiPos/internal/apperror"
 	"apiPos/internal/config"
+	gormdb "apiPos/internal/database/gorm"
 )
 
 // Claims represents JWT claims
@@ -35,15 +39,21 @@ type TokenPair struct {
 	ExpiresAt    time.Time `json:"expires_at"`
 }
 
-// AuthService handles authentication operations
+// UserLookup returns current account data for access-token validation.
+type UserLookup interface {
+	GetByID(context.Context, string) (*gormdb.User, error)
+}
+
+// AuthService handles authentication operations.
 type AuthService struct {
 	config  *config.Config
 	lockout *LoginLockout
+	users   UserLookup
 }
 
 // NewAuthService creates a new AuthService
-func NewAuthService(cfg *config.Config) *AuthService {
-	return &AuthService{config: cfg, lockout: NewLoginLockout()}
+func NewAuthService(cfg *config.Config, users UserLookup) *AuthService {
+	return &AuthService{config: cfg, lockout: NewLoginLockout(), users: users}
 }
 
 // CheckLoginLockout reports apperror.ErrTooManyAttempts while the username is
@@ -130,14 +140,10 @@ func (s *AuthService) generateAccessToken(userID, username, email, roleID, roleN
 // ValidateToken validates a JWT access token and returns claims
 func (s *AuthService) ValidateToken(tokenString string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
 		return []byte(s.config.JWT.Secret), nil
-	})
-
+	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}), jwt.WithExpirationRequired())
 	if err != nil {
-		if err.Error() == "token is expired" {
+		if errors.Is(err, jwt.ErrTokenExpired) {
 			return nil, apperror.ErrTokenExpired
 		}
 		return nil, apperror.ErrInvalidToken
@@ -166,19 +172,41 @@ func ClaimsFromContext(ctx context.Context) (*Claims, bool) {
 	return claims, ok
 }
 
-// ClaimsFromRequest extracts JWT claims from an HTTP request's Authorization header.
-func ClaimsFromRequest(r *http.Request, secret string) (*Claims, bool) {
-	hdr := r.Header.Get("Authorization")
-	if len(hdr) < 8 || hdr[:7] != "Bearer " {
-		return nil, false
+// Authenticate checks that the account and authorization in a signed token are still current.
+func (s *AuthService) Authenticate(ctx context.Context, token string) (*Claims, error) {
+	claims, err := s.ValidateToken(token)
+	if err != nil {
+		return nil, err
 	}
-	tokenStr := hdr[7:]
-	token, err := jwt.ParseWithClaims(tokenStr, &Claims{}, func(t *jwt.Token) (interface{}, error) {
-		return []byte(secret), nil
-	})
-	if err != nil || !token.Valid {
-		return nil, false
+	user, err := s.users.GetByID(ctx, claims.UserID)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, apperror.ErrInvalidToken
 	}
-	claims, ok := token.Claims.(*Claims)
-	return claims, ok
+	if err != nil {
+		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to validate account", err)
+	}
+	if !user.IsActive || user.RoleID.String() != claims.RoleID ||
+		user.Role.Name != claims.RoleName || user.StoreID.String() != claims.StoreID {
+		return nil, apperror.ErrInvalidToken
+	}
+	return claims, nil
+}
+
+func (s *AuthService) ClaimsFromRequest(r *http.Request) (*Claims, error) {
+	scheme, token, ok := strings.Cut(r.Header.Get("Authorization"), " ")
+	if !ok || !strings.EqualFold(scheme, "Bearer") || token == "" {
+		return nil, apperror.ErrInvalidToken
+	}
+	return s.Authenticate(r.Context(), token)
+}
+
+func RequireSuperadmin(ctx context.Context) error {
+	claims, ok := ClaimsFromContext(ctx)
+	if !ok || claims == nil {
+		return apperror.ErrUnauthorized
+	}
+	if claims.RoleName != "superadmin" {
+		return apperror.ErrForbidden
+	}
+	return nil
 }

@@ -9,6 +9,7 @@ import (
 	"gorm.io/gorm"
 
 	"apiPos/internal/apperror"
+	"apiPos/internal/auth"
 	gormdb "apiPos/internal/database/gorm"
 	"apiPos/internal/repository"
 )
@@ -25,12 +26,9 @@ func NewService(repos *repository.Repositories) *Service {
 
 // CreateRole creates a new role
 func (s *Service) CreateRole(ctx context.Context, name, description string) (*gormdb.Role, error) {
-	// Check if role with same name exists
-	_, err := s.repos.Role.GetByID(ctx, "")
-	if err == nil {
-		// Check by name - list and search
+	if err := auth.RequireSuperadmin(ctx); err != nil {
+		return nil, err
 	}
-
 	// Check by listing roles
 	roles, err := s.repos.Role.List(ctx)
 	if err != nil {
@@ -105,6 +103,9 @@ func (s *Service) ListRoles(ctx context.Context, page, perPage int32) ([]gormdb.
 
 // UpdateRole updates a role
 func (s *Service) UpdateRole(ctx context.Context, idStr, name, description string) (*gormdb.Role, error) {
+	if err := auth.RequireSuperadmin(ctx); err != nil {
+		return nil, err
+	}
 	if !isValidUUID(idStr) {
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Invalid role ID format", fmt.Errorf("id: %s", idStr))
 	}
@@ -117,7 +118,10 @@ func (s *Service) UpdateRole(ctx context.Context, idStr, name, description strin
 		return nil, apperror.Wrap(apperror.ErrInternal, "Failed to get role", err)
 	}
 
-	if name != "" {
+	if name != "" && name != role.Name {
+		if isDefault(role.Name) {
+			return nil, apperror.Wrap(apperror.ErrFailedPrecondition, "Cannot rename default role", nil)
+		}
 		role.Name = name
 	}
 	if description != "" {
@@ -133,6 +137,9 @@ func (s *Service) UpdateRole(ctx context.Context, idStr, name, description strin
 
 // DeleteRole deletes a role
 func (s *Service) DeleteRole(ctx context.Context, idStr string) error {
+	if err := auth.RequireSuperadmin(ctx); err != nil {
+		return err
+	}
 	if !isValidUUID(idStr) {
 		return apperror.Wrap(apperror.ErrInvalidRequest, "Invalid role ID format", fmt.Errorf("id: %s", idStr))
 	}
@@ -146,7 +153,7 @@ func (s *Service) DeleteRole(ctx context.Context, idStr string) error {
 	}
 
 	// Prevent deleting default roles (superadmin is the system role)
-	if role.Name == "superadmin" || role.Name == "admin" || role.Name == "manager" || role.Name == "cashier" {
+	if isDefault(role.Name) {
 		return apperror.Wrap(apperror.ErrFailedPrecondition, "Cannot delete default role", nil)
 	}
 
@@ -173,6 +180,9 @@ func (s *Service) GetRolePermissions(ctx context.Context, roleID string) ([]gorm
 
 // AssignPermissions assigns permissions to a role
 func (s *Service) AssignPermissions(ctx context.Context, roleID string, permissionIDs []string) ([]gormdb.Permission, error) {
+	if err := auth.RequireSuperadmin(ctx); err != nil {
+		return nil, err
+	}
 	if !isValidUUID(roleID) {
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Invalid role ID format", fmt.Errorf("role_id: %s", roleID))
 	}
@@ -211,6 +221,9 @@ func (s *Service) AssignPermissions(ctx context.Context, roleID string, permissi
 
 // RemovePermission removes a permission from a role
 func (s *Service) RemovePermission(ctx context.Context, roleID, permissionID string) error {
+	if err := auth.RequireSuperadmin(ctx); err != nil {
+		return err
+	}
 	if !isValidUUID(roleID) {
 		return apperror.Wrap(apperror.ErrInvalidRequest, "Invalid role ID format", fmt.Errorf("role_id: %s", roleID))
 	}
@@ -219,6 +232,15 @@ func (s *Service) RemovePermission(ctx context.Context, roleID, permissionID str
 	}
 
 	return s.repos.RolePermission.RemovePermission(ctx, roleID, permissionID)
+}
+
+func isDefault(name string) bool {
+	switch name {
+	case "superadmin", "admin", "manager", "cashier":
+		return true
+	default:
+		return false
+	}
 }
 
 // isValidUUID validates UUID format

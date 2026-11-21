@@ -2,15 +2,15 @@
 
 > Dokumen spesifikasi & panduan implementasi fitur **self order dine-in**:
 > pelanggan memesan langsung dari mejanya dengan **scan QR yang ditempel di
-> meja**, membayar sendiri, dan pesanan (yang sudah lunas) otomatis masuk ke
-> kasir dengan **notifikasi suara** di POS.
+> meja** dan membayar di kasir. Setelah kasir mengonfirmasi pembayaran, POS
+> menampilkan pesanan dengan **notifikasi suara**.
 >
 > **Keputusan desain (disepakati):**
 > - **Khusus dine-in** — tidak ada take-away / kiosk di lokasi.
 > - **QR per meja** — ditempel di setiap meja; meja adalah entitas data yang
 >   **unik per tenant** dan **tidak bisa diakses lintas tenant**.
-> - **Bayar langsung oleh pelanggan** — pesanan hanya masuk ke kasir **jika
->   pembayaran sukses** (sale berstatus `PAID`).
+> - **Konfirmasi pembayaran oleh kasir** — POS mengirim notifikasi setelah
+>   pembayaran terverifikasi (sale berstatus `PAID`).
 > - **Notifikasi suara di POS** ketika ada orderan self order baru.
 >
 > Dokumen ini mengikuti pola `docs/pos-order-channel.md` dan mengacu pada kode
@@ -49,7 +49,7 @@ Tujuan utama:
 | D9 | **Menu publik hanya data aman** | Tanpa cost price, stok detail (cukup flag tersedia), data internal; token meja/store tidak pernah tampil di log/UI. |
 | D10 | **Manajemen meja di halaman admin (per store)** | Admin/manager CRUD meja + cetak QR; hanya meja store-nya sendiri (selalu difilter `store_id`). |
 | D11 | **Sale self-order tanpa kasir → `cashier_id`/`created_by` nullable** | Tidak ada user di meja; `sales.cashier_id` & `inventory_transactions.created_by` dibuat nullable (NULL = aksi pelanggan), mengikuti pola `activity_logs.user_id`. |
-| D12 | **Satu event `sale.created` hanya saat PAID** | Submit (PENDING) tidak memicu event/notifikasi apa pun; satu event `sale.created` (dengan `status=PAID`) dipublish hanya setelah pembayaran sukses → kasir tidak pernah melihat orderan belum lunas. |
+| D12 | **Satu event `sale.created` hanya saat PAID** | Submit (PENDING) tidak memicu event/notifikasi apa pun; satu event `sale.created` (dengan `status=PAID`) dipublish hanya setelah pembayaran sukses → kasir dapat membuka transaksi PENDING dari halaman Penjualan untuk konfirmasi. |
 | D13 | **Rate limit per IP pada endpoint publik (interceptor in-process)** | Interceptor gRPC per-IP (sliding window, mis. 10 submit + 60 pay/menit) dipasang hanya pada service `selforder.v1.*`; cukup untuk single-instance MVP, ganti ke store bersama (Redis) bila multi-instance. |
 | D14 | **Self-order tidak tercatat di shift kasir** | Tanpa cashier → `sales.shift_id` NULL & tanpa baris `shift_items`; revenue self-order (selalu non-tunai) tidak ikut hitung shift, tetap muncul di laporan sales per store. |
 
@@ -66,7 +66,7 @@ Pilih item & varian → nama (opsional) + catatan (opsional) → Submit
         ↓
 POST /api/v1/public/orders            → Sale dibuat PENDING + order_token
         ↓
-POST /api/v1/public/orders/:order_token/pay   (QRIS/EWALLET/CARD/BANK_TRANSFER)
+Kasir verifikasi dana dan mencatatnya dari Penjualan (POST /api/v1/payments)
         ↓
 Jika PAYMENT SUKSES → sale.status = PAID (+ baris payment)  [satu transaksi DB]
         ↓        Publish realtime sale.created (order_source=SELF_ORDER, status=PAID, invoice, table)
@@ -245,17 +245,12 @@ Semua method tersebut juga lewat interceptor rate limit per IP (§5 poin 5).
   5. **tidak publish event realtime apa pun** saat submit (D12) — kasir/dapur
      hanya bereaksi pada event saat `PAID`;
   6. activity log CREATE sales (user_id NULL — aksi pelanggan).
-- `PayPublicOrder(ctx, orderToken, paymentMethod, reference)`:
-  1. ambil sale by `order_token` (wajib `order_source=SELF_ORDER`,
-     `status=PENDING`, belum kadaluarsa);
-  2. metode **non-tunai** saja (`CARD`, `BANK_TRANSFER`, `EWALLET`, `OTHER`);
-     CASH ditolak `INVALID_ARGUMENT`;
-  3. validasi `amount == grand_total` (pembayaran kurang → `FAILED_PRECONDITION`);
-  4. **satu transaksi DB**: buat Payment + `status=PAID` + isi snapshot
-     `table_no`; publish **satu** event `sale.created` (kasir & dapur) dengan
-     `data = {order_source: "SELF_ORDER", status: "PAID", invoice_number,
-     table_no}`;
-  5. activity log.
+- `PayPublicOrder(ctx, orderToken, paymentMethod)` — endpoint lama khusus baca. Mengembalikan
+  sukses setelah kasir mengonfirmasi pembayaran.
+- Kasir dengan izin `payments.create` menggunakan `POST /api/v1/payments`.
+  Service mengunci transaksi dalam scope toko dan mencatat pembayaran non-tunai
+  penuh, status `PAID`, serta jurnal dalam satu transaksi. Event `sale.created`
+  dipublikasikan sesudah commit.
 - `CancelExpiredPending(ctx)` — job berkala membatalkan order PENDING > N menit
   (mis. 15) dan mengembalikan stok via alur cancel yang ada; `created_by`
   transaksi RETURN = NULL (aksi sistem), tanpa baris `shift_items` (D14).
@@ -287,15 +282,14 @@ service SelfOrderService {
   rpc ResolveTable(ResolveTableRequest) returns (TableResponse);          // GET public/table
   rpc GetPublicMenu(GetPublicMenuRequest) returns (GetPublicMenuResponse);
   rpc CreatePublicOrder(CreatePublicOrderRequest) returns (OrderResponse); // PENDING
-  rpc PayPublicOrder(PayPublicOrderRequest) returns (OrderResponse);       // -> PAID
+  rpc PayPublicOrder(PayPublicOrderRequest) returns (OrderResponse);       // cek status pembayaran lama
   rpc GetOrderStatus(GetOrderStatusRequest) returns (OrderResponse);
 }
 ```
 
 `CreatePublicOrderRequest`: `table_token`, `items[]` (product_id,
 product_sku_id, quantity), `customer_name`, `notes`.
-`PayPublicOrderRequest`: `order_token`, `payment_method`, `reference` (mis.
-ID transaksi QRIS).
+`PayPublicOrderRequest` menggunakan `order_token` dan memvalidasi `payment_method`. Field `reference` diabaikan.
 
 ## 7. Manajemen meja (admin, per store)
 
@@ -320,10 +314,9 @@ ID transaksi QRIS).
   dikembalikan backend memakai bentuk query (`/o?table=...`) agar bekerja di
   hosting statis (nginx fallback + rule `location /o/`).
 - Alur: resolve meja → header "Meja {table_no}" → menu dine-in → keranjang →
-  nama (opsional) + catatan (opsional) → **Submit** → halaman pembayaran →
-  pilih metode (QRIS/EWALLET/CARD/BANK_TRANSFER) → **Bayar** → sukses:
-  layar "Pesanan Dibayar ✓ No. {invoice}" + status (via realtime/polling
-  `GET public/orders/:order_token`).
+  nama dan catatan opsional → **Submit** → tunjukkan nomor pesanan ke kasir.
+  Halaman memantau status dengan `GET public/orders/:order_token` dan
+  menampilkan konfirmasi setelah kasir mencatat pembayaran.
 - Tidak ada login; tidak menampilkan stok detail/harga modal.
 
 ### 8.2 POS kasir — notifikasi suara
@@ -362,8 +355,8 @@ Grup `selfOrder` + `tables` di `fe/src/i18n/en.ts` dan `id.ts` (pola sama):
 
 - `CreatePublicOrder`: valid checkout, item invalid, SKU nonaktif, stok kurang,
   qty ≤ 0, tax benar, token meja salah, store nonaktif/self order off.
-- `PayPublicOrder`: sukses (PAID + payment), metode CASH ditolak, pembayaran
-  kurang, order sudah PAID, order bukan SELF_ORDER.
+- Konfirmasi pembayaran: endpoint publik tidak mengubah status, akun dari toko
+  lain ditolak, dan pengulangan konfirmasi tidak membuat pembayaran kedua.
 - **Isolasi tenant**: token meja store A → tidak bisa submit/lihat menu store B;
   resolusi server-side mengabaikan input klien.
 - Atomicity: kegagalan di tengah submit → sale/items/stok/inventory rollback.

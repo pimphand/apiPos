@@ -42,10 +42,10 @@ const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'accounting.read', 'accounting.post', 'accounting.close',
   ],
   admin: [
-    // Full access to everything
+    // Store administration
     'users.create', 'users.read', 'users.update', 'users.delete',
-    'roles.create', 'roles.read', 'roles.update', 'roles.delete', 'roles.assign',
-    'permissions.create', 'permissions.read', 'permissions.update', 'permissions.delete', 'permissions.assign',
+    'roles.read',
+    'permissions.read',
     'categories.create', 'categories.read', 'categories.update', 'categories.delete',
     'products.create', 'products.read', 'products.update', 'products.delete',
     'inventory.read', 'inventory.adjust',
@@ -91,6 +91,9 @@ const ROLE_PERMISSIONS: Record<string, Permission[]> = {
  */
 export function can(user: User | null, permission: Permission): boolean {
   if (!user) return false;
+  if (user.role_name === 'superadmin') return true;
+  const [resource, action] = permission.split('.');
+  if ((resource === 'roles' || resource === 'permissions') && action !== 'read') return false;
 
   // 1. Use the dynamic permissions array when present.
   //    An explicit empty array [] means the role has NO permissions —

@@ -62,6 +62,10 @@ func (s *Service) CreateUser(ctx context.Context, username, email, password, ful
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Invalid role_id format", fmt.Errorf("role_id: %s", roleIDStr))
 	}
 
+	if err := s.authorizeRoleAssignment(ctx, roleUUID); err != nil {
+		return nil, err
+	}
+
 	// Parse store_id - optional
 	storeUUID := parseUUID(storeIDStr)
 
@@ -80,6 +84,28 @@ func (s *Service) CreateUser(ctx context.Context, username, email, password, ful
 	}
 
 	return user, nil
+}
+
+// authorizeRoleAssignment keeps system privileges out of tenant user management.
+func (s *Service) authorizeRoleAssignment(ctx context.Context, roleID string) error {
+	role, err := s.repos.Role.GetByID(ctx, roleID)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return apperror.Wrap(apperror.ErrInvalidRequest, "Invalid role reference", nil)
+	}
+	if err != nil {
+		return apperror.Wrap(apperror.ErrInternal, "Failed to load role", err)
+	}
+	if role.Name == "superadmin" {
+		return auth.RequireSuperadmin(ctx)
+	}
+	return nil
+}
+
+func authorizeUserChange(ctx context.Context, target *gormdb.User) error {
+	if target.Role.Name == "superadmin" {
+		return auth.RequireSuperadmin(ctx)
+	}
+	return nil
 }
 
 // RolePermissionNames returns the permission names granted to a role. Used by
@@ -197,6 +223,9 @@ func (s *Service) UpdateUser(ctx context.Context, idStr, email, fullName, roleID
 	if !userBelongsToStore(existing, storeIDStr) {
 		return nil, apperror.ErrUserNotFound
 	}
+	if err := authorizeUserChange(ctx, existing); err != nil {
+		return nil, err
+	}
 
 	// Build a map of fields to update so we only touch columns that were
 	// explicitly provided, avoiding zero-value overwrites (especially StoreID
@@ -209,7 +238,14 @@ func (s *Service) UpdateUser(ctx context.Context, idStr, email, fullName, roleID
 		updates["full_name"] = fullName
 	}
 	if roleIDStr != "" {
-		updates["role_id"] = parseUUIDToUUID(roleIDStr)
+		roleID := parseUUID(roleIDStr)
+		if roleID == "" {
+			return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Invalid role reference", nil)
+		}
+		if err := s.authorizeRoleAssignment(ctx, roleID); err != nil {
+			return nil, err
+		}
+		updates["role_id"] = parseUUIDToUUID(roleID)
 	}
 	if storeIDStr != "" {
 		updates["store_id"] = parseUUIDToUUID(storeIDStr)
@@ -240,6 +276,9 @@ func (s *Service) DeleteUser(ctx context.Context, idStr, storeID string) error {
 	if !userBelongsToStore(existing, storeID) {
 		return apperror.ErrUserNotFound
 	}
+	if err := authorizeUserChange(ctx, existing); err != nil {
+		return err
+	}
 
 	return s.repos.User.Delete(ctx, idStr)
 }
@@ -259,6 +298,9 @@ func (s *Service) ToggleUserActive(ctx context.Context, idStr string, isActive b
 	}
 	if !userBelongsToStore(existing, storeID) {
 		return nil, apperror.ErrUserNotFound
+	}
+	if err := authorizeUserChange(ctx, existing); err != nil {
+		return nil, err
 	}
 
 	if err := s.repos.User.UpdateFields(ctx, idStr, map[string]interface{}{
@@ -291,6 +333,13 @@ func (s *Service) UpdateUserRole(ctx context.Context, idStr, roleIDStr, storeID 
 	}
 	if !userBelongsToStore(existing, storeID) {
 		return nil, apperror.ErrUserNotFound
+	}
+	if err := authorizeUserChange(ctx, existing); err != nil {
+		return nil, err
+	}
+
+	if err := s.authorizeRoleAssignment(ctx, roleIDStr); err != nil {
+		return nil, err
 	}
 
 	// Use targeted update to avoid foreign-key issues with Store relation

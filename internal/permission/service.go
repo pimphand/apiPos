@@ -26,6 +26,9 @@ func NewService(repos *repository.Repositories) *Service {
 
 // CreatePermission creates a new permission
 func (s *Service) CreatePermission(ctx context.Context, name, resource, action, description string) (*gormdb.Permission, error) {
+	if err := auth.RequireSuperadmin(ctx); err != nil {
+		return nil, err
+	}
 	// Check if permission with same name exists
 	_, err := s.repos.Permission.GetByName(ctx, name)
 	if err == nil {
@@ -128,6 +131,9 @@ func (s *Service) ListPermissionsByResource(ctx context.Context, resource string
 
 // UpdatePermission updates a permission
 func (s *Service) UpdatePermission(ctx context.Context, idStr, name, resource, action, description string) (*gormdb.Permission, error) {
+	if err := auth.RequireSuperadmin(ctx); err != nil {
+		return nil, err
+	}
 	if !isValidUUID(idStr) {
 		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Invalid permission ID format", fmt.Errorf("id: %s", idStr))
 	}
@@ -162,6 +168,9 @@ func (s *Service) UpdatePermission(ctx context.Context, idStr, name, resource, a
 
 // DeletePermission deletes a permission
 func (s *Service) DeletePermission(ctx context.Context, idStr string) error {
+	if err := auth.RequireSuperadmin(ctx); err != nil {
+		return err
+	}
 	if !isValidUUID(idStr) {
 		return apperror.Wrap(apperror.ErrInvalidRequest, "Invalid permission ID format", fmt.Errorf("id: %s", idStr))
 	}

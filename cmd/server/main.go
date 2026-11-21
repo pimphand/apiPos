@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"apiPos/internal/auth"
 	"apiPos/internal/config"
 	gormdb "apiPos/internal/database/gorm"
 	"apiPos/internal/server"
@@ -37,6 +39,10 @@ func main() {
 		SSLMode:  cfg.DB.SSLMode,
 	})
 	defer db.Close()
+
+	if err := auth.BootstrapSuperadmin(context.Background(), db.GetDB(), os.Getenv("BOOTSTRAP_SUPERADMIN_USERNAME"), os.Getenv("BOOTSTRAP_SUPERADMIN_EMAIL"), os.Getenv("BOOTSTRAP_SUPERADMIN_PASSWORD")); err != nil {
+		log.Fatalf("Superadmin bootstrap failed: %v", err)
+	}
 
 	// Create and start gRPC server
 	srv := server.New(cfg, db)

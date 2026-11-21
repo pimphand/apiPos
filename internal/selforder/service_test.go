@@ -11,24 +11,24 @@ import (
 
 func TestValidatePaymentMethod(t *testing.T) {
 	t.Run("cash rejected", func(t *testing.T) {
-		err := validatePaymentMethod("CASH")
+		err := ValidatePaymentMethod("CASH")
 		assert.Error(t, err)
 		assert.Equal(t, codes.InvalidArgument, apperror.MapError(err).GRPCStatus().Code())
 	})
 
 	t.Run("empty rejected", func(t *testing.T) {
-		err := validatePaymentMethod("")
+		err := ValidatePaymentMethod("")
 		assert.Error(t, err)
 	})
 
 	t.Run("unknown rejected", func(t *testing.T) {
-		err := validatePaymentMethod("BITCOIN")
+		err := ValidatePaymentMethod("BITCOIN")
 		assert.Error(t, err)
 	})
 
 	t.Run("non-cash accepted", func(t *testing.T) {
 		for _, m := range []string{"CARD", "BANK_TRANSFER", "EWALLET", "OTHER"} {
-			assert.NoError(t, validatePaymentMethod(m), "method %s must be accepted", m)
+			assert.NoError(t, ValidatePaymentMethod(m), "method %s must be accepted", m)
 		}
 	})
 }

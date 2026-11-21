@@ -59,7 +59,7 @@ const filteredTotal = computed(() => total.value);
 async function loadRoles() {
   try {
     const res = await roleService.list({ page: 1, per_page: 100 });
-    roles.value = res.roles.map((r) => ({ id: r.id, name: r.name }));
+    roles.value = res.roles.filter((r) => r.name !== 'superadmin' || authStore.currentUser?.role_name === 'superadmin').map((r) => ({ id: r.id, name: r.name }));
   } catch {
     roles.value = [];
   }

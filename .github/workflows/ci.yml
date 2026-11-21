@@ -24,8 +24,20 @@ concurrency:
 
 jobs:
   backend:
-    name: backend unit tests (go)
+    name: backend tests (go and PostgreSQL)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: pos_ci_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
 
@@ -37,7 +49,9 @@ jobs:
       # cmd/swagger cannot compile in a clean checkout: its //go:embed
       # swagger-ui/* matches no committed files. That is a pre-existing gap, so
       # the packages are named explicitly instead of using ./...
-      - name: Unit tests
+      - name: Unit and integration tests
+        env:
+          TEST_DATABASE_DSN: postgres://postgres:pos_ci_test@127.0.0.1:5432/postgres?sslmode=disable
         run: go test -count=1 ./internal/... ./middleware/... ./pkg/... ./cmd/server/...
 
   frontend:
@@ -58,5 +72,11 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
+      - name: Typecheck
+        run: npm run typecheck
+
       - name: Unit tests
         run: npm test -- --run
+
+      - name: Audit frontend production dependencies
+        run: npm audit --omit=dev --audit-level=high

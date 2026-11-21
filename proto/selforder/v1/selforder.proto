@@ -29,8 +29,7 @@ service SelfOrderService {
   }
 
   // CreatePublicOrder submits an order: creates a PENDING sale
-  // (order_source=SELF_ORDER) and locks stock in one DB transaction. No
-  // realtime event is published at this step (see PayPublicOrder).
+  // (order_source=SELF_ORDER) and reserves stock in one DB transaction.
   rpc CreatePublicOrder(CreatePublicOrderRequest) returns (OrderResponse) {
     option (google.api.http) = {
       post: "/api/v1/public/orders"
@@ -38,10 +37,8 @@ service SelfOrderService {
     };
   }
 
-  // PayPublicOrder pays a submitted order (non-cash only). On success the
-  // sale becomes PAID, one sale.created realtime event is published (with
-  // order_source=SELF_ORDER + status=PAID) and inventory.adjusted is emitted
-  // so POS product browsers update stock in real time.
+  // PayPublicOrder is a legacy read-only check. It succeeds only after an
+  // authorized staff member has confirmed payment through PaymentService.
   rpc PayPublicOrder(PayPublicOrderRequest) returns (OrderResponse) {
     option (google.api.http) = {
       post: "/api/v1/public/orders/{order_token}/pay"
@@ -132,7 +129,7 @@ message PayPublicOrderRequest {
   string order_token = 1;
   // One of CARD, BANK_TRANSFER, EWALLET, OTHER. CASH is rejected.
   string payment_method = 2;
-  // Payment gateway reference (e.g. QRIS transaction id). Optional.
+  // Legacy field. Ignored.
   string reference = 3;
 }
 

@@ -3418,7 +3418,7 @@
     },
     "/api/v1/public/orders": {
       "post": {
-        "summary": "CreatePublicOrder submits an order: creates a PENDING sale\n(order_source=SELF_ORDER) and locks stock in one DB transaction. No\nrealtime event is published at this step (see PayPublicOrder).",
+        "summary": "CreatePublicOrder submits an order: creates a PENDING sale\n(order_source=SELF_ORDER) and reserves stock in one DB transaction.",
         "operationId": "SelfOrderService_CreatePublicOrder",
         "responses": {
           "200": {
@@ -3482,7 +3482,7 @@
     },
     "/api/v1/public/orders/{orderToken}/pay": {
       "post": {
-        "summary": "PayPublicOrder pays a submitted order (non-cash only). On success the\nsale becomes PAID, one sale.created realtime event is published (with\norder_source=SELF_ORDER + status=PAID) and inventory.adjusted is emitted\nso POS product browsers update stock in real time.",
+        "summary": "PayPublicOrder is a legacy read-only check. It succeeds only after an\nauthorized staff member has confirmed payment through PaymentService.",
         "operationId": "SelfOrderService_PayPublicOrder",
         "responses": {
           "200": {
@@ -5446,7 +5446,7 @@
         },
         "reference": {
           "type": "string",
-          "description": "Payment gateway reference (e.g. QRIS transaction id). Optional."
+          "description": "Legacy field. Ignored."
         }
       }
     },
