@@ -5,6 +5,7 @@ import (
 
 	salev1 "apiPos/gen/sale/v1"
 	"github.com/google/uuid"
+	"google.golang.org/grpc/metadata"
 
 	"apiPos/internal/apperror"
 	gormdb "apiPos/internal/database/gorm"
@@ -51,6 +52,8 @@ func (h *SaleHandler) CreateSale(ctx context.Context, req *salev1.CreateSaleRequ
 		CustomerID:       req.CustomerId,
 		CustomerName:     req.CustomerName,
 		Notes:            req.Notes,
+		CheckoutID:       incomingSaleHeader(ctx, "idempotency-key"),
+		ExpectedShiftID:  incomingSaleHeader(ctx, "x-cashier-shift-id"),
 		Items:            items,
 		Discount:         req.Discount,
 		TaxRate:          req.TaxRate,
@@ -63,12 +66,22 @@ func (h *SaleHandler) CreateSale(ctx context.Context, req *salev1.CreateSaleRequ
 		return nil, apperror.MapError(err).GRPCStatus().Err()
 	}
 
-	h.logs.Log(ctx, "CREATE", "sales", detail.Sale.ID.String(),
-		`{"invoice_number":"`+detail.Sale.InvoiceNumber+`","grand_total":`+float64Str(detail.Sale.GrandTotal)+`}`)
+	if !detail.Replayed {
+		h.logs.Log(ctx, "CREATE", "sales", detail.Sale.ID.String(),
+			`{"invoice_number":"`+detail.Sale.InvoiceNumber+`","grand_total":`+float64Str(detail.Sale.GrandTotal)+`}`)
+	}
 
 	return &salev1.SaleResponse{
 		Sale: toProtoSale(&detail.Sale, h.repos),
 	}, nil
+}
+
+func incomingSaleHeader(ctx context.Context, key string) string {
+	values := metadata.ValueFromIncomingContext(ctx, key)
+	if len(values) == 0 {
+		return ""
+	}
+	return values[0]
 }
 
 // GetSale gets a sale by ID with items

@@ -209,6 +209,7 @@ type Sale struct {
 	TableNo       string     `gorm:"type:varchar(20)" json:"table_no"`
 	OrderToken    *uuid.UUID `gorm:"type:uuid;uniqueIndex" json:"order_token"`
 	Notes         *string    `gorm:"type:text" json:"notes"`
+	CheckoutID    *uuid.UUID `gorm:"type:uuid" json:"-"`
 	ShiftID       *uuid.UUID `gorm:"type:uuid;index:idx_sales_shift_id" json:"shift_id"`
 	CreatedAt     time.Time  `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt     time.Time  `gorm:"autoUpdateTime" json:"updated_at"`

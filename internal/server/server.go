@@ -252,7 +252,7 @@ func (s *Server) startHTTP() error {
 		// spoofed by the client.
 		runtime.WithIncomingHeaderMatcher(func(key string) (string, bool) {
 			switch strings.ToLower(key) {
-			case "x-forwarded-for", "x-real-ip":
+			case "x-forwarded-for", "x-real-ip", "idempotency-key", "x-cashier-shift-id":
 				return key, true
 			}
 			return runtime.DefaultHeaderMatcher(key)
@@ -507,7 +507,7 @@ func enableCORS(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type, X-Requested-With")
+		w.Header().Set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type, X-Requested-With, Idempotency-Key, X-Cashier-Shift-Id")
 		w.Header().Set("Access-Control-Max-Age", "86400")
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)

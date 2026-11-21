@@ -59,6 +59,8 @@ type CreateSaleRequest struct {
 	AmountPaid       float64
 	PaymentReference string
 	CreatedBy        string
+	CheckoutID       string
+	ExpectedShiftID  string
 }
 
 // SaleItemInput represents an item in the sale
@@ -77,6 +79,7 @@ type SaleDetail struct {
 	Payments   []gormdb.Payment
 	AmountPaid float64
 	Change     float64
+	Replayed   bool
 }
 
 // PaginationResult holds pagination metadata
@@ -107,6 +110,14 @@ func (s *Service) CreateSale(ctx context.Context, req CreateSaleRequest) (*SaleD
 
 	storeID, _ := uuid.Parse(req.StoreID)
 	cashierID, _ := uuid.Parse(req.CreatedBy)
+	checkoutID, err := parseOptionalCheckoutUUID(req.CheckoutID)
+	if err != nil {
+		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Invalid idempotency key", nil)
+	}
+	expectedShiftID, err := parseOptionalCheckoutUUID(req.ExpectedShiftID)
+	if err != nil {
+		return nil, apperror.Wrap(apperror.ErrInvalidRequest, "Invalid cashier shift ID", nil)
+	}
 
 	// Calculate totals (subtotal, discount, tax, grand total).
 	subtotal, discount, taxAmount, grandTotal := computeSaleTotals(req.Items, req.Discount, req.TaxRate)
@@ -121,14 +132,38 @@ func (s *Service) CreateSale(ctx context.Context, req CreateSaleRequest) (*SaleD
 
 	// Execute checkout in a database transaction
 	var saleDetail SaleDetail
+	var replay *gormdb.Sale
 
-	err := s.repos.DB().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err = s.repos.DB().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if checkoutID != nil {
+			// Serialize retries before checking the current shift or mutating stock.
+			key := storeID.String() + ":" + cashierID.String() + ":" + checkoutID.String()
+			if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))", key).Error; err != nil {
+				return apperror.Wrap(apperror.ErrInternal, "Failed to lock checkout", err)
+			}
+			var existing gormdb.Sale
+			err := tx.Where("store_id = ? AND cashier_id = ? AND checkout_id = ?", storeID, cashierID, checkoutID).Take(&existing).Error
+			if err == nil {
+				if expectedShiftID != nil && (existing.ShiftID == nil || *existing.ShiftID != *expectedShiftID) {
+					return apperror.Wrap(apperror.ErrShiftNotOpen, "Checkout belongs to a different shift", nil)
+				}
+				replay = &existing
+				return nil
+			}
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return apperror.Wrap(apperror.ErrInternal, "Failed to look up checkout", err)
+			}
+		}
 		// B5: a shift-capable cashier (role with cashier.* permissions) can only
 		// check out while they have an OPEN shift. The sale is linked to that
 		// shift so reconciliation later uses real relations, not a time window.
 		shiftID, err := s.openShiftForSale(ctx, tx, cashierID, storeID)
 		if err != nil {
 			return err
+		}
+
+		if expectedShiftID != nil && (shiftID == nil || *shiftID != *expectedShiftID) {
+			return apperror.Wrap(apperror.ErrShiftNotOpen, "Original cashier shift is no longer open", nil)
 		}
 
 		// Resolve customer: explicit ID, or find-or-create by typed name.
@@ -146,6 +181,7 @@ func (s *Service) CreateSale(ctx context.Context, req CreateSaleRequest) (*SaleD
 			GrandTotal:    grandTotal,
 			Status:        StatusPending,
 			ShiftID:       shiftID,
+			CheckoutID:    checkoutID,
 		}
 		if n := strings.TrimSpace(req.Notes); n != "" {
 			sale.Notes = &n
@@ -380,6 +416,15 @@ func (s *Service) CreateSale(ctx context.Context, req CreateSaleRequest) (*SaleD
 		return nil, err
 	}
 
+	if replay != nil {
+		detail, err := s.getSaleDetail(ctx, replay)
+		if err != nil {
+			return nil, err
+		}
+		detail.Replayed = true
+		return detail, nil
+	}
+
 	// Notify connected POS/inventory clients that stock changed.
 	realtime.PublishFromContext(ctx, realtime.Event{
 		Event:      realtime.EventSaleCreated,
@@ -401,6 +446,17 @@ func (s *Service) CreateSale(ctx context.Context, req CreateSaleRequest) (*SaleD
 	})
 
 	return &saleDetail, nil
+}
+
+func parseOptionalCheckoutUUID(value string) (*uuid.UUID, error) {
+	if value == "" {
+		return nil, nil
+	}
+	id, err := uuid.Parse(value)
+	if err != nil || id == uuid.Nil {
+		return nil, errors.New("invalid UUID")
+	}
+	return &id, nil
 }
 
 // GetSale gets a sale by ID with items and payments. storeID is the caller's
